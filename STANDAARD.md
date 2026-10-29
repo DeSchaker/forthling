@@ -19,6 +19,20 @@ Ontbrekende CORE-woorden:
 `# #> #S */MOD 2! 2@ <# >BODY >NUMBER ABORT ABORT" ACCEPT ALIGN ALIGNED
 ENVIRONMENT? EVALUATE FILL FM/MOD HOLD KEY M* MOVE QUIT S>D SIGN SM/REM UM* UM/MOD`
 
+### Volgende sessie: hier verder
+
+- **Volgende stap:** fase 1, stap 1. Dat is rekenen met dubbele cellen: `S>D M* UM* UM/MOD
+  FM/MOD SM/REM */MOD 2@ 2!`. Begin met `S>D`, want daar stopt `core.fr` nu (regel 288).
+- **Open keuze:** delen we symmetrisch (zoals nu) of floored? Daarna `/` en `MOD` via
+  `SM/REM` of `FM/MOD` definiëren. Gforth en de meeste moderne systemen delen floored.
+- **Meten:** draai `core.fr` in `tests/forth2012-test-suite/src` met een bestand dat
+  `INCLUDE tester.fr` en `INCLUDE core.fr` bevat. Kijk dan tot welke regel hij komt en hoeveel
+  `INCORRECT RESULT`/`WRONG NUMBER OF RESULTS` er zijn.
+- **Repo:** https://github.com/DeSchaker/forthling (publiek, MIT). De testsuite staat lokaal
+  in `tests/forth2012-test-suite` en wordt door git genegeerd.
+- **Windows:** PowerShell 5.1 geeft argumenten met `"` of `/` verkeerd door aan `git` en `gh`.
+  Gebruik daarvoor Bash, of een bestand voor commitboodschappen.
+
 Ontbrekende CORE EXT-woorden:
 `.R 0<> 2>R 2R> 2R@ :NONAME ACTION-OF BUFFER: C" CASE OF ENDOF ENDCASE COMPILE, DEFER
 DEFER! DEFER@ IS ERASE HOLDS MARKER PAD PARSE PARSE-NAME REFILL SAVE-INPUT

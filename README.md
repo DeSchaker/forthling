@@ -5,8 +5,8 @@
 > 1. A diminutive creature thriving on a two-stack diet.
 > 2. A lean, extensible Forth system built from the ground up.
 
-Een kleine Forth-interpreter in Rust, zonder dependencies, op weg naar de
-[Forth-2012-standaard](https://forth-standard.org/).
+A small Forth interpreter in Rust, with no dependencies, working towards the
+[Forth-2012 standard](https://forth-standard.org/).
 
 ```
 $ cargo run --release
@@ -17,36 +17,38 @@ forthling — WORDS shows the dictionary, BYE quits.
 49  ok
 ```
 
-Een bestand uitvoeren: `cargo run --release -- examples/demo.fs`
+Run a file: `cargo run --release -- examples/demo.fs`
 
-## Wat het kan
+## Features
 
-- Een REPL en het uitvoeren van bestanden (ook genest met `INCLUDE`)
-- Colon-definities die naar threaded code worden gecompileerd, met `RECURSE`,
-  `IMMEDIATE`, `POSTPONE`, `LITERAL`, `[ ]`, `' EXECUTE` en `SEE`
+- A REPL and file execution (nested with `INCLUDE`)
+- Colon definitions compiled to threaded code, with `RECURSE`, `IMMEDIATE`,
+  `POSTPONE`, `LITERAL`, `[ ]`, `' EXECUTE` and `SEE`
 - `IF ELSE THEN`, `BEGIN UNTIL/AGAIN/WHILE REPEAT`, `DO ?DO LOOP +LOOP LEAVE`
 - `VARIABLE`, `CONSTANT`, `CREATE … DOES>`
-- Geheugen dat per byte adresseerbaar is, met cellen van 64 bits
-- `SOURCE`, `>IN`, `STATE`, `WORD` en `FIND`, die werken op buffers in het Forth-geheugen
-- Fouten als standaard THROW-codes, bijvoorbeeld `demo.fs:3: error -13: undefined word: FOO`
+- Byte-addressed memory with 64-bit cells
+- `SOURCE`, `>IN`, `STATE`, `WORD` and `FIND`, working on input buffers in Forth memory
+- Errors as standard THROW codes, e.g. `demo.fs:3: error -13: undefined word: FOO`
 
-Een deel van het woordenboek is in Forth zelf geschreven (`PRELUDE` in `src/main.rs`).
+Part of the dictionary is written in Forth itself (`PRELUDE` in `src/main.rs`).
 
-## Standaard
+## Standard compliance
 
-[`STANDAARD.md`](STANDAARD.md) beschrijft het stappenplan naar Forth-2012 en de huidige stand.
+[`STANDAARD.md`](STANDAARD.md) (in Dutch) holds the roadmap to Forth-2012 and the
+current status. Phase 0, the groundwork, is done. Of the CORE word set, 105 of the
+133 words are present.
 
-## Licentie
+## License
 
 [MIT](LICENSE)
 
-## Testen
+## Testing
 
 ```
 cargo test
 ```
 
-Voor de tests uit de Forth-2012-testsuite moet je die eerst clonen:
+The tests from the Forth-2012 test suite need the suite to be cloned first:
 
 ```
 git clone https://github.com/gerryjackson/forth2012-test-suite.git tests/forth2012-test-suite
