@@ -1,5 +1,10 @@
 # forthling
 
+> **forthling** *(noun)*
+>
+> 1. A diminutive creature thriving on a two-stack diet.
+> 2. A lean, extensible Forth system built from the ground up.
+
 Een kleine Forth-interpreter in Rust, zonder dependencies, op weg naar de
 [Forth-2012-standaard](https://forth-standard.org/).
 
