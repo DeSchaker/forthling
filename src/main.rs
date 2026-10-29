@@ -1394,7 +1394,7 @@ fn main() {
         return;
     }
 
-    println!("Forth — WORDS shows the dictionary, BYE quits.");
+    println!("forthling — WORDS shows the dictionary, BYE quits.");
     let stdin = io::stdin();
     loop {
         io::stdout().flush().ok();
