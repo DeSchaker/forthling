@@ -36,6 +36,10 @@ Een deel van het woordenboek is in Forth zelf geschreven (`PRELUDE` in `src/main
 
 [`STANDAARD.md`](STANDAARD.md) beschrijft het stappenplan naar Forth-2012 en de huidige stand.
 
+## Licentie
+
+[MIT](LICENSE)
+
 ## Testen
 
 ```
