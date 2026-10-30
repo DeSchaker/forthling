@@ -27,7 +27,7 @@ Run a file: `cargo run --release -- examples/demo.fs`
 - `IF ELSE THEN`, `BEGIN UNTIL/AGAIN/WHILE REPEAT`, `DO ?DO LOOP +LOOP LEAVE`
 - `VARIABLE`, `CONSTANT`, `CREATE … DOES>`
 - Byte-addressed memory with 64-bit cells
-- `SOURCE`, `>IN`, `STATE`, `WORD` and `FIND`, working on input buffers in Forth memory
+- `SOURCE`, `>IN`, `STATE`, `WORD`, `FIND` and `EVALUATE`, working on input buffers in Forth memory
 - Errors as standard THROW codes, e.g. `demo.fs:3: error -13: undefined word: FOO`
 
 Part of the dictionary is written in Forth itself (`PRELUDE` in `src/main.rs`).
@@ -35,7 +35,7 @@ Part of the dictionary is written in Forth itself (`PRELUDE` in `src/main.rs`).
 ## Standard compliance
 
 [`STANDAARD.md`](STANDAARD.md) (in Dutch) holds the roadmap to Forth-2012 and the
-current status. Phase 0, the groundwork, is done. Of the CORE word set, 117 of the
+current status. Phase 0, the groundwork, is done. Of the CORE word set, 118 of the
 133 words are present.
 
 ### Implementation-defined choices

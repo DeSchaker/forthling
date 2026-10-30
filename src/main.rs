@@ -603,17 +603,8 @@ impl Forth {
     /// Interprets a file as a nested input source with its own line buffer.
     fn include(&mut self, path: &str) -> Res {
         let src = fs::read_to_string(path).map_err(|e| Throw::with(-38, format!("{path}: {e}")))?;
-        if self.sources.len() == MAX_SOURCES {
-            return Err(Throw::new(NESTING_TOO_DEEP));
-        }
-        let saved_in = self.get(IN_ADDR);
-        self.sources.last_mut().unwrap().saved_in = saved_in;
         let buf = SOURCE_AREA + self.sources.len() * LINE_MAX;
-        self.sources.push(Source {
-            buf,
-            len: 0,
-            saved_in: 0,
-        });
+        self.push_source(buf, 0)?;
         for (n, line) in src.lines().enumerate() {
             self.load_line(line)
                 .and_then(|_| self.interpret_buffer())
@@ -622,10 +613,39 @@ impl Forth {
                 break;
             }
         }
+        self.pop_source();
+        Ok(())
+    }
+
+    /// Interprets a string in memory as a nested input source (EVALUATE).
+    fn evaluate(&mut self, a: usize, n: usize) -> Res {
+        self.push_source(a, n)?;
+        self.interpret_buffer()?;
+        self.pop_source();
+        Ok(())
+    }
+
+    /// Makes `buf` the current input source, remembering the >IN of the
+    /// source it interrupts.
+    fn push_source(&mut self, buf: usize, len: usize) -> Res {
+        if self.sources.len() == MAX_SOURCES {
+            return Err(Throw::new(NESTING_TOO_DEEP));
+        }
+        let saved_in = self.get(IN_ADDR);
+        self.sources.last_mut().unwrap().saved_in = saved_in;
+        self.sources.push(Source {
+            buf,
+            len,
+            saved_in: 0,
+        });
+        self.set(IN_ADDR, 0);
+        Ok(())
+    }
+
+    fn pop_source(&mut self) {
         self.sources.pop();
         let saved_in = self.sources.last().unwrap().saved_in;
         self.set(IN_ADDR, saved_in);
-        Ok(())
     }
 
     /// Recovers from an error: clears the stacks, returns to the terminal
@@ -1448,6 +1468,12 @@ impl Forth {
             let path = f.name()?;
             f.include(&path)
         });
+        self.prim("EVALUATE", |f| {
+            let (a, n) = f.pop2()?;
+            let n = n.max(0);
+            let i = f.check(a, n)?;
+            f.evaluate(i, n as usize)
+        });
         self.prim("BYE", |f| {
             f.bye = true;
             Ok(())
@@ -1665,6 +1691,18 @@ mod tests {
         let inner = temp_file("inner.fs", "10 20\n+ \\ a comment\n");
         let outer = temp_file("outer.fs", &format!("1 INCLUDE {inner} 2 .S\n"));
         assert_eq!(run(&format!("INCLUDE {outer} 3 .S")), "<3> 1 30 2 <4> 1 30 2 3 ");
+    }
+
+    #[test]
+    fn evaluate_is_a_nested_source() {
+        assert_eq!(run(r#"S" 1 2 + ." EVALUATE 4 ."#), "3 4 ");
+        assert_eq!(run(r#": E S" 6 7 *" EVALUATE ; E ."#), "42 ");
+        assert_eq!(run(r#"S" : SQ DUP * ;" EVALUATE 5 SQ ."#), "25 ");
+        assert_eq!(run(r#"S" CHAR A EMIT SOURCE TYPE" EVALUATE"#), "ACHAR A EMIT SOURCE TYPE");
+        let nested = r#": INNER S" 2 3 +" EVALUATE ; S" INNER 10 *" EVALUATE ."#;
+        assert_eq!(run(nested), "50 ");
+        assert_eq!(run(r#": F S" 9 DUP" ; : G F EVALUATE ; IMMEDIATE : H G + ; H ."#), "18 ");
+        assert_eq!(err(r#"S" 1 FOO" EVALUATE"#).code, -13);
     }
 
     #[test]

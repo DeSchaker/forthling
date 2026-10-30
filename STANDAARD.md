@@ -5,24 +5,24 @@ Eerst de verplichte CORE-wordset, daarna CORE EXT en daarna de optionele wordset
 
 ## Waar staan we nu
 
-*Bijgewerkt 2026-10-30, na fase 1 stap 1 (plus `ALIGN ALIGNED >BODY`).*
+*Bijgewerkt 2026-10-30, na fase 1 stap 1, `ALIGN ALIGNED >BODY` en `EVALUATE`.*
 
 | Wordset   | Aanwezig  | Ontbreekt |
 |-----------|----------:|----------:|
-| CORE      | 117 / 133 | 16        |
+| CORE      | 118 / 133 | 15        |
 | CORE EXT  | 12 / 49   | 37        |
 
-Testsuite: `prelimtest.fth` foutloos, `tester.fr` werkt. `core.fr` komt tot regel 780
-(575 van 638 tests, allemaal geslaagd) en stopt daar op `EVALUATE`.
+Testsuite: `prelimtest.fth` foutloos, `tester.fr` werkt. `core.fr` komt tot regel 835
+(590 van 638 tests, allemaal geslaagd) en stopt daar op `<#`.
 
 Ontbrekende CORE-woorden:
-`# #> #S <# >NUMBER ABORT ABORT" ACCEPT ENVIRONMENT? EVALUATE FILL HOLD KEY MOVE QUIT SIGN`
+`# #> #S <# >NUMBER ABORT ABORT" ACCEPT ENVIRONMENT? FILL HOLD KEY MOVE QUIT SIGN`
 
 ### Volgende sessie: hier verder
 
-- **Volgende stap:** fase 1, stap 4: `EVALUATE`, want daar stopt `core.fr` nu (regel 780).
-  `EVALUATE` wordt een extra soort invoerbron (`Source`) waarvan de buffer de string zelf is.
-  Daarna de rest van stap 2 (pictured output), 3 (`FILL MOVE`), 4 en 6.
+- **Volgende stap:** fase 1, stap 2: pictured output `<# # #S HOLD SIGN #>`, want daar stopt
+  `core.fr` nu (regel 835). De buffer is al gereserveerd (`HOLD_END` in `src/main.rs`).
+  Daarna stap 3 (`FILL MOVE`), de rest van 4 (`>NUMBER ACCEPT KEY`) en 6.
 - **Besloten (2026-10-30):** deling is floored. `/ MOD /MOD */ */MOD` staan in de prelude
   en gebruiken `FM/MOD`. Gedocumenteerd in de README.
 - **Gerepareerd:** `WHILE` laat zijn orig nu ónder de dest achter, zodat meerdere `WHILE`s
@@ -126,7 +126,8 @@ In deze volgorde, omdat latere groepen op eerdere leunen:
 2. **Pictured numeric output**: `<# # #S HOLD SIGN #>`. Daarna kunnen `.`, `U.`, `.R` en `U.R`
    in Forth in de prelude, net als in een echte Forth.
 3. **Geheugen en strings**: `FILL MOVE` (`ALIGN ALIGNED COUNT` zijn er al).
-4. **Parsing en invoer**: `>NUMBER EVALUATE ACCEPT KEY` (`SOURCE >IN WORD` zijn er al sinds fase 0).
+4. **Parsing en invoer**: `>NUMBER ACCEPT KEY` (`SOURCE >IN WORD` zijn er al sinds fase 0,
+   `EVALUATE` sinds 2026-10-30: een geneste `Source` waarvan de buffer de string zelf is).
    `EVALUATE` wordt een extra soort invoerbron waarvan de buffer de string zelf is.
    Laat de eigen getalconversie (`number()`) daarna `>NUMBER` gebruiken.
 5. ✅ **Woordenboek**: `>BODY` (`STATE` en `FIND` zijn er al sinds fase 0).
