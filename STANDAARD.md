@@ -5,26 +5,28 @@ Eerst de verplichte CORE-wordset, daarna CORE EXT en daarna de optionele wordset
 
 ## Waar staan we nu
 
-*Bijgewerkt 2026-10-29, na fase 0.*
+*Bijgewerkt 2026-10-30, na fase 1 stap 1 (plus `ALIGN ALIGNED >BODY`).*
 
 | Wordset   | Aanwezig  | Ontbreekt |
 |-----------|----------:|----------:|
-| CORE      | 105 / 133 | 28        |
+| CORE      | 117 / 133 | 16        |
 | CORE EXT  | 12 / 49   | 37        |
 
-Testsuite: `prelimtest.fth` foutloos, `tester.fr` werkt. `core.fr` komt tot regel 288
-(203 van 638 tests, allemaal geslaagd) en stopt daar op `S>D`.
+Testsuite: `prelimtest.fth` foutloos, `tester.fr` werkt. `core.fr` komt tot regel 780
+(575 van 638 tests, allemaal geslaagd) en stopt daar op `EVALUATE`.
 
 Ontbrekende CORE-woorden:
-`# #> #S */MOD 2! 2@ <# >BODY >NUMBER ABORT ABORT" ACCEPT ALIGN ALIGNED
-ENVIRONMENT? EVALUATE FILL FM/MOD HOLD KEY M* MOVE QUIT S>D SIGN SM/REM UM* UM/MOD`
+`# #> #S <# >NUMBER ABORT ABORT" ACCEPT ENVIRONMENT? EVALUATE FILL HOLD KEY MOVE QUIT SIGN`
 
 ### Volgende sessie: hier verder
 
-- **Volgende stap:** fase 1, stap 1. Dat is rekenen met dubbele cellen: `S>D M* UM* UM/MOD
-  FM/MOD SM/REM */MOD 2@ 2!`. Begin met `S>D`, want daar stopt `core.fr` nu (regel 288).
-- **Open keuze:** delen we symmetrisch (zoals nu) of floored? Daarna `/` en `MOD` via
-  `SM/REM` of `FM/MOD` definiëren. Gforth en de meeste moderne systemen delen floored.
+- **Volgende stap:** fase 1, stap 4: `EVALUATE`, want daar stopt `core.fr` nu (regel 780).
+  `EVALUATE` wordt een extra soort invoerbron (`Source`) waarvan de buffer de string zelf is.
+  Daarna de rest van stap 2 (pictured output), 3 (`FILL MOVE`), 4 en 6.
+- **Besloten (2026-10-30):** deling is floored. `/ MOD /MOD */ */MOD` staan in de prelude
+  en gebruiken `FM/MOD`. Gedocumenteerd in de README.
+- **Gerepareerd:** `WHILE` laat zijn orig nu ónder de dest achter, zodat meerdere `WHILE`s
+  één `BEGIN` kunnen delen (`core.fr` GI5).
 - **Meten:** draai `core.fr` in `tests/forth2012-test-suite/src` met een bestand dat
   `INCLUDE tester.fr` en `INCLUDE core.fr` bevat. Kijk dan tot welke regel hij komt en hoeveel
   `INCORRECT RESULT`/`WRONG NUMBER OF RESULTS` er zijn.
@@ -119,16 +121,15 @@ Fouten zijn nu `String`s. Vervang ze door standaard-throwcodes (tabel 9.1), bijv
 
 In deze volgorde, omdat latere groepen op eerdere leunen:
 
-1. **Dubbele cellen en rekenen**: `S>D M* UM* UM/MOD FM/MOD SM/REM */MOD 2@ 2!`.
-   Rust's `i128`/`u128` maakt dit eenvoudig. Kies daarna of `/` en `MOD` symmetrisch (nu)
-   of floored delen en definieer ze via `SM/REM` of `FM/MOD`. Documenteer de keuze.
+1. ✅ **Dubbele cellen en rekenen**: `S>D M* UM* UM/MOD FM/MOD SM/REM */MOD 2@ 2!`.
+   Deling is floored; `/` en `MOD` zijn gedefinieerd via `FM/MOD`.
 2. **Pictured numeric output**: `<# # #S HOLD SIGN #>`. Daarna kunnen `.`, `U.`, `.R` en `U.R`
    in Forth in de prelude, net als in een echte Forth.
-3. **Geheugen en strings**: `ALIGN ALIGNED COUNT FILL MOVE`.
+3. **Geheugen en strings**: `FILL MOVE` (`ALIGN ALIGNED COUNT` zijn er al).
 4. **Parsing en invoer**: `>NUMBER EVALUATE ACCEPT KEY` (`SOURCE >IN WORD` zijn er al sinds fase 0).
    `EVALUATE` wordt een extra soort invoerbron waarvan de buffer de string zelf is.
    Laat de eigen getalconversie (`number()`) daarna `>NUMBER` gebruiken.
-5. **Woordenboek**: `>BODY` (`STATE` en `FIND` zijn er al sinds fase 0).
+5. ✅ **Woordenboek**: `>BODY` (`STATE` en `FIND` zijn er al sinds fase 0).
 6. **Systeem**: `ABORT ABORT" QUIT ENVIRONMENT?`. `ENVIRONMENT?` beantwoordt in elk geval
    `/COUNTED-STRING /HOLD /PAD ADDRESS-UNIT-BITS FLOORED MAX-CHAR MAX-D MAX-N MAX-U
    MAX-UD RETURN-STACK-CELLS STACK-CELLS`.

@@ -52,6 +52,12 @@ const PRELUDE: &str = r#"
 : 2DROP   DROP DROP ;
 : 2SWAP   ROT >R ROT R> ;
 : 2OVER   3 PICK 3 PICK ;
+\ Division is floored (see README).
+: */MOD   >R M* R> FM/MOD ;
+: */      */MOD NIP ;
+: /MOD    >R S>D R> FM/MOD ;
+: /       /MOD NIP ;
+: MOD     /MOD DROP ;
 : 1+  1 + ;   : 1-  1 - ;   : 2*  2 * ;
 : 0=  0 = ;   : 0<  0 < ;   : 0>  0 > ;   : <>  = 0= ;
 : NEGATE  0 SWAP - ;
@@ -60,6 +66,8 @@ const PRELUDE: &str = r#"
 : MAX     2DUP < IF SWAP THEN DROP ;
 : +!      DUP @ ROT + SWAP ! ;
 : CELLS  8 * ;   : CELL+  8 + ;   : CHARS ;   : CHAR+  1+ ;
+: ALIGNED  7 + -8 AND ;
+: ALIGN    HERE ALIGNED HERE - ALLOT ;
 : VARIABLE  CREATE 0 , ;
 : CR      10 EMIT ;
 : SPACE   BL EMIT ;
@@ -119,6 +127,7 @@ impl Throw {
             -24 => "invalid numeric argument",
             -26 => "loop parameters unavailable",
             -29 => "compiler nesting",
+            -31 => ">BODY used on non-CREATEd definition",
             -38 => "non-existent file",
             NESTING_TOO_DEEP => "input nesting too deep",
             _ => "exception",
@@ -290,12 +299,42 @@ impl Forth {
         Ok(())
     }
 
-    fn divop(&mut self, op: impl Fn(Cell, Cell) -> Cell) -> Res {
-        let (a, b) = self.pop2()?;
-        if b == 0 {
+    /// Pushes a double cell: the low cell first, the high cell on top.
+    fn push_d(&mut self, d: i128) {
+        self.push_ud(d as u128);
+    }
+
+    fn push_ud(&mut self, d: u128) {
+        self.push(d as u64 as Cell);
+        self.push((d >> 64) as u64 as Cell);
+    }
+
+    fn pop_d(&mut self) -> Res<i128> {
+        Ok(self.pop_ud()? as i128)
+    }
+
+    fn pop_ud(&mut self) -> Res<u128> {
+        let (lo, hi) = self.pop2()?;
+        Ok((hi as u64 as u128) << 64 | lo as u64 as u128)
+    }
+
+    /// FM/MOD (floored) or SM/REM (symmetric): ( d n -- rem quot ).
+    fn divide(&mut self, floored: bool) -> Res {
+        let d = self.pop()? as i128;
+        let n = self.pop_d()?;
+        if d == 0 {
             return Err(Throw::new(-10));
         }
-        self.push(op(a, b));
+        // The only overflow, the smallest double divided by -1, is out of range anyway.
+        let mut q = n.checked_div(d).ok_or(Throw::new(-11))?;
+        let mut r = n % d;
+        if floored && r != 0 && (r < 0) != (d < 0) {
+            q -= 1;
+            r += d;
+        }
+        let q = Cell::try_from(q).map_err(|_| Throw::new(-11))?;
+        self.push(r as Cell);
+        self.push(q);
         Ok(())
     }
 
@@ -929,25 +968,50 @@ impl Forth {
         self.prim("+", |f| f.binop(|a, b| a.wrapping_add(b)));
         self.prim("-", |f| f.binop(|a, b| a.wrapping_sub(b)));
         self.prim("*", |f| f.binop(|a, b| a.wrapping_mul(b)));
-        self.prim("/", |f| f.divop(|a, b| a.wrapping_div(b)));
-        self.prim("MOD", |f| f.divop(|a, b| a.wrapping_rem(b)));
-        self.prim("/MOD", |f| {
-            let (a, b) = f.pop2()?;
-            if b == 0 {
-                return Err(Throw::new(-10));
-            }
-            f.push(a.wrapping_rem(b));
-            f.push(a.wrapping_div(b));
+        // / MOD /MOD */ */MOD are defined in the prelude via FM/MOD.
+
+        // double cells
+        self.prim("S>D", |f| {
+            let n = f.pop()?;
+            f.push_d(n as i128);
             Ok(())
         });
-        self.prim("*/", |f| {
-            let c = f.pop()?;
+        self.prim("M*", |f| {
             let (a, b) = f.pop2()?;
-            if c == 0 {
+            f.push_d(a as i128 * b as i128);
+            Ok(())
+        });
+        self.prim("UM*", |f| {
+            let (a, b) = f.pop2()?;
+            f.push_ud(a as u64 as u128 * b as u64 as u128);
+            Ok(())
+        });
+        self.prim("UM/MOD", |f| {
+            let d = f.pop()? as u64 as u128;
+            let n = f.pop_ud()?;
+            if d == 0 {
                 return Err(Throw::new(-10));
             }
-            let r = a as i128 * b as i128 / c as i128;
-            f.push(Cell::try_from(r).map_err(|_| Throw::new(-11))?);
+            let q = u64::try_from(n / d).map_err(|_| Throw::new(-11))?;
+            f.push((n % d) as u64 as Cell);
+            f.push(q as Cell);
+            Ok(())
+        });
+        self.prim("FM/MOD", |f| f.divide(true));
+        self.prim("SM/REM", |f| f.divide(false));
+        self.prim("2@", |f| {
+            let a = f.pop()?;
+            let i = f.check(a, 2 * CELL as Cell)?;
+            f.push(f.get(i + CELL));
+            f.push(f.get(i));
+            Ok(())
+        });
+        self.prim("2!", |f| {
+            let a = f.pop()?;
+            let (x1, x2) = f.pop2()?;
+            let i = f.check(a, 2 * CELL as Cell)?;
+            f.set(i, x2);
+            f.set(i + CELL, x1);
             Ok(())
         });
         self.prim("2/", |f| {
@@ -1176,6 +1240,17 @@ impl Forth {
             }
             f.invoke(xt as usize)
         });
+        self.prim(">BODY", |f| {
+            let xt = f.pop()?;
+            match usize::try_from(xt).ok().and_then(|i| f.dict.get(i)) {
+                Some(Word { kind: Kind::Created { addr, .. }, .. }) => {
+                    let addr = *addr;
+                    f.push(addr);
+                    Ok(())
+                }
+                _ => Err(Throw::new(-31)),
+            }
+        });
         self.prim("CHAR", |f| {
             let (a, n) = f.parse_name();
             if n == 0 {
@@ -1269,17 +1344,21 @@ impl Forth {
             f.code.push(Instr::Branch(d));
             Ok(())
         });
+        // WHILE ( dest -- orig dest ) leaves its orig under the dest, so
+        // several WHILEs can share one BEGIN; REPEAT is AGAIN THEN.
         self.imm("WHILE", |f| {
             f.need_def()?;
+            let d = f.pop_dest()?;
             let p = f.emit_fwd(Instr::ZBranch(0));
             f.ctrl.push(Ctrl::Orig(p));
+            f.ctrl.push(Ctrl::Dest(d));
             Ok(())
         });
         self.imm("REPEAT", |f| {
             f.need_def()?;
-            let p = f.pop_orig()?;
             let d = f.pop_dest()?;
             f.code.push(Instr::Branch(d));
+            let p = f.pop_orig()?;
             let end = f.code.len();
             f.patch(p, end);
             Ok(())
@@ -1441,10 +1520,26 @@ mod tests {
     #[test]
     fn arithmetic() {
         assert_eq!(run("2 3 + 4 * ."), "20 ");
-        assert_eq!(run("-7 2 / . -7 2 MOD ."), "-3 -1 ");
+        assert_eq!(run("-7 2 / . -7 2 MOD ."), "-4 1 ");
+        assert_eq!(run("7 -2 / . 7 -2 MOD ."), "-4 -1 ");
         assert_eq!(run("10 3 /MOD . ."), "3 1 ");
         assert_eq!(run("1000000 3000000 1000 */ ."), "3000000000 ");
+        assert_eq!(run("-7 2 1 */MOD . ."), "-14 0 ");
         assert_eq!(run("-8 2/ ."), "-4 ");
+    }
+
+    #[test]
+    fn double_cells() {
+        assert_eq!(run("-5 S>D . ."), "-1 -5 ");
+        assert_eq!(run("-1 -1 UM* . U."), "-2 1 ");
+        assert_eq!(run("-1 2 M* . ."), "-1 -2 ");
+        assert_eq!(run("0 1 4 UM/MOD . ."), "4611686018427387904 0 ");
+        assert_eq!(run("-7 S>D 2 FM/MOD . . -7 S>D 2 SM/REM . ."), "-4 1 -3 -1 ");
+        assert_eq!(run("7 S>D -2 FM/MOD . . 7 S>D -2 SM/REM . ."), "-4 -1 -3 1 ");
+        assert_eq!(run("CREATE P 2 CELLS ALLOT 1 2 P 2! P @ . P 2@ . ."), "2 2 1 ");
+        assert_eq!(err("0 1 1 UM/MOD").code, -11);
+        assert_eq!(err("1 0 0 FM/MOD").code, -10);
+        assert_eq!(err("0 -9223372036854775808 -1 SM/REM").code, -11);
     }
 
     #[test]
@@ -1477,6 +1572,9 @@ mod tests {
         assert_eq!(run(": T 0 0 ?DO 1 . LOOP ; T"), "");
         assert_eq!(run(": T 3 BEGIN DUP . 1- DUP 0= UNTIL DROP ; T"), "3 2 1 ");
         assert_eq!(run(": T 0 BEGIN DUP 3 < WHILE DUP . 1+ REPEAT DROP ; T"), "0 1 2 ");
+        let two_whiles = ": T BEGIN DUP 2 > WHILE DUP 5 < WHILE 1+ REPEAT 123 ELSE 345 THEN ; \
+                          1 T . . 3 T . .";
+        assert_eq!(run(two_whiles), "345 1 123 5 ");
         assert_eq!(run(": T 10 0 DO I 2 = IF UNLOOP EXIT THEN I . LOOP ; T 7 ."), "0 1 7 ");
     }
 
@@ -1495,6 +1593,8 @@ mod tests {
         assert_eq!(run("VARIABLE V -1 V ! 0 V C! V @ ."), "-256 ");
         // CREATE aligns its data field after an odd C,
         assert_eq!(run("1 C, CREATE X X 8 MOD ."), "0 ");
+        assert_eq!(run("0 ALIGNED . 1 ALIGNED . 8 ALIGNED . 9 ALIGNED ."), "0 8 8 16 ");
+        assert_eq!(run("1 C, ALIGN HERE 8 MOD ."), "0 ");
         assert_eq!(err("-1 @").code, -9);
         assert_eq!(err("1048570 @").code, -9);
     }
@@ -1504,6 +1604,9 @@ mod tests {
         assert_eq!(run(": KONST CREATE , DOES> @ ; 7 KONST SEVEN SEVEN SEVEN + ."), "14 ");
         let counter = ": COUNTER CREATE 0 , DOES> 1 OVER +! @ ; COUNTER TICK TICK . TICK . TICK .";
         assert_eq!(run(counter), "1 2 3 ");
+        assert_eq!(run("CREATE X 5 , ' X >BODY X = . ' X >BODY @ ."), "-1 5 ");
+        assert_eq!(run(": K CREATE , DOES> @ ; 3 K Y ' Y >BODY @ ."), "3 ");
+        assert_eq!(err("' DUP >BODY").code, -31);
     }
 
     #[test]
