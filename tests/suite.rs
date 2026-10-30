@@ -113,6 +113,12 @@ fn suite_double() {
 }
 
 #[test]
+fn suite_facility() {
+    let Some(out) = run_suite(&["facilitytest.fth"]) else { return };
+    assert!(out.contains("End of Facility word tests"), "{out}");
+}
+
+#[test]
 fn suite_tester() {
     let Some(path) = suite_file("tester.fr") else { return };
     let mut f = Forth::new();

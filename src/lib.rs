@@ -14,12 +14,14 @@ mod memory;
 mod parse;
 mod run;
 mod stack;
+mod terminal;
 mod throw;
 mod words;
 
 #[cfg(test)]
 mod tests;
 
+pub use terminal::Input;
 pub use throw::{Throw, QUIT};
 
 // Every module starts with `use crate::*;`, so these make the items of all
@@ -35,6 +37,7 @@ pub(crate) use stack::*;
 pub(crate) use std::collections::{HashMap, HashSet};
 pub(crate) use std::io::{self, BufRead};
 pub(crate) use std::rc::Rc;
+pub(crate) use terminal::*;
 pub(crate) use throw::*;
 
 pub type Cell = i64;
@@ -67,9 +70,9 @@ pub struct Forth {
     sources: Vec<Source>,
     sq_next: usize,
     hld: usize,                              // start of the pictured numeric output string
-    input: Box<dyn BufRead>, // the terminal: the REPL, ACCEPT and KEY read from here
-    interactive: bool,       // flush output before waiting for input
-    catches: usize,          // CATCHes in progress
+    input: Box<dyn Input>, // the terminal: the REPL, ACCEPT and KEY read from here
+    interactive: bool,     // flush output before waiting for input
+    catches: usize,        // CATCHes in progress
     substitutions: HashMap<String, Vec<u8>>, // REPLACES texts, by upper-case name
     files: Vec<Option<OpenFile>>, // open files, indexed by file id - 1
     included: HashSet<String>, // files INCLUDED so far, for REQUIRED
@@ -107,7 +110,7 @@ impl Forth {
             }],
             sq_next: 0,
             hld: HOLD_END,
-            input: Box::new(io::BufReader::new(io::stdin())),
+            input: Box::<Stdin>::default(),
             interactive: false,
             catches: 0,
             substitutions: HashMap::new(),
@@ -138,7 +141,7 @@ impl Forth {
     }
 
     /// Replaces the terminal input (standard input by default).
-    pub fn set_input(&mut self, input: Box<dyn BufRead>) {
+    pub fn set_input(&mut self, input: Box<dyn Input>) {
         self.input = input;
     }
 

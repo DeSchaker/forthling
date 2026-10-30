@@ -6,6 +6,7 @@ mod console;
 mod control;
 mod define;
 mod double;
+mod facility;
 mod file;
 mod memory;
 mod stack;
@@ -28,4 +29,5 @@ pub(crate) fn install(f: &mut Forth) {
     tools::install(f);
     system::install(f);
     file::install(f);
+    facility::install(f);
 }

@@ -5,7 +5,7 @@ Eerst de verplichte CORE-wordset, daarna CORE EXT en daarna de optionele wordset
 
 ## Waar staan we nu
 
-*Bijgewerkt 2026-10-30: CORE, CORE EXT, EXCEPTION, TOOLS, STRING, FILE en DOUBLE zijn compleet; mijlpaal M5 is bereikt.*
+*Bijgewerkt 2026-10-30: CORE, CORE EXT, EXCEPTION, TOOLS, STRING, FILE, DOUBLE en FACILITY zijn compleet; mijlpaal M5 is bereikt.*
 
 | Wordset       | Aanwezig  | Ontbreekt |
 |---------------|----------:|----------:|
@@ -21,6 +21,8 @@ Eerst de verplichte CORE-wordset, daarna CORE EXT en daarna de optionele wordset
 | FILE EXT      | 8 / 8     | 0         |
 | DOUBLE        | 20 / 20   | 0         |
 | DOUBLE EXT    | 3 / 3     | 0         |
+| FACILITY      | 3 / 3     | 0         |
+| FACILITY EXT  | 37 / 37   | 0         |
 
 Ontbrekend in TOOLS EXT: `;CODE ASSEMBLER CODE EDITOR` (er is geen assembler en geen
 editor), `FORGET` (verouderd; gebruik `MARKER`) en `NAME>COMPILE NAME>INTERPRET NAME>STRING
@@ -28,10 +30,10 @@ TRAVERSE-WORDLIST` (die hebben wordlists nodig en komen met SEARCH).
 
 Testsuite: in de volgorde van `runtests.fth` draaien `prelimtest.fth`, `tester.fr`, `core.fr`,
 `coreplustest.fth`, `utilities.fth`, `errorreport.fth`, `coreexttest.fth`, `doubletest.fth`,
-`exceptiontest.fth`, `filetest.fth`, `stringtest.fth` en `toolstest.fth` **foutloos**.
-`cargo test` draait ze allemaal vanuit `tests/suite.rs` (`suite_prelimtest`, `suite_core`,
-`suite_core_ext`, `suite_double`, `suite_exception`, `suite_file_access`, `suite_string`,
-`suite_tools`); een nieuwe wordset-test is één regel met de hulpfunctie `run_suite`, die ook
+`exceptiontest.fth`, `facilitytest.fth`, `filetest.fth`, `stringtest.fth` en `toolstest.fth`
+**foutloos**. `cargo test` draait ze allemaal vanuit `tests/suite.rs` (`suite_prelimtest`,
+`suite_core`, `suite_core_ext`, `suite_double`, `suite_exception`, `suite_facility`,
+`suite_file_access`, `suite_string`, `suite_tools`); een nieuwe wordset-test is één regel met de hulpfunctie `run_suite`, die ook
 meerdere bestanden neemt (`filetest.fth` heeft `coreexttest.fth` nodig). `toolstest.fth`
 slaat zijn `TRAVERSE-WORDLIST`-deel over zolang SEARCH ontbreekt.
 
@@ -64,11 +66,12 @@ her-exporteert de items van alle modules, zodat ze overal beschikbaar zijn. De m
 | `memory.rs` | geheugenindeling (constanten), `get`/`set`/`check`/`reserve`, strings in het geheugen |
 | `dictionary.rs` | `Word`, `Kind`, `define`/`find`, `SEE` en `WORDS` |
 | `parse.rs` | parsen van de invoerbuffer, getallen, pictured numeric output |
-| `interpreter.rs` | buitenste interpreter, invoerbronnen (`Source`, `Origin`), terminal |
+| `interpreter.rs` | buitenste interpreter, invoerbronnen (`Source`, `Origin`), lezen van de terminal |
+| `terminal.rs` | de trait `Input` en `Stdin` (standaardinvoer via een thread, voor `KEY?`) |
 | `files.rs` | file ids, `INCLUDED`/`REQUIRED`, hulpfuncties voor de FILE-woorden |
 | `run.rs` | binnenste interpreter: `Instr`, frames, loops, `CATCH` |
 | `compiler.rs` | `Ctrl`, hulpjes voor definities en control flow, `TO`/`IS` |
-| `words/*.rs` | de primitieven per groep (`stack`, `double`, `memory`, `console`, `define`, `control`, `string`, `tools`, `system`, `file`) |
+| `words/*.rs` | de primitieven per groep (`stack`, `double`, `memory`, `console`, `define`, `control`, `string`, `tools`, `system`, `file`, `facility`) |
 | `prelude.fs` | woorden die in Forth zelf geschreven zijn (`include_str!`) |
 | `tests.rs` | unit-tests (mogen bij de interne staat); de suites staan in `tests/suite.rs` |
 
@@ -77,8 +80,16 @@ Een nieuwe wordset krijgt zijn eigen `words/<naam>.rs` met een `install(f)`, aan
 
 ### Volgende sessie: hier verder
 
-- **Volgende stap:** fase 3, FACILITY (`facilitytest.fth`): `BEGIN-STRUCTURE FIELD: +FIELD
-  END-STRUCTURE …`, `KEY? PAGE AT-XY MS TIME&DATE`.
+- **Volgende stap:** fase 3, MEMORY (`memorytest.fth`): `ALLOCATE FREE RESIZE`, een heap in
+  het Forth-geheugen.
+- **FACILITY:** structuren, `EKEY EKEY? EMIT? EKEY>CHAR EKEY>FKEY` en de `K-…`-constanten
+  staan in `prelude.fs`; `KEY? MS TIME&DATE AT-XY PAGE` in `words/facility.rs`. De terminal
+  (`terminal.rs`) is nu een trait `Input` (een `BufRead` met `ready()`); standaardinvoer
+  (`Stdin`) wordt door een thread per regel gelezen, die pas start bij het eerste gebruik.
+  Zo blokkeert `KEY?` niet: hij is waar zodra er een hele regel getypt is. `EKEY` geeft
+  alleen tekens (de terminal staat niet in raw mode); speciale toetsen hebben nummers boven
+  Unicode (`$110000` …) maar komen nooit voor. `TIME&DATE` geeft UTC (std kent geen lokale
+  tijdzone; dat zou FFI vergen). `AT-XY` en `PAGE` schrijven ANSI-escapes.
 - **DOUBLE:** de rekenwoorden zijn primitieven op `i128` (`d_unop`, `d_binop`, `d_compare`);
   `2LITERAL 2ROT D. D.R` staan in de prelude. `number()` geeft nu `(u128, bool)`: een punt
   aan het eind maakt er een dubbele cel van (alleen aan het eind, zoals de standaard zegt).
@@ -271,7 +282,7 @@ Gegroepeerd van makkelijk naar lastig:
 | 3 ✅ | STRING    | `COMPARE SEARCH /STRING -TRAILING BLANK CMOVE CMOVE> SLITERAL`, plus `REPLACES`/`SUBSTITUTE`/`UNESCAPE`. Klaar 2026-10-30. |
 | 4 ✅ | FILE      | `INCLUDED INCLUDE REQUIRE`, plus file-I/O (`OPEN-FILE READ-LINE WRITE-FILE …`) met echte file ids. Klaar 2026-10-30. |
 | 5 ✅ | DOUBLE    | `D+ D- D. D< DNEGATE 2CONSTANT 2VARIABLE M+ M*/ …`, en getallen met een punt (`123.`) als dubbele cel. Klaar 2026-10-30. |
-| 6 | FACILITY  | `KEY? PAGE AT-XY MS TIME&DATE`, plus `BEGIN-STRUCTURE`/`FIELD:`. Structuren zijn nuttig, terminal-I/O minder. |
+| 6 ✅ | FACILITY  | `KEY? PAGE AT-XY MS TIME&DATE`, plus `BEGIN-STRUCTURE`/`FIELD:`. Klaar 2026-10-30. |
 | 7 | MEMORY    | `ALLOCATE FREE RESIZE`: een eenvoudige heap in het bovenste deel van het geheugen. |
 | 8 | LOCALS    | `{: a b | c -- :}`. Vergt een aparte locals-frame in `Frame`. |
 | 9 | SEARCH    | Wordlists: `WORDLIST GET-ORDER SET-ORDER DEFINITIONS …`. Vraagt een herbouw van `find()`. |
@@ -332,7 +343,7 @@ Core word set, the Core Extensions word set, the Exception word set, …"*.
 | M3 ✅ | Fase 1 | `core.fr` foutloos en alle CORE-woorden aanwezig → **CORE-compliant** (2026-10-30) |
 | M4 ✅ | Fase 2 | `coreexttest.fth` foutloos (2026-10-30) |
 | M5 ✅ | EXCEPTION + TOOLS + STRING | bijbehorende testfiles foutloos (2026-10-30) |
-| M6+ | overige wordsets naar behoefte (FILE en DOUBLE ✅ 2026-10-30) | idem |
+| M6+ | overige wordsets naar behoefte (FILE, DOUBLE en FACILITY ✅ 2026-10-30) | idem |
 
 M2 is de grootste en riskantste stap. Die doe je het best in één keer, met de huidige
 unit-tests als vangnet, voordat er nieuwe woorden bovenop komen.

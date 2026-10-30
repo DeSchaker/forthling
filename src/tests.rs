@@ -351,6 +351,25 @@ fn string_words() {
 }
 
 #[test]
+fn structures() {
+    let src = "BEGIN-STRUCTURE POINT FIELD: P.X FIELD: P.Y CFIELD: P.TAG END-STRUCTURE
+               POINT . 0 P.Y . CREATE P POINT ALLOT 3 P P.X ! 4 P P.Y ! P P.X @ P P.Y @ + .";
+    assert_eq!(run(src), "17 8 7 ");
+    assert_eq!(run("BEGIN-STRUCTURE S 1 +FIELD A FIELD: B END-STRUCTURE 0 B . S ."), "8 16 ");
+}
+
+#[test]
+fn facility_words() {
+    assert_eq!(run("5 2 AT-XY PAGE"), "\x1b[3;6H\x1b[2J\x1b[H");
+    assert_eq!(run("0 MS 65 EKEY>CHAR . . K-UP EKEY>FKEY . K-UP = . EMIT? ."), "-1 65 -1 -1 -1 ");
+    assert_eq!(run_with_input("KEY? . KEY . KEY? .", "A"), "-1 65 0 ");
+    let date = run("TIME&DATE . . . . . .");
+    let v: Vec<i64> = date.split_whitespace().map(|s| s.parse().unwrap()).collect();
+    assert!(v[0] >= 2024 && (1..=12).contains(&v[1]) && (1..=31).contains(&v[2]), "{date}");
+    assert!(v[3] < 24 && v[4] < 60 && v[5] < 60, "{date}");
+}
+
+#[test]
 fn double_numbers() {
     assert_eq!(run("1. . . -2. . . : T 3. ; T D. HEX FF. DECIMAL D."), "0 1 -1 -2 3 255 ");
     assert_eq!(run("1. 2. D+ D. 5. 7. D- D. -3. DABS D. 1. DNEGATE D."), "3 -2 3 -1 ");

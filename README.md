@@ -34,6 +34,8 @@ Run a file: `cargo run --release -- examples/demo.fs`
 - Byte-addressed memory with 64-bit cells
 - Double-cell numbers: `123.` is a double, with `D+ D- D. D.R D< DNEGATE DABS M+ M*/`,
   `2VALUE`, `2LITERAL` and more
+- Structures (`BEGIN-STRUCTURE FIELD: CFIELD: +FIELD END-STRUCTURE`), `MS`, `TIME&DATE`,
+  `KEY?`, and `AT-XY`/`PAGE` for the screen
 - `SOURCE`, `>IN`, `STATE`, `WORD`, `PARSE`, `REFILL`, `SAVE-INPUT`, `FIND` and `EVALUATE`,
   working on input buffers in Forth memory
 - Errors as standard THROW codes, e.g. `demo.fs:3: error -13: undefined word: FOO`,
@@ -58,13 +60,14 @@ assert_eq!(forth.output(), b"49 ");
 ## Standard compliance
 
 [`STANDAARD.md`](STANDAARD.md) (in Dutch) holds the roadmap to Forth-2012 and the
-current status. The CORE, CORE EXT, DOUBLE, EXCEPTION, FILE, STRING and TOOLS word sets
-are complete, and their tests in the [Forth-2012 test suite](https://github.com/gerryjackson/forth2012-test-suite)
+current status. The CORE, CORE EXT, DOUBLE, EXCEPTION, FACILITY, FILE, STRING and TOOLS
+word sets are complete, and their tests in the [Forth-2012 test suite](https://github.com/gerryjackson/forth2012-test-suite)
 pass (`core.fr`, `coreplustest.fth`, `coreexttest.fth`, `doubletest.fth`,
-`exceptiontest.fth`, `filetest.fth`, `stringtest.fth` and `toolstest.fth`). Of TOOLS EXT, everything is present except
+`exceptiontest.fth`, `facilitytest.fth`, `filetest.fth`, `stringtest.fth` and
+`toolstest.fth`). Of TOOLS EXT, everything is present except
 `;CODE ASSEMBLER CODE EDITOR` (there is no assembler or editor), the obsolescent `FORGET`
 (use `MARKER`), and `NAME>COMPILE NAME>INTERPRET NAME>STRING TRAVERSE-WORDLIST`, which will
-come with the SEARCH word set. Next up is FACILITY.
+come with the SEARCH word set. Next up is MEMORY.
 
 ### Implementation-defined choices
 
@@ -81,7 +84,12 @@ come with the SEARCH word set. Next up is FACILITY.
 - `ACCEPT` and `KEY` read from standard input, which the terminal buffers per line: `KEY`
   returns once a line is entered, and the line ending is a character too. `ACCEPT` keeps
   at most the requested number of characters and drops the rest of the line. At the end
-  of input `ACCEPT` returns 0 and `KEY` throws `-39`.
+  of input `ACCEPT` returns 0 and `KEY` throws `-39`. `KEY?` never waits: it is true once
+  a line has been entered and not yet read. `EKEY` returns characters only, like `KEY`;
+  the special keys (`K-UP`, `K-F1`, …) are numbered from `$110000`, above Unicode, and
+  never occur.
+- `TIME&DATE` gives the time in UTC. `AT-XY` and `PAGE` write ANSI escape sequences, which
+  current terminals, Windows Terminal included, understand.
 - The data stack and the return stack hold 65536 cells each; overflowing them throws `-3`
   and `-5`. `ENVIRONMENT?` reports these sizes and the other standard queries.
 - `ABORT` throws `-1` and `ABORT"` throws `-2`; both empty the stacks and return to the
