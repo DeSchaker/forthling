@@ -5,24 +5,23 @@ Eerst de verplichte CORE-wordset, daarna CORE EXT en daarna de optionele wordset
 
 ## Waar staan we nu
 
-*Bijgewerkt 2026-10-30, na fase 1 stap 1 en 2, `ALIGN ALIGNED >BODY` en `EVALUATE`.*
+*Bijgewerkt 2026-10-30, na fase 1 stap 1 en 2, `ALIGN ALIGNED >BODY`, `EVALUATE` en `>NUMBER`.*
 
 | Wordset   | Aanwezig  | Ontbreekt |
 |-----------|----------:|----------:|
-| CORE      | 124 / 133 | 9         |
+| CORE      | 125 / 133 | 8         |
 | CORE EXT  | 13 / 49   | 36        |
 
-Testsuite: `prelimtest.fth` foutloos, `tester.fr` werkt. `core.fr` komt tot regel 893
-(598 van 638 tests, allemaal geslaagd) en stopt daar op `>NUMBER`.
+Testsuite: `prelimtest.fth` foutloos, `tester.fr` werkt. `core.fr` komt tot regel 933
+(617 van 638 tests, allemaal geslaagd) en stopt daar op `FILL`.
 
 Ontbrekende CORE-woorden:
-`>NUMBER ABORT ABORT" ACCEPT ENVIRONMENT? FILL KEY MOVE QUIT`
+`ABORT ABORT" ACCEPT ENVIRONMENT? FILL KEY MOVE QUIT`
 
 ### Volgende sessie: hier verder
 
-- **Volgende stap:** fase 1, stap 4: `>NUMBER`, want daar stopt `core.fr` nu (regel 893).
-  Laat daarna de eigen getalconversie (`number()`) `>NUMBER` gebruiken.
-  Daarna stap 3 (`FILL MOVE`), de rest van 4 (`ACCEPT KEY`) en 6.
+- **Volgende stap:** fase 1, stap 3: `FILL MOVE`, want daar stopt `core.fr` nu (regel 933).
+  Daarna de rest van stap 4 (`ACCEPT KEY`) en stap 6 (`ABORT ABORT" QUIT ENVIRONMENT?`).
 - **Besloten (2026-10-30):** deling is floored. `/ MOD /MOD */ */MOD` staan in de prelude
   en gebruiken `FM/MOD`. Gedocumenteerd in de README.
 - **Gerepareerd:** `WHILE` laat zijn orig nu ónder de dest achter, zodat meerdere `WHILE`s
@@ -126,8 +125,9 @@ In deze volgorde, omdat latere groepen op eerdere leunen:
 2. ✅ **Pictured numeric output**: `<# # #S HOLD SIGN #>`, plus `HOLDS` uit CORE EXT. `.` en `U.`
    staan nu in Forth in de prelude; `.R` en `U.R` (CORE EXT) kunnen er zo bij.
 3. **Geheugen en strings**: `FILL MOVE` (`ALIGN ALIGNED COUNT` zijn er al).
-4. **Parsing en invoer**: `>NUMBER ACCEPT KEY` (`SOURCE >IN WORD` zijn er al sinds fase 0,
-   `EVALUATE` sinds 2026-10-30: een geneste `Source` waarvan de buffer de string zelf is).
+4. **Parsing en invoer**: `ACCEPT KEY` (`SOURCE >IN WORD` zijn er al sinds fase 0,
+   `EVALUATE` en `>NUMBER` sinds 2026-10-30. `EVALUATE` is een geneste `Source` waarvan de buffer
+   de string zelf is; `>NUMBER` en de eigen getalconversie delen `to_number`).
    `EVALUATE` wordt een extra soort invoerbron waarvan de buffer de string zelf is.
    Laat de eigen getalconversie (`number()`) daarna `>NUMBER` gebruiken.
 5. ✅ **Woordenboek**: `>BODY` (`STATE` en `FIND` zijn er al sinds fase 0).

@@ -35,7 +35,7 @@ Part of the dictionary is written in Forth itself (`PRELUDE` in `src/main.rs`).
 ## Standard compliance
 
 [`STANDAARD.md`](STANDAARD.md) (in Dutch) holds the roadmap to Forth-2012 and the
-current status. Phase 0, the groundwork, is done. Of the CORE word set, 124 of the
+current status. Phase 0, the groundwork, is done. Of the CORE word set, 125 of the
 133 words are present.
 
 ### Implementation-defined choices

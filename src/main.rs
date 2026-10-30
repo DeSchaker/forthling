@@ -243,6 +243,19 @@ fn flag(b: bool) -> Cell {
     }
 }
 
+/// The core of >NUMBER: accumulates digits in `base` into `ud` and stops at
+/// the first character that is not a digit. Returns the new `ud` and the
+/// number of characters used.
+fn to_number(mut ud: u128, digits: &[u8], base: u32) -> (u128, usize) {
+    let mut used = 0;
+    for &c in digits {
+        let Some(d) = (c as char).to_digit(base) else { break };
+        ud = ud.wrapping_mul(base as u128).wrapping_add(d as u128);
+        used += 1;
+    }
+    (ud, used)
+}
+
 fn fmt_unsigned(mut v: u64, base: u64) -> String {
     let mut digits = Vec::new();
     loop {
@@ -525,10 +538,11 @@ impl Forth {
         if digits.is_empty() || !(2..=36).contains(&base) {
             return None;
         }
-        if !digits.chars().all(|c| c.is_digit(base as u32)) {
+        let (ud, used) = to_number(0, digits.as_bytes(), base as u32);
+        if used < digits.len() {
             return None;
         }
-        let v = u64::from_str_radix(digits, base as u32).ok()? as Cell;
+        let v = u64::try_from(ud).ok()? as Cell;
         Some(if neg { v.wrapping_neg() } else { v })
     }
 
@@ -1503,6 +1517,18 @@ impl Forth {
             let path = f.name()?;
             f.include(&path)
         });
+        self.prim(">NUMBER", |f| {
+            let (a, n) = f.pop2()?;
+            let ud = f.pop_ud()?;
+            let n = n.max(0);
+            let i = f.check(a, n)?;
+            let base = f.base() as u32;
+            let (ud, used) = to_number(ud, &f.mem[i..i + n as usize], base);
+            f.push_ud(ud);
+            f.push(a + used as Cell);
+            f.push(n - used as Cell);
+            Ok(())
+        });
         self.prim("EVALUATE", |f| {
             let (a, n) = f.pop2()?;
             let n = n.max(0);
@@ -1706,6 +1732,19 @@ mod tests {
         assert_eq!(run("255 HEX . DECIMAL"), "FF ");
         assert_eq!(run("$10 #10 %10 + + ."), "28 ");
         assert_eq!(run("-1 U."), "18446744073709551615 ");
+        assert_eq!(run("18446744073709551615 -9223372036854775808 . ."), "-9223372036854775808 -1 ");
+        assert_eq!(err("18446744073709551616").code, -13);
+        assert_eq!(err("12A").code, -13);
+    }
+
+    #[test]
+    fn to_number_stops_at_the_first_non_digit() {
+        assert_eq!(run(r#"0 0 S" 123xy" >NUMBER TYPE . ."#), "xy0 123 ");
+        assert_eq!(run(r#"1 0 S" 23" >NUMBER . DROP . ."#), "0 0 123 ");
+        assert_eq!(run(r#"0 0 S" ff" HEX >NUMBER DECIMAL . DROP . ."#), "0 0 255 ");
+        assert_eq!(run(r#"0 0 S" -5" >NUMBER . DROP . ."#), "2 0 0 ");
+        let max_ud = r#"0 0 S" 340282366920938463463374607431768211455" >NUMBER . DROP U. U."#;
+        assert_eq!(run(max_ud), "0 18446744073709551615 18446744073709551615 ");
     }
 
     #[test]
