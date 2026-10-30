@@ -5,22 +5,32 @@ Eerst de verplichte CORE-wordset, daarna CORE EXT en daarna de optionele wordset
 
 ## Waar staan we nu
 
-*Bijgewerkt 2026-10-30: fase 1 en 2 klaar, CORE en CORE EXT zijn compleet (mijlpalen M3, M4).*
+*Bijgewerkt 2026-10-30: CORE, CORE EXT en EXCEPTION zijn compleet (fase 3 is begonnen).*
 
-| Wordset   | Aanwezig  | Ontbreekt |
-|-----------|----------:|----------:|
-| CORE      | 133 / 133 | 0         |
-| CORE EXT  | 49 / 49   | 0         |
+| Wordset       | Aanwezig  | Ontbreekt |
+|---------------|----------:|----------:|
+| CORE          | 133 / 133 | 0         |
+| CORE EXT      | 49 / 49   | 0         |
+| EXCEPTION     | 2 / 2     | 0         |
+| EXCEPTION EXT | 2 / 2     | 0         |
 
 Testsuite: in de volgorde van `runtests.fth` draaien `prelimtest.fth`, `tester.fr`, `core.fr`,
-`coreplustest.fth`, `utilities.fth`, `errorreport.fth` en `coreexttest.fth` **foutloos**.
-`cargo test` draait ze allemaal (`suite_prelimtest`, `suite_core`, `suite_core_ext`).
+`coreplustest.fth`, `utilities.fth`, `errorreport.fth`, `coreexttest.fth` en
+`exceptiontest.fth` **foutloos**. `cargo test` draait ze allemaal (`suite_prelimtest`,
+`suite_core`, `suite_core_ext`, `suite_exception`); een nieuwe wordset-test is één regel met
+de hulpfunctie `run_suite`.
 
 ### Volgende sessie: hier verder
 
-- **Volgende stap:** fase 3, te beginnen met EXCEPTION (`CATCH THROW`, `exceptiontest.fth`).
-  Fouten zijn al `Throw`s met standaardcodes; `CATCH` moet de stacks, frames, loops en de
-  invoerbronnen bewaren en bij een fout terugzetten. Daarna TOOLS (`[IF]` enz.) en STRING.
+- **Volgende stap:** fase 3, TOOLS (`toolstest.fth`). De suite gebruikt zelf `[IF] [ELSE]
+  [THEN]`; verder `AHEAD CS-PICK CS-ROLL N>R NR> [DEFINED] [UNDEFINED] SYNONYM ? DUMP`.
+  Daarna STRING (`stringtest.fth`), en dan is mijlpaal M5 bereikt.
+- **`CATCH`:** legt diepte van data stack, return stack, loops, frames, invoerbronnen, `>IN`,
+  `STATE` en de control-flow stack vast en zet die bij een `THROW` terug. Een definitie die
+  binnen `CATCH` begon, wordt geschrapt. `QUIT` gaat door `CATCH` heen.
+- **Rust-stack:** elke `CATCH` nest een `run`-lus in Rust. Daarom is de nesting begrensd op
+  `MAX_CATCHES` (1000, dieper geeft `-5`) en draait de interpreter in een thread met 64 MiB
+  stack (`main` → `run_forth`). Zonder die thread crashte 5000 keer geneste `CATCH` op Windows.
 - **Meten:** volg `runtests.fth`: `utilities.fth` en `errorreport.fth` komen vóór de
   wordset-tests, en de `ACCEPT`-test in `core.fr` wil een regel invoer (via een pipe).
 - **Invoerbronnen:** elke `Source` heeft een `Origin` (terminal, `EVALUATE`, bestand met al
@@ -177,7 +187,7 @@ Gegroepeerd van makkelijk naar lastig:
 
 | Prioriteit | Wordset   | Waarom / wat |
 |-----------:|-----------|--------------|
-| 1 | EXCEPTION | `CATCH THROW`. Na 0.4 bijna gratis en heel bruikbaar. |
+| 1 ✅ | EXCEPTION | `CATCH THROW`, plus `ABORT ABORT"` uit EXCEPTION EXT. Klaar 2026-10-30. |
 | 2 | TOOLS     | `.S ? DUMP SEE WORDS` (deels aanwezig), `[IF] [ELSE] [THEN]`, `AHEAD`, `CS-PICK`, `CS-ROLL`, `BYE`, `N>R`/`NR>`, `[DEFINED]`/`[UNDEFINED]`, `SYNONYM`. De testsuite zelf gebruikt `[IF]`. |
 | 3 | STRING    | `COMPARE SEARCH /STRING -TRAILING BLANK CMOVE CMOVE> SLITERAL`, plus `REPLACES`/`SUBSTITUTE`/`UNESCAPE`. |
 | 4 | FILE      | `INCLUDED INCLUDE REQUIRE`, plus file-I/O (`OPEN-FILE READ-LINE WRITE-FILE …`). `INCLUDE` bestaat al in eenvoudige vorm. |

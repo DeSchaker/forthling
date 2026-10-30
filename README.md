@@ -37,10 +37,10 @@ Part of the dictionary is written in Forth itself (`PRELUDE` in `src/main.rs`).
 ## Standard compliance
 
 [`STANDAARD.md`](STANDAARD.md) (in Dutch) holds the roadmap to Forth-2012 and the
-current status. The CORE and CORE EXT word sets are complete, and their tests in the
-[Forth-2012 test suite](https://github.com/gerryjackson/forth2012-test-suite) pass
-(`core.fr`, `coreplustest.fth` and `coreexttest.fth`). Next up are the optional word sets,
-starting with EXCEPTION.
+current status. The CORE, CORE EXT and EXCEPTION word sets are complete, and their tests
+in the [Forth-2012 test suite](https://github.com/gerryjackson/forth2012-test-suite) pass
+(`core.fr`, `coreplustest.fth`, `coreexttest.fth` and `exceptiontest.fth`). Next up are
+the other optional word sets, starting with TOOLS.
 
 ### Implementation-defined choices
 
@@ -66,6 +66,10 @@ starting with EXCEPTION.
   `EVALUATE` only within the current line; otherwise it returns true.
 - `S\"` translates `\n` to a single line feed (10). Running a word made by `DEFER` before
   an action is set with `IS` throws `-21`.
+- Every error is a THROW code that `CATCH` can catch, including errors the system itself
+  detects (such as `-13` for an undefined word). `QUIT` is not an exception and is not
+  caught. `CATCH` can be nested 1000 deep; one more throws `-5`. When a `THROW` unwinds a
+  definition that was started inside the `CATCH`, that definition is dropped.
 
 ## License
 

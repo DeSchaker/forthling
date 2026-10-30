@@ -19,6 +19,7 @@ type Prim = fn(&mut Forth) -> Res;
 
 const CELL: usize = 8;
 const MAX_FRAMES: usize = 10_000;
+const MAX_CATCHES: usize = 1000; // nested CATCHes; each one nests the Rust stack
 const STACK_CELLS: usize = 1 << 16; // data stack size, reported by ENVIRONMENT?
 const RSTACK_CELLS: usize = 1 << 16; // return stack size, idem
 
@@ -268,6 +269,7 @@ pub struct Forth {
     hld: usize,              // start of the pictured numeric output string
     input: Box<dyn BufRead>, // the terminal: the REPL, ACCEPT and KEY read from here
     interactive: bool,       // flush output before waiting for input
+    catches: usize,          // CATCHes in progress
     out: Vec<u8>,
     bye: bool,
 }
@@ -330,6 +332,7 @@ impl Forth {
             hld: HOLD_END,
             input: Box::new(io::BufReader::new(io::stdin())),
             interactive: false,
+            catches: 0,
             out: Vec::new(),
             bye: false,
         };
@@ -883,6 +886,45 @@ impl Forth {
         }
         self.set_state(false);
         self.code.clear();
+    }
+
+    /// CATCH: runs `xt` and returns 0, or, when it throws, puts the stacks,
+    /// the input sources and the compiler back as they were and returns the
+    /// THROW code. QUIT is not an exception and passes through.
+    fn catch(&mut self, xt: Cell) -> Res<Cell> {
+        let depth = self.stack.len();
+        let (rdepth, loops, frames) = (self.rstack.len(), self.loops.len(), self.frames.len());
+        let (sources, to_in) = (self.sources.len(), self.get(IN_ADDR));
+        let (current, state, ctrl) = (self.current, self.get(STATE_ADDR), self.ctrl.len());
+        if self.catches == MAX_CATCHES {
+            return Err(Throw::with(-5, "CATCH nested too deeply"));
+        }
+        self.catches += 1;
+        let base = self.frames.len();
+        let result = self.invoke(xt as usize).and_then(|_| self.run(base));
+        self.catches -= 1;
+        let e = match result {
+            Ok(()) => return Ok(0),
+            Err(e) if e.code == QUIT => return Err(e),
+            Err(e) => e,
+        };
+        // The depth is restored even if the stack was emptied; such cells hold 0.
+        self.stack.resize(depth, 0);
+        self.rstack.truncate(rdepth);
+        self.loops.truncate(loops);
+        self.frames.truncate(frames);
+        self.sources.truncate(sources);
+        self.set(IN_ADDR, to_in);
+        if current.is_none() {
+            // Drop a definition that was started inside the CATCH.
+            if let Some(xt) = self.current.take() {
+                self.dict.truncate(xt);
+                self.code.clear();
+            }
+        }
+        self.ctrl.truncate(ctrl);
+        self.set(STATE_ADDR, state);
+        Ok(e.code)
     }
 
     fn flush(&mut self) {
@@ -1726,6 +1768,16 @@ impl Forth {
             }
             f.invoke(xt as usize)
         });
+        self.prim("CATCH", |f| {
+            let xt = f.pop()?;
+            let code = f.catch(xt)?;
+            f.push(code);
+            Ok(())
+        });
+        self.prim("THROW", |f| match f.pop()? {
+            0 => Ok(()),
+            code => Err(Throw::new(code)),
+        });
         self.prim(">BODY", |f| {
             let xt = f.pop()?;
             match usize::try_from(xt).ok().and_then(|i| f.dict.get(i)) {
@@ -2064,6 +2116,15 @@ impl Forth {
 }
 
 fn main() {
+    // The main thread's stack is small (1 MiB on Windows); nested CATCHes
+    // need more, up to MAX_CATCHES deep.
+    let interpreter = std::thread::Builder::new().stack_size(64 << 20).spawn(run_forth);
+    let code = interpreter.expect("cannot start the interpreter thread").join().unwrap_or(101);
+    std::process::exit(code);
+}
+
+/// Runs the files given as arguments, or else the REPL; returns the exit code.
+fn run_forth() -> i32 {
     let mut forth = Forth::new();
     forth.interactive = true;
     let files: Vec<String> = env::args().skip(1).collect();
@@ -2076,7 +2137,7 @@ fn main() {
                 Err(e) if e.code == QUIT => break,
                 Err(e) => {
                     eprintln!("{e}");
-                    std::process::exit(1);
+                    return 1;
                 }
                 Ok(()) => {}
             }
@@ -2084,7 +2145,7 @@ fn main() {
                 break;
             }
         }
-        return;
+        return 0;
     }
 
     println!("forthling — WORDS shows the dictionary, BYE quits.");
@@ -2100,6 +2161,7 @@ fn main() {
             Err(e) => println!(" {e}"),
         }
     }
+    0
 }
 
 #[cfg(test)]
@@ -2444,6 +2506,45 @@ mod tests {
     }
 
     #[test]
+    fn catch_and_throw() {
+        assert_eq!(run(": T 9 ; 1 2 ' T CATCH .S"), "<4> 1 2 9 0 ");
+        assert_eq!(run(": T 7 8 99 THROW ; 1 2 ' T CATCH .S"), "<3> 1 2 99 ");
+        assert_eq!(run(": T 8 0 THROW ; ' T CATCH .S"), "<2> 8 0 ");
+        // The depth is restored even when the stack was emptied, and the
+        // return stack, loops and input sources are unwound.
+        assert_eq!(run(": T 2DROP 2DROP 5 THROW ; 1 2 3 4 ' T CATCH . DEPTH ."), "5 4 ");
+        let unwind = ": T 3 0 DO 1 >R I 1 = IF S\" 6 THROW\" EVALUATE THEN LOOP ; \
+                      ' T CATCH . 7 .";
+        assert_eq!(run(unwind), "6 7 ");
+        assert_eq!(run(r#": T 1 ABORT" not shown" ; ' T CATCH ."#), "-2 ");
+        assert_eq!(run(r#"S" 1 2 NO-SUCH-WORD" ' EVALUATE CATCH . DEPTH ."#), "-13 2 ");
+        // A definition started inside CATCH is dropped, and interpreting resumes.
+        let mut f = Forth::new();
+        f.interpret(r#": T S" : HALF 1 NO-SUCH-WORD ;" EVALUATE ; ' T CATCH . 5 ."#).unwrap();
+        assert!(!f.compiling() && f.find("HALF").is_none());
+        assert_eq!(output(f), "-13 5 ");
+        assert_eq!(err("' QUIT CATCH").code, QUIT);
+        assert_eq!(err("3 THROW").code, 3);
+        assert_eq!(run("-1 ' EXECUTE CATCH ."), "-24 ");
+    }
+
+    #[test]
+    fn catch_nesting_is_limited() {
+        let deep = "DEFER R' : R ?DUP IF 1- ['] R' CATCH THROW THEN ; ' R IS R' ";
+        let big_stack = std::thread::Builder::new().stack_size(64 << 20);
+        let codes = big_stack
+            .spawn(move || {
+                let ok = Forth::new().interpret(&format!("{deep} {MAX_CATCHES} R")).is_ok();
+                let e = Forth::new().interpret(&format!("{deep} {} R", MAX_CATCHES + 1));
+                (ok, e.unwrap_err().code)
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+        assert_eq!(codes, (true, -5));
+    }
+
+    #[test]
     fn stack_limits() {
         assert_eq!(err(": T BEGIN 1 AGAIN ; T").code, -3);
         assert_eq!(err(": T BEGIN 1 >R AGAIN ; T").code, -5);
@@ -2561,22 +2662,15 @@ mod tests {
         assert!(output(f).ends_with("0 "));
     }
 
-    /// The CORE EXT tests, preceded by what runtests.fth loads before them.
-    #[test]
-    fn suite_core_ext() {
-        let files = [
-            "tester.fr",
-            "core.fr",
-            "coreplustest.fth",
-            "utilities.fth",
-            "errorreport.fth",
-            "coreexttest.fth",
-        ];
-        let Some(paths) = files.iter().map(|name| suite_file(name)).collect::<Option<Vec<_>>>()
-        else {
-            return;
-        };
+    /// Runs a word set's test file after what runtests.fth loads before it,
+    /// checks that no test failed, and returns the output; None when the
+    /// suite is missing.
+    fn run_suite(test_file: &str) -> Option<String> {
+        let mut files = vec!["tester.fr", "core.fr", "coreplustest.fth", "utilities.fth"];
+        files.extend(["errorreport.fth", test_file]);
+        let paths = files.iter().map(|name| suite_file(name)).collect::<Option<Vec<_>>>()?;
         let mut f = Forth::new();
+        // core.fr's ACCEPT test asks for a line of input
         f.input = Box::new(io::Cursor::new(b"typed line\n".to_vec()));
         for path in &paths {
             let result = f.include(path);
@@ -2588,7 +2682,19 @@ mod tests {
         assert!(!out.contains("WRONG NUMBER OF RESULTS"), "{out}");
         assert!(!out.contains("FIND returns a TRUE value"), "{out}");
         assert!(out.contains("End of additional Core tests"), "{out}");
+        Some(out)
+    }
+
+    #[test]
+    fn suite_core_ext() {
+        let Some(out) = run_suite("coreexttest.fth") else { return };
         assert!(out.contains("End of Core Extension word tests"), "{out}");
+    }
+
+    #[test]
+    fn suite_exception() {
+        let Some(out) = run_suite("exceptiontest.fth") else { return };
+        assert!(out.contains("End of Exception word tests"), "{out}");
     }
 
     #[test]
