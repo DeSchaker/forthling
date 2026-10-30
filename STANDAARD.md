@@ -5,7 +5,7 @@ Eerst de verplichte CORE-wordset, daarna CORE EXT en daarna de optionele wordset
 
 ## Waar staan we nu
 
-*Bijgewerkt 2026-10-30: CORE, CORE EXT, EXCEPTION en TOOLS zijn compleet (fase 3 loopt).*
+*Bijgewerkt 2026-10-30: CORE, CORE EXT, EXCEPTION, TOOLS en STRING zijn compleet; mijlpaal M5 is bereikt.*
 
 | Wordset       | Aanwezig  | Ontbreekt |
 |---------------|----------:|----------:|
@@ -15,6 +15,8 @@ Eerst de verplichte CORE-wordset, daarna CORE EXT en daarna de optionele wordset
 | EXCEPTION EXT | 2 / 2     | 0         |
 | TOOLS         | 5 / 5     | 0         |
 | TOOLS EXT     | 13 / 22   | 9 (zie hieronder) |
+| STRING        | 8 / 8     | 0         |
+| STRING EXT    | 3 / 3     | 0         |
 
 Ontbrekend in TOOLS EXT: `;CODE ASSEMBLER CODE EDITOR` (er is geen assembler en geen
 editor), `FORGET` (verouderd; gebruik `MARKER`) en `NAME>COMPILE NAME>INTERPRET NAME>STRING
@@ -22,16 +24,22 @@ TRAVERSE-WORDLIST` (die hebben wordlists nodig en komen met SEARCH).
 
 Testsuite: in de volgorde van `runtests.fth` draaien `prelimtest.fth`, `tester.fr`, `core.fr`,
 `coreplustest.fth`, `utilities.fth`, `errorreport.fth`, `coreexttest.fth`,
-`exceptiontest.fth` en `toolstest.fth` **foutloos**. `cargo test` draait ze allemaal
-(`suite_prelimtest`, `suite_core`, `suite_core_ext`, `suite_exception`, `suite_tools`); een
-nieuwe wordset-test is één regel met de hulpfunctie `run_suite`. `toolstest.fth` slaat zijn
-`TRAVERSE-WORDLIST`-deel over zolang SEARCH ontbreekt.
+`exceptiontest.fth`, `stringtest.fth` en `toolstest.fth` **foutloos**. `cargo test` draait
+ze allemaal (`suite_prelimtest`, `suite_core`, `suite_core_ext`, `suite_exception`,
+`suite_string`, `suite_tools`); een nieuwe wordset-test is één regel met de hulpfunctie
+`run_suite`. `toolstest.fth` slaat zijn `TRAVERSE-WORDLIST`-deel over zolang SEARCH ontbreekt.
 
 ### Volgende sessie: hier verder
 
-- **Volgende stap:** fase 3, STRING (`stringtest.fth`): `COMPARE SEARCH /STRING -TRAILING
-  BLANK CMOVE CMOVE> SLITERAL`, plus `REPLACES SUBSTITUTE UNESCAPE`. Daarmee is mijlpaal M5
-  bereikt.
+- **Volgende stap:** fase 3, FILE (`filetest.fth`): `INCLUDED REQUIRE`, en file-I/O met
+  echte file ids (`OPEN-FILE READ-LINE WRITE-FILE …`). Daarna DOUBLE.
+- **STRING:** `COMPARE SEARCH CMOVE CMOVE> SLITERAL REPLACES SUBSTITUTE UNESCAPE` zijn
+  primitieven, `/STRING BLANK -TRAILING` staan in de prelude. De teksten van `REPLACES` staan
+  in `Forth::substitutions` (een `HashMap`, namen in hoofdletters); `MARKER` zet die niet
+  terug. `SUBSTITUTE` bouwt het resultaat eerst in een `Vec`, dus overlappende buffers
+  werken; past het niet, dan geeft hij `-78`. Een naam met `%` geeft bij `REPLACES` `-79`.
+- **Alvast uit DOUBLE:** `stringtest.fth` gebruikt `2CONSTANT` en `2VARIABLE`; die staan nu
+  in de prelude (`utilities.fth` definieert `2CONSTANT` anders zelf).
 - **TOOLS:** `[IF]` en `[ELSE]` slaan woorden over met `skip_conditional`, ook over regels heen
   (via `refill()`), en tellen geneste `[IF]`s mee. `CS-PICK`/`CS-ROLL` werken op de
   control-flow stack `ctrl` (`Ctrl` is nu `Copy`). `SYNONYM` kopieert `kind` en
@@ -201,7 +209,7 @@ Gegroepeerd van makkelijk naar lastig:
 |-----------:|-----------|--------------|
 | 1 ✅ | EXCEPTION | `CATCH THROW`, plus `ABORT ABORT"` uit EXCEPTION EXT. Klaar 2026-10-30. |
 | 2 ✅ | TOOLS     | `.S ? DUMP SEE WORDS`, `[IF] [ELSE] [THEN]`, `AHEAD`, `CS-PICK`, `CS-ROLL`, `BYE`, `N>R`/`NR>`, `[DEFINED]`/`[UNDEFINED]`, `SYNONYM`. Klaar 2026-10-30; `NAME>…` en `TRAVERSE-WORDLIST` volgen met SEARCH. |
-| 3 | STRING    | `COMPARE SEARCH /STRING -TRAILING BLANK CMOVE CMOVE> SLITERAL`, plus `REPLACES`/`SUBSTITUTE`/`UNESCAPE`. |
+| 3 ✅ | STRING    | `COMPARE SEARCH /STRING -TRAILING BLANK CMOVE CMOVE> SLITERAL`, plus `REPLACES`/`SUBSTITUTE`/`UNESCAPE`. Klaar 2026-10-30. |
 | 4 | FILE      | `INCLUDED INCLUDE REQUIRE`, plus file-I/O (`OPEN-FILE READ-LINE WRITE-FILE …`). `INCLUDE` bestaat al in eenvoudige vorm. |
 | 5 | DOUBLE    | `D+ D- D. D< DNEGATE 2CONSTANT 2VARIABLE M+ M*/ …`, en getallen met een punt (`123.`) als dubbele cel. |
 | 6 | FACILITY  | `KEY? PAGE AT-XY MS TIME&DATE`, plus `BEGIN-STRUCTURE`/`FIELD:`. Structuren zijn nuttig, terminal-I/O minder. |
@@ -211,6 +219,32 @@ Gegroepeerd van makkelijk naar lastig:
 | 10 | FLOATING | Aparte float-stack en `F+ F. F@ …` (groot, ongeveer 70 woorden). |
 | 11 | XCHAR    | UTF-8-bewuste tekenwoorden. Pas zinvol na 0.2. |
 | 12 | BLOCK    | Historisch. Alleen voor de volledigheid. |
+
+---
+
+## Later: assembler en editor (vastgelegd 2026-10-30)
+
+Uit TOOLS EXT ontbreken bewust `;CODE ASSEMBLER CODE EDITOR`. `ASSEMBLER` en `EDITOR` zelf
+zetten alleen een woordenlijst vooraan in de zoekvolgorde, dus beide wachten op **SEARCH**.
+
+- **Echte assembler** (`CODE naam … END-CODE` met machinecode): vergt uitvoerbaar geheugen
+  van het OS (`VirtualAlloc`/`mmap`, zelfgeschreven FFI en `unsafe`), een aanroepconventie
+  (hoe machinecode bij de data stack en return stack komt en terugkeert naar de
+  interpreter), een assembler-woordenschat per platform (x86-64-codering is lastig; ARM is
+  een tweede set) en het risico dat een fout het hele proces laat crashen, buiten `CATCH`
+  om. Veel werk, weinig winst; alleen voor de volledigheid.
+- **Goedkoop alternatief:** de standaard laat open wat "machinecode" is. Een `CODE` die
+  forthlings eigen `Instr`-instructies assembleert, is legitiem en goed te doen, maar voegt
+  weinig toe boven `:`-definities.
+- **Klassieke editor:** bewerkt *blocks* (16 × 64 tekens, woorden als `L T P`) en vergt
+  dus ook de **BLOCK**-wordset. Een eigen schermeditor in de terminal vergt raw mode zonder
+  crates (Windows Console API en termios): veel platformwerk.
+- **Pragmatisch, kan los van de roadmap:** een extensiewoord `EDIT bestand` dat de eigen
+  editor start (`$EDITOR`, anders `notepad`/`vi`) via `std::process::Command` en daarna
+  het bestand `INCLUDE`t. Een paar regels code, in de praktijk erg handig.
+
+Advies: echte assembler en block-editor pas na SEARCH en BLOCK, en alleen als volledigheid
+het waard is; `EDIT` kan tussendoor.
 
 ---
 
@@ -238,7 +272,7 @@ Core word set, the Core Extensions word set, the Exception word set, …"*.
 | M2 ✅ | Fase 0.2 + 0.3 + 0.5 (geheugen en invoer herbouwen) | alle bestaande tests en de demo werken nog |
 | M3 ✅ | Fase 1 | `core.fr` foutloos en alle CORE-woorden aanwezig → **CORE-compliant** (2026-10-30) |
 | M4 ✅ | Fase 2 | `coreexttest.fth` foutloos (2026-10-30) |
-| M5 | EXCEPTION + TOOLS + STRING | bijbehorende testfiles foutloos |
+| M5 ✅ | EXCEPTION + TOOLS + STRING | bijbehorende testfiles foutloos (2026-10-30) |
 | M6+ | overige wordsets naar behoefte | idem |
 
 M2 is de grootste en riskantste stap. Die doe je het best in één keer, met de huidige

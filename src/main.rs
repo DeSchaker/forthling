@@ -6,7 +6,7 @@
 //! Forth program may inspect (BASE, STATE, >IN, the input buffers) lives in
 //! that memory, and errors are standard THROW codes.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fmt;
 use std::fs;
@@ -95,6 +95,11 @@ const PRELUDE: &str = r#"
 : 2R>     R> R> SWAP ;
 : 2R@     R> R@ OVER >R SWAP ;
 : ?       @ . ;
+: /STRING ROT OVER + ROT ROT - ;
+: BLANK   BL FILL ;
+: -TRAILING  BEGIN DUP WHILE 2DUP + 1- C@ BL <> IF EXIT THEN 1- REPEAT ;
+: 2CONSTANT  CREATE , , DOES> 2@ ;
+: 2VARIABLE  CREATE 2 CELLS ALLOT ;
 "#;
 
 /// A Forth exception: a THROW code from table 9.1 of the standard, or a
@@ -148,6 +153,8 @@ impl Throw {
             -32 => "invalid name argument",
             -38 => "non-existent file",
             -39 => "unexpected end of file",
+            -78 => "SUBSTITUTE",
+            -79 => "REPLACES",
             QUIT => "quit",
             NESTING_TOO_DEEP => "input nesting too deep",
             _ => "exception",
@@ -268,10 +275,11 @@ pub struct Forth {
     ctrl: Vec<Ctrl>,
     sources: Vec<Source>,
     sq_next: usize,
-    hld: usize,              // start of the pictured numeric output string
+    hld: usize,                              // start of the pictured numeric output string
     input: Box<dyn BufRead>, // the terminal: the REPL, ACCEPT and KEY read from here
     interactive: bool,       // flush output before waiting for input
     catches: usize,          // CATCHes in progress
+    substitutions: HashMap<String, Vec<u8>>, // REPLACES texts, by upper-case name
     out: Vec<u8>,
     bye: bool,
 }
@@ -335,6 +343,7 @@ impl Forth {
             input: Box::new(io::BufReader::new(io::stdin())),
             interactive: false,
             catches: 0,
+            substitutions: HashMap::new(),
             out: Vec::new(),
             bye: false,
         };
@@ -474,11 +483,7 @@ impl Forth {
     fn string_literal(&mut self, text: &[u8]) -> Res {
         let n = text.len();
         if self.compiling() {
-            let a = self.reserve(n)?;
-            self.mem[a..a + n].copy_from_slice(text);
-            self.align_here();
-            self.code.push(Instr::Lit(a as Cell));
-            self.code.push(Instr::Lit(n as Cell));
+            self.compile_string(text)?;
         } else {
             let buf = SQ_BUFS + self.sq_next * LINE_MAX;
             self.sq_next = 1 - self.sq_next;
@@ -487,6 +492,55 @@ impl Forth {
             self.push(n as Cell);
         }
         Ok(())
+    }
+
+    /// Copies a string into data space and compiles code that pushes it.
+    fn compile_string(&mut self, text: &[u8]) -> Res {
+        let n = text.len();
+        let a = self.reserve(n)?;
+        self.mem[a..a + n].copy_from_slice(text);
+        self.align_here();
+        self.code.push(Instr::Lit(a as Cell));
+        self.code.push(Instr::Lit(n as Cell));
+        Ok(())
+    }
+
+    /// A copy of the string at a with length n.
+    fn bytes(&self, a: Cell, n: Cell) -> Res<Vec<u8>> {
+        let n = n.max(0);
+        let i = self.check(a, n)?;
+        Ok(self.mem[i..i + n as usize].to_vec())
+    }
+
+    /// SUBSTITUTE's text replacement: each %name% of a substitution made by
+    /// REPLACES becomes its text, %% becomes %, and everything else is kept.
+    /// Returns the result and the number of substitutions.
+    fn substitute(&self, text: &[u8]) -> (Vec<u8>, Cell) {
+        let (mut out, mut count, mut i) = (Vec::new(), 0, 0);
+        while i < text.len() {
+            if text[i] != b'%' {
+                out.push(text[i]);
+                i += 1;
+            } else if text.get(i + 1) == Some(&b'%') {
+                out.push(b'%');
+                i += 2;
+            } else if let Some(len) = text[i + 1..].iter().position(|&c| c == b'%') {
+                let name = &text[i + 1..i + 1 + len];
+                let key = String::from_utf8_lossy(name).to_ascii_uppercase();
+                match self.substitutions.get(&key) {
+                    Some(sub) => {
+                        out.extend_from_slice(sub);
+                        count += 1;
+                    }
+                    None => out.extend_from_slice(&text[i..i + len + 2]),
+                }
+                i += len + 2;
+            } else {
+                out.extend_from_slice(&text[i..]); // a % without a closing %
+                break;
+            }
+        }
+        (out, count)
     }
 
     fn text(&self, a: usize, n: usize) -> String {
@@ -2091,6 +2145,96 @@ impl Forth {
             Ok(())
         });
 
+        // strings; /STRING BLANK -TRAILING are in the prelude
+        self.prim("COMPARE", |f| {
+            let (a2, n2) = f.pop2()?;
+            let (a1, n1) = f.pop2()?;
+            let order = f.bytes(a1, n1)?.cmp(&f.bytes(a2, n2)?);
+            f.push(order as Cell);
+            Ok(())
+        });
+        self.prim("SEARCH", |f| {
+            let (a2, n2) = f.pop2()?;
+            let (a1, n1) = f.pop2()?;
+            let (text, key) = (f.bytes(a1, n1)?, f.bytes(a2, n2)?);
+            let found = match key.len() {
+                0 => Some(0),
+                n => text.windows(n).position(|w| w == key),
+            };
+            let at = found.unwrap_or(0) as Cell;
+            f.push(a1 + at);
+            f.push(n1.max(0) - at);
+            f.push(flag(found.is_some()));
+            Ok(())
+        });
+        // CMOVE and CMOVE> copy one character at a time, so an overlapping
+        // copy repeats the characters it already copied.
+        self.prim("CMOVE", |f| {
+            let n = f.pop()?;
+            let (src, dst) = f.pop2()?;
+            let (s, d) = (f.check(src, n.max(0))?, f.check(dst, n.max(0))?);
+            for k in 0..n.max(0) as usize {
+                f.mem[d + k] = f.mem[s + k];
+            }
+            Ok(())
+        });
+        self.prim("CMOVE>", |f| {
+            let n = f.pop()?;
+            let (src, dst) = f.pop2()?;
+            let (s, d) = (f.check(src, n.max(0))?, f.check(dst, n.max(0))?);
+            for k in (0..n.max(0) as usize).rev() {
+                f.mem[d + k] = f.mem[s + k];
+            }
+            Ok(())
+        });
+        self.imm("SLITERAL", |f| {
+            f.need_def()?;
+            let (a, n) = f.pop2()?;
+            let text = f.bytes(a, n)?;
+            f.compile_string(&text)
+        });
+        self.prim("REPLACES", |f| {
+            let (a2, n2) = f.pop2()?;
+            let (a1, n1) = f.pop2()?;
+            let (text, name) = (f.bytes(a1, n1)?, f.bytes(a2, n2)?);
+            if name.contains(&b'%') {
+                return Err(Throw::with(-79, "the name contains %"));
+            }
+            let name = String::from_utf8_lossy(&name).to_ascii_uppercase();
+            f.substitutions.insert(name, text);
+            Ok(())
+        });
+        self.prim("SUBSTITUTE", |f| {
+            let (a2, n2) = f.pop2()?;
+            let (a1, n1) = f.pop2()?;
+            let (out, count) = f.substitute(&f.bytes(a1, n1)?);
+            f.push(a2);
+            if out.len() as Cell > n2 {
+                f.push(0);
+                f.push(-78); // the result does not fit
+                return Ok(());
+            }
+            let d = f.check(a2, out.len() as Cell)?;
+            f.mem[d..d + out.len()].copy_from_slice(&out);
+            f.push(out.len() as Cell);
+            f.push(count);
+            Ok(())
+        });
+        // UNESCAPE doubles every %, so SUBSTITUTE gives the text back unchanged.
+        self.prim("UNESCAPE", |f| {
+            let a2 = f.pop()?;
+            let (a1, n1) = f.pop2()?;
+            let mut out = Vec::new();
+            for c in f.bytes(a1, n1)? {
+                out.extend_from_slice(if c == b'%' { b"%%" } else { std::slice::from_ref(&c) });
+            }
+            let d = f.check(a2, out.len() as Cell)?;
+            f.mem[d..d + out.len()].copy_from_slice(&out);
+            f.push(a2);
+            f.push(out.len() as Cell);
+            Ok(())
+        });
+
         // programming tools
         self.imm("[IF]", |f| match f.pop()? {
             0 => f.skip_conditional(true),
@@ -2623,6 +2767,30 @@ mod tests {
     }
 
     #[test]
+    fn string_words() {
+        assert_eq!(
+            run(r#"S" abc" S" abd" COMPARE . S" ab" S" ab" COMPARE . S" b" S" ab" COMPARE ."#),
+            "-1 0 1 "
+        );
+        assert_eq!(run(r#"S" hello world" S" wor" SEARCH . TYPE"#), "-1 world");
+        assert_eq!(run(r#"S" hello" S" xyz" SEARCH . TYPE"#), "0 hello");
+        assert_eq!(run(r#"S" ab  " -TRAILING TYPE ." |" S" abcde" 2 /STRING TYPE"#), "ab|cde");
+        // an overlapping CMOVE repeats characters, CMOVE> and MOVE do not
+        let src = r#"S" abcd" PAD SWAP MOVE PAD PAD 1+ 3 CMOVE PAD 4 TYPE ."  "
+                     S" abcd" PAD SWAP MOVE PAD PAD 1+ 3 CMOVE> PAD 4 TYPE"#;
+        assert_eq!(run(src), "aaaa aabc");
+        assert_eq!(run(r#": T [ S" lit" ] SLITERAL ; T TYPE"#), "lit");
+        let src = r#"S" Bob" S" who" REPLACES S" hi %WHO%, 100%% %x%" PAD 40 SUBSTITUTE . TYPE"#;
+        assert_eq!(run(src), "1 hi Bob, 100% %x%");
+        assert_eq!(
+            run(r#"S" a%b" PAD UNESCAPE TYPE S" toolong" PAD 3 SUBSTITUTE . . DROP"#),
+            "a%%b-78 0 "
+        );
+        assert_eq!(err(r#"S" x" S" a%b" REPLACES"#).code, -79);
+        assert_eq!(run("1 2 2CONSTANT C 2VARIABLE V C V 2! V 2@ . ."), "2 1 ");
+    }
+
+    #[test]
     fn programming_tools() {
         assert_eq!(run(": T AHEAD 1 THEN 2 ; T . DEPTH ."), "2 0 ");
         // WHILE as IF 1 CS-ROLL
@@ -2847,6 +3015,12 @@ mod tests {
     fn suite_exception() {
         let Some(out) = run_suite("exceptiontest.fth") else { return };
         assert!(out.contains("End of Exception word tests"), "{out}");
+    }
+
+    #[test]
+    fn suite_string() {
+        let Some(out) = run_suite("stringtest.fth") else { return };
+        assert!(out.contains("End of String word tests"), "{out}");
     }
 
     #[test]

@@ -32,6 +32,8 @@ Run a file: `cargo run --release -- examples/demo.fs`
   working on input buffers in Forth memory
 - Errors as standard THROW codes, e.g. `demo.fs:3: error -13: undefined word: FOO`,
   which `CATCH` can catch
+- Strings: `COMPARE SEARCH /STRING -TRAILING BLANK CMOVE CMOVE> SLITERAL`, and text
+  substitution with `REPLACES SUBSTITUTE UNESCAPE`
 - Programming tools: `.S ? DUMP SEE WORDS`, `[IF] [ELSE] [THEN]`, `[DEFINED] [UNDEFINED]`,
   `AHEAD CS-PICK CS-ROLL`, `N>R NR>` and `SYNONYM`
 
@@ -40,13 +42,14 @@ Part of the dictionary is written in Forth itself (`PRELUDE` in `src/main.rs`).
 ## Standard compliance
 
 [`STANDAARD.md`](STANDAARD.md) (in Dutch) holds the roadmap to Forth-2012 and the
-current status. The CORE, CORE EXT, EXCEPTION and TOOLS word sets are complete, and their
-tests in the [Forth-2012 test suite](https://github.com/gerryjackson/forth2012-test-suite)
-pass (`core.fr`, `coreplustest.fth`, `coreexttest.fth`, `exceptiontest.fth` and
-`toolstest.fth`). Of TOOLS EXT, everything is present except `;CODE ASSEMBLER CODE EDITOR`
-(there is no assembler or editor), the obsolescent `FORGET` (use `MARKER`), and
-`NAME>COMPILE NAME>INTERPRET NAME>STRING TRAVERSE-WORDLIST`, which will come with the
-SEARCH word set. Next up is STRING.
+current status. The CORE, CORE EXT, EXCEPTION, STRING and TOOLS word sets are complete,
+and their tests in the [Forth-2012 test suite](https://github.com/gerryjackson/forth2012-test-suite)
+pass (`core.fr`, `coreplustest.fth`, `coreexttest.fth`, `exceptiontest.fth`,
+`stringtest.fth` and `toolstest.fth`). Of TOOLS EXT, everything is present except
+`;CODE ASSEMBLER CODE EDITOR` (there is no assembler or editor), the obsolescent `FORGET`
+(use `MARKER`), and `NAME>COMPILE NAME>INTERPRET NAME>STRING TRAVERSE-WORDLIST`, which will
+come with the SEARCH word set. Of DOUBLE, `2CONSTANT` and `2VARIABLE` are already there.
+Next up is FILE.
 
 ### Implementation-defined choices
 
@@ -79,6 +82,10 @@ SEARCH word set. Next up is STRING.
 - `[IF]` and `[ELSE]` skip words across lines, reading further lines from the file or the
   terminal; if the input ends before the matching `[ELSE]` or `[THEN]`, skipping just stops.
   `DUMP` prints the address and 16 bytes per line in hexadecimal, plus their characters.
+- `COMPARE` and `SEARCH` compare characters exactly, so case matters. Substitution names
+  (`REPLACES`, `SUBSTITUTE`) do not depend on case. A `%name%` that is not a substitution
+  name is kept as it is, delimiters included. `SUBSTITUTE` returns `-78` when the result
+  does not fit, and `REPLACES` throws `-79` for a name that contains `%`.
 
 ## License
 
