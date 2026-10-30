@@ -30,6 +30,8 @@ Run a file: `cargo run --release -- examples/demo.fs`
   `CASE OF ENDOF ENDCASE`
 - `VARIABLE`, `CONSTANT`, `VALUE`, `DEFER`, `BUFFER:`, `MARKER`, `:NONAME`, `CREATE … DOES>`
 - Byte-addressed memory with 64-bit cells
+- Double-cell numbers: `123.` is a double, with `D+ D- D. D.R D< DNEGATE DABS M+ M*/`,
+  `2VALUE`, `2LITERAL` and more
 - `SOURCE`, `>IN`, `STATE`, `WORD`, `PARSE`, `REFILL`, `SAVE-INPUT`, `FIND` and `EVALUATE`,
   working on input buffers in Forth memory
 - Errors as standard THROW codes, e.g. `demo.fs:3: error -13: undefined word: FOO`,
@@ -44,20 +46,22 @@ Part of the dictionary is written in Forth itself (`PRELUDE` in `src/main.rs`).
 ## Standard compliance
 
 [`STANDAARD.md`](STANDAARD.md) (in Dutch) holds the roadmap to Forth-2012 and the
-current status. The CORE, CORE EXT, EXCEPTION, FILE, STRING and TOOLS word sets are
-complete, and their tests in the [Forth-2012 test suite](https://github.com/gerryjackson/forth2012-test-suite)
-pass (`core.fr`, `coreplustest.fth`, `coreexttest.fth`, `exceptiontest.fth`,
-`filetest.fth`, `stringtest.fth` and `toolstest.fth`). Of TOOLS EXT, everything is present except
+current status. The CORE, CORE EXT, DOUBLE, EXCEPTION, FILE, STRING and TOOLS word sets
+are complete, and their tests in the [Forth-2012 test suite](https://github.com/gerryjackson/forth2012-test-suite)
+pass (`core.fr`, `coreplustest.fth`, `coreexttest.fth`, `doubletest.fth`,
+`exceptiontest.fth`, `filetest.fth`, `stringtest.fth` and `toolstest.fth`). Of TOOLS EXT, everything is present except
 `;CODE ASSEMBLER CODE EDITOR` (there is no assembler or editor), the obsolescent `FORGET`
 (use `MARKER`), and `NAME>COMPILE NAME>INTERPRET NAME>STRING TRAVERSE-WORDLIST`, which will
-come with the SEARCH word set. Of DOUBLE, `2CONSTANT` and `2VARIABLE` are already there.
-Next up is DOUBLE.
+come with the SEARCH word set. Next up is FACILITY.
 
 ### Implementation-defined choices
 
 - Cells are 64 bits; an address unit and a character are 8 bits.
 - Division is floored: `-7 2 /` gives `-4` and `-7 2 MOD` gives `1`. `/ MOD /MOD */ */MOD`
   are defined via `FM/MOD`; `SM/REM` is available for symmetric division.
+- A number is a double cell only when it ends with a `.` (`123.`, `-5.`, `$FF.`); a `.`
+  elsewhere does not make a number. `M*/` multiplies through a 192-bit intermediate, so
+  only its quotient can be out of range (`-11`); its result is floored too.
 - A double cell on the stack has its high cell on top. Division by zero throws `-10`,
   a quotient that does not fit throws `-11`.
 - The pictured numeric output buffer (`<# … #>`) holds 256 characters; overflowing it

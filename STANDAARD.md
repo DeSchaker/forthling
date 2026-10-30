@@ -5,7 +5,7 @@ Eerst de verplichte CORE-wordset, daarna CORE EXT en daarna de optionele wordset
 
 ## Waar staan we nu
 
-*Bijgewerkt 2026-10-30: CORE, CORE EXT, EXCEPTION, TOOLS, STRING en FILE zijn compleet; mijlpaal M5 is bereikt.*
+*Bijgewerkt 2026-10-30: CORE, CORE EXT, EXCEPTION, TOOLS, STRING, FILE en DOUBLE zijn compleet; mijlpaal M5 is bereikt.*
 
 | Wordset       | Aanwezig  | Ontbreekt |
 |---------------|----------:|----------:|
@@ -19,24 +19,31 @@ Eerst de verplichte CORE-wordset, daarna CORE EXT en daarna de optionele wordset
 | STRING EXT    | 3 / 3     | 0         |
 | FILE          | 21 / 21   | 0         |
 | FILE EXT      | 8 / 8     | 0         |
+| DOUBLE        | 20 / 20   | 0         |
+| DOUBLE EXT    | 3 / 3     | 0         |
 
 Ontbrekend in TOOLS EXT: `;CODE ASSEMBLER CODE EDITOR` (er is geen assembler en geen
 editor), `FORGET` (verouderd; gebruik `MARKER`) en `NAME>COMPILE NAME>INTERPRET NAME>STRING
 TRAVERSE-WORDLIST` (die hebben wordlists nodig en komen met SEARCH).
 
 Testsuite: in de volgorde van `runtests.fth` draaien `prelimtest.fth`, `tester.fr`, `core.fr`,
-`coreplustest.fth`, `utilities.fth`, `errorreport.fth`, `coreexttest.fth`,
+`coreplustest.fth`, `utilities.fth`, `errorreport.fth`, `coreexttest.fth`, `doubletest.fth`,
 `exceptiontest.fth`, `filetest.fth`, `stringtest.fth` en `toolstest.fth` **foutloos**.
 `cargo test` draait ze allemaal (`suite_prelimtest`, `suite_core`, `suite_core_ext`,
-`suite_exception`, `suite_file_access`, `suite_string`, `suite_tools`); een nieuwe
+`suite_double`, `suite_exception`, `suite_file_access`, `suite_string`, `suite_tools`); een nieuwe
 wordset-test is één regel met de hulpfunctie `run_suite`, die ook meerdere bestanden neemt
 (`filetest.fth` heeft `coreexttest.fth` nodig). `toolstest.fth` slaat zijn
 `TRAVERSE-WORDLIST`-deel over zolang SEARCH ontbreekt.
 
 ### Volgende sessie: hier verder
 
-- **Volgende stap:** fase 3, DOUBLE (`doubletest.fth`): `D+ D- D. D< DNEGATE M+ M*/ …` en
-  getallen met een punt (`123.`) als dubbele cel. `2CONSTANT 2VARIABLE` zijn er al.
+- **Volgende stap:** fase 3, FACILITY (`facilitytest.fth`): `BEGIN-STRUCTURE FIELD: +FIELD
+  END-STRUCTURE …`, `KEY? PAGE AT-XY MS TIME&DATE`.
+- **DOUBLE:** de rekenwoorden zijn primitieven op `i128` (`d_unop`, `d_binop`, `d_compare`);
+  `2LITERAL 2ROT D. D.R` staan in de prelude. `number()` geeft nu `(u128, bool)`: een punt
+  aan het eind maakt er een dubbele cel van (alleen aan het eind, zoals de standaard zegt).
+  `M*/` rekent via een product van 192 bits (`mul_div`), floored zoals de rest. `2VALUE` is
+  `Kind::TwoValue`; `TO` compileert daarvoor twee keer `Instr::Store`.
 - **FILE:** open bestanden staan in `Forth::files` (file id n is `files[n - 1]`, vrije ids
   worden hergebruikt). `INCLUDED` opent het bestand, krijgt een file id (dat is ook de
   `SOURCE-ID`) en roept `include_file` aan, die de rest van het bestand inleest en het
@@ -52,8 +59,6 @@ wordset-test is één regel met de hulpfunctie `run_suite`, die ook meerdere bes
   in `Forth::substitutions` (een `HashMap`, namen in hoofdletters); `MARKER` zet die niet
   terug. `SUBSTITUTE` bouwt het resultaat eerst in een `Vec`, dus overlappende buffers
   werken; past het niet, dan geeft hij `-78`. Een naam met `%` geeft bij `REPLACES` `-79`.
-- **Alvast uit DOUBLE:** `stringtest.fth` gebruikt `2CONSTANT` en `2VARIABLE`; die staan nu
-  in de prelude (`utilities.fth` definieert `2CONSTANT` anders zelf).
 - **TOOLS:** `[IF]` en `[ELSE]` slaan woorden over met `skip_conditional`, ook over regels heen
   (via `refill()`), en tellen geneste `[IF]`s mee. `CS-PICK`/`CS-ROLL` werken op de
   control-flow stack `ctrl` (`Ctrl` is nu `Copy`). `SYNONYM` kopieert `kind` en
@@ -225,7 +230,7 @@ Gegroepeerd van makkelijk naar lastig:
 | 2 ✅ | TOOLS     | `.S ? DUMP SEE WORDS`, `[IF] [ELSE] [THEN]`, `AHEAD`, `CS-PICK`, `CS-ROLL`, `BYE`, `N>R`/`NR>`, `[DEFINED]`/`[UNDEFINED]`, `SYNONYM`. Klaar 2026-10-30; `NAME>…` en `TRAVERSE-WORDLIST` volgen met SEARCH. |
 | 3 ✅ | STRING    | `COMPARE SEARCH /STRING -TRAILING BLANK CMOVE CMOVE> SLITERAL`, plus `REPLACES`/`SUBSTITUTE`/`UNESCAPE`. Klaar 2026-10-30. |
 | 4 ✅ | FILE      | `INCLUDED INCLUDE REQUIRE`, plus file-I/O (`OPEN-FILE READ-LINE WRITE-FILE …`) met echte file ids. Klaar 2026-10-30. |
-| 5 | DOUBLE    | `D+ D- D. D< DNEGATE 2CONSTANT 2VARIABLE M+ M*/ …`, en getallen met een punt (`123.`) als dubbele cel. |
+| 5 ✅ | DOUBLE    | `D+ D- D. D< DNEGATE 2CONSTANT 2VARIABLE M+ M*/ …`, en getallen met een punt (`123.`) als dubbele cel. Klaar 2026-10-30. |
 | 6 | FACILITY  | `KEY? PAGE AT-XY MS TIME&DATE`, plus `BEGIN-STRUCTURE`/`FIELD:`. Structuren zijn nuttig, terminal-I/O minder. |
 | 7 | MEMORY    | `ALLOCATE FREE RESIZE`: een eenvoudige heap in het bovenste deel van het geheugen. |
 | 8 | LOCALS    | `{: a b | c -- :}`. Vergt een aparte locals-frame in `Frame`. |
@@ -287,7 +292,7 @@ Core word set, the Core Extensions word set, the Exception word set, …"*.
 | M3 ✅ | Fase 1 | `core.fr` foutloos en alle CORE-woorden aanwezig → **CORE-compliant** (2026-10-30) |
 | M4 ✅ | Fase 2 | `coreexttest.fth` foutloos (2026-10-30) |
 | M5 ✅ | EXCEPTION + TOOLS + STRING | bijbehorende testfiles foutloos (2026-10-30) |
-| M6+ | overige wordsets naar behoefte (FILE ✅ 2026-10-30) | idem |
+| M6+ | overige wordsets naar behoefte (FILE en DOUBLE ✅ 2026-10-30) | idem |
 
 M2 is de grootste en riskantste stap. Die doe je het best in één keer, met de huidige
 unit-tests als vangnet, voordat er nieuwe woorden bovenop komen.

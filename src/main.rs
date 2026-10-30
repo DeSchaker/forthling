@@ -106,6 +106,10 @@ const PRELUDE: &str = r#"
 : -TRAILING  BEGIN DUP WHILE 2DUP + 1- C@ BL <> IF EXIT THEN 1- REPEAT ;
 : 2CONSTANT  CREATE , , DOES> 2@ ;
 : 2VARIABLE  CREATE 2 CELLS ALLOT ;
+: 2LITERAL   SWAP POSTPONE LITERAL POSTPONE LITERAL ; IMMEDIATE
+: 2ROT    2>R 2SWAP 2R> 2SWAP ;
+: D.R     >R DUP >R DABS <# #S R> SIGN #> R> OVER - SPACES TYPE ;
+: D.      0 D.R SPACE ;
 "#;
 
 /// A Forth exception: a THROW code from table 9.1 of the standard, or a
@@ -228,8 +232,9 @@ enum Kind {
         addr: Cell,
         does: Option<(Rc<Vec<Instr>>, usize)>,
     },
-    Value(usize), // address of the value's cell
-    Defer(usize), // address of the cell holding the xt to run
+    Value(usize),    // address of the value's cell
+    TwoValue(usize), // address of a 2VALUE's two cells, laid out as by 2!
+    Defer(usize),    // address of the cell holding the xt to run
     Marker {
         dict_len: usize, // dictionary length before the marker, itself included
         here: usize,
@@ -334,6 +339,36 @@ fn to_number(mut ud: u128, digits: &[u8], base: u32) -> (u128, usize) {
         used += 1;
     }
     (ud, used)
+}
+
+/// The core of M*/: d * n1 / n2, floored, through a 192-bit product so that
+/// the multiplication cannot overflow.
+fn mul_div(d: i128, n1: Cell, n2: Cell) -> Res<i128> {
+    if n2 == 0 {
+        return Err(Throw::new(-10));
+    }
+    let (m, n, v) = (d.unsigned_abs(), n1.unsigned_abs() as u128, n2.unsigned_abs() as u128);
+    let lo = (m as u64 as u128) * n;
+    let hi = (m >> 64) * n + (lo >> 64);
+    // Long division of the product hi:lo, one 64-bit limb at a time.
+    let (mut q, mut r) = ([0u64; 3], 0u128);
+    for (i, limb) in [(hi >> 64) as u64, hi as u64, lo as u64].into_iter().enumerate() {
+        let cur = r << 64 | limb as u128;
+        q[i] = (cur / v) as u64;
+        r = cur % v;
+    }
+    let too_big = || Throw::new(-11);
+    if q[0] != 0 {
+        return Err(too_big());
+    }
+    let q = (q[1] as u128) << 64 | q[2] as u128;
+    if (d < 0) ^ (n1 < 0) ^ (n2 < 0) {
+        // A negative quotient with a remainder rounds down, away from zero.
+        let q = q.checked_add((r != 0) as u128).filter(|&q| q <= 1 << 127).ok_or_else(too_big)?;
+        Ok((q as i128).wrapping_neg())
+    } else {
+        i128::try_from(q).map_err(|_| too_big())
+    }
 }
 
 /// The name under which REQUIRED remembers a file.
@@ -459,6 +494,26 @@ impl Forth {
     fn push_ud(&mut self, d: u128) {
         self.push(d as u64 as Cell);
         self.push((d >> 64) as u64 as Cell);
+    }
+
+    fn d_unop(&mut self, op: impl Fn(i128) -> i128) -> Res {
+        let d = self.pop_d()?;
+        self.push_d(op(d));
+        Ok(())
+    }
+
+    fn d_binop(&mut self, op: impl Fn(i128, i128) -> i128) -> Res {
+        let b = self.pop_d()?;
+        let a = self.pop_d()?;
+        self.push_d(op(a, b));
+        Ok(())
+    }
+
+    fn d_compare(&mut self, op: impl Fn(i128, i128) -> bool) -> Res {
+        let b = self.pop_d()?;
+        let a = self.pop_d()?;
+        self.push(flag(op(a, b)));
+        Ok(())
     }
 
     fn pop_d(&mut self) -> Res<i128> {
@@ -759,11 +814,17 @@ impl Forth {
         self.word().ok_or(Throw::new(-16))
     }
 
-    fn number(&self, w: &str) -> Option<Cell> {
+    /// Converts a word to a number, if it is one. A trailing `.` makes it a
+    /// double cell, which the flag tells.
+    fn number(&self, w: &str) -> Option<(u128, bool)> {
         let b = w.as_bytes();
         if b.len() == 3 && b[0] == b'\'' && b[2] == b'\'' {
-            return Some(b[1] as Cell);
+            return Some((b[1] as u128, false));
         }
+        let (w, double) = match w.strip_suffix('.') {
+            Some(w) => (w, true),
+            None => (w, false),
+        };
         let (base, s) = match b.first()? {
             b'#' => (10, &w[1..]),
             b'$' => (16, &w[1..]),
@@ -781,8 +842,10 @@ impl Forth {
         if used < digits.len() {
             return None;
         }
-        let v = u64::try_from(ud).ok()? as Cell;
-        Some(if neg { v.wrapping_neg() } else { v })
+        if !double && ud > u64::MAX as u128 {
+            return None;
+        }
+        Some((if neg { ud.wrapping_neg() } else { ud }, double))
     }
 
     /// BASE for number output, with decimal as the fallback for an invalid BASE.
@@ -870,11 +933,15 @@ impl Forth {
             } else {
                 self.execute(xt)
             }
-        } else if let Some(n) = self.number(w) {
-            if self.compiling() {
-                self.code.push(Instr::Lit(n));
-            } else {
-                self.push(n);
+        } else if let Some((n, double)) = self.number(w) {
+            // A double cell is its low cell followed by its high cell.
+            let cells = if double { vec![n as u64, (n >> 64) as u64] } else { vec![n as u64] };
+            for c in cells {
+                if self.compiling() {
+                    self.code.push(Instr::Lit(c as Cell));
+                } else {
+                    self.push(c as Cell);
+                }
             }
             Ok(())
         } else {
@@ -1257,6 +1324,11 @@ impl Forth {
                 self.push(self.get(addr));
                 Ok(())
             }
+            Kind::TwoValue(addr) => {
+                self.push(self.get(addr + CELL));
+                self.push(self.get(addr));
+                Ok(())
+            }
             Kind::Defer(_) => unreachable!("resolved above"),
             Kind::Marker { dict_len, here } => {
                 self.dict.truncate(dict_len);
@@ -1548,6 +1620,9 @@ impl Forth {
                 s + ";"
             }
             Kind::Value(addr) => format!("{} VALUE {}", self.get(*addr), w.name),
+            Kind::TwoValue(addr) => {
+                format!("{} {} 2VALUE {}", self.get(*addr + CELL), self.get(*addr), w.name)
+            }
             Kind::Defer(addr) => match self.dict.get(self.get(*addr) as usize) {
                 Some(action) => format!("DEFER {} IS {}", w.name, action.name),
                 None => format!("DEFER {}", w.name),
@@ -1696,6 +1771,44 @@ impl Forth {
         });
         self.prim("FM/MOD", |f| f.divide(true));
         self.prim("SM/REM", |f| f.divide(false));
+        self.prim("D+", |f| f.d_binop(|a, b| a.wrapping_add(b)));
+        self.prim("D-", |f| f.d_binop(|a, b| a.wrapping_sub(b)));
+        self.prim("DMAX", |f| f.d_binop(i128::max));
+        self.prim("DMIN", |f| f.d_binop(i128::min));
+        self.prim("DNEGATE", |f| f.d_unop(i128::wrapping_neg));
+        self.prim("DABS", |f| f.d_unop(i128::wrapping_abs));
+        self.prim("D2*", |f| f.d_unop(|d| d << 1));
+        self.prim("D2/", |f| f.d_unop(|d| d >> 1));
+        self.prim("D<", |f| f.d_compare(|a, b| a < b));
+        self.prim("D=", |f| f.d_compare(|a, b| a == b));
+        self.prim("DU<", |f| f.d_compare(|a, b| (a as u128) < b as u128));
+        self.prim("D0<", |f| {
+            let d = f.pop_d()?;
+            f.push(flag(d < 0));
+            Ok(())
+        });
+        self.prim("D0=", |f| {
+            let d = f.pop_d()?;
+            f.push(flag(d == 0));
+            Ok(())
+        });
+        self.prim("D>S", |f| {
+            let d = f.pop_d()?;
+            f.push(d as Cell);
+            Ok(())
+        });
+        self.prim("M+", |f| {
+            let n = f.pop()?;
+            let d = f.pop_d()?;
+            f.push_d(d.wrapping_add(n as i128));
+            Ok(())
+        });
+        self.prim("M*/", |f| {
+            let (n1, n2) = f.pop2()?;
+            let d = f.pop_d()?;
+            f.push_d(mul_div(d, n1, n2)?);
+            Ok(())
+        });
         self.prim("2@", |f| {
             let a = f.pop()?;
             let i = f.check(a, 2 * CELL as Cell)?;
@@ -1988,6 +2101,16 @@ impl Forth {
             f.define(&name, Kind::Value(addr));
             Ok(())
         });
+        self.prim("2VALUE", |f| {
+            let name = f.name()?;
+            let (x1, x2) = f.pop2()?;
+            f.align_here();
+            let addr = f.reserve(2 * CELL)?;
+            f.set(addr, x2);
+            f.set(addr + CELL, x1);
+            f.define(&name, Kind::TwoValue(addr));
+            Ok(())
+        });
         self.prim("DEFER", |f| {
             let name = f.name()?;
             f.align_here();
@@ -2004,7 +2127,15 @@ impl Forth {
         });
         // TO, IS and ACTION-OF parse a name; compiled, they become Store/Fetch.
         self.imm("TO", |f| {
-            let addr = f.named_cell(false)?;
+            let name = f.name()?;
+            let xt = f.find_or_err(&name)?;
+            if let Kind::TwoValue(addr) = f.dict[xt].kind {
+                // x2 is on top and goes in the first cell, as with 2!
+                f.store_to(addr)?;
+                return f.store_to(addr + CELL);
+            }
+            let addr =
+                f.cell_of(xt as Cell, false).map_err(|e| Throw { detail: Some(name), ..e })?;
             f.store_to(addr)
         });
         self.imm("IS", |f| {
@@ -3138,6 +3269,23 @@ mod tests {
     }
 
     #[test]
+    fn double_numbers() {
+        assert_eq!(run("1. . . -2. . . : T 3. ; T D. HEX FF. DECIMAL D."), "0 1 -1 -2 3 255 ");
+        assert_eq!(run("1. 2. D+ D. 5. 7. D- D. -3. DABS D. 1. DNEGATE D."), "3 -2 3 -1 ");
+        assert_eq!(run("-1 -1 D2/ D. 1. D2* D. 12. 6 D.R"), "-1 2     12");
+        assert_eq!(run("1. 2. D< . 1. 1. D= . -1. 1. DU< . -1. D0< . 0. D0= ."), "-1 -1 0 -1 -1 ");
+        assert_eq!(run("1. 2. DMAX D. 1. 2. DMIN D. 7. D>S . 5. 3 M+ D."), "2 1 7 8 ");
+        assert_eq!(run("5. -7 11 M*/ D. -1. 1 2 M*/ D."), "-4 -1 ");
+        assert_eq!(err("1. 1 0 M*/").code, -10);
+        let two_value = "1 2 2VALUE V V . . 3 4 TO V V . . : T 5 6 TO V ; T V . .";
+        assert_eq!(run(two_value), "2 1 4 3 6 5 ");
+        assert_eq!(
+            run("1 2 3 4 5 6 2ROT . . . . . . : T [ 1 2 ] 2LITERAL ; T . ."),
+            "2 1 6 5 4 3 2 1 "
+        );
+    }
+
+    #[test]
     fn programming_tools() {
         assert_eq!(run(": T AHEAD 1 THEN 2 ; T . DEPTH ."), "2 0 ");
         // WHILE as IF 1 CS-ROLL
@@ -3412,6 +3560,12 @@ mod tests {
     fn suite_file_access() {
         let Some(out) = run_suite(&["coreexttest.fth", "filetest.fth"]) else { return };
         assert!(out.contains("End of File-Access word set tests"), "{out}");
+    }
+
+    #[test]
+    fn suite_double() {
+        let Some(out) = run_suite(&["doubletest.fth"]) else { return };
+        assert!(out.contains("End of Double-Number word tests"), "{out}");
     }
 
     #[test]
