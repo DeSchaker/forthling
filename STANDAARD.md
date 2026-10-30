@@ -45,8 +45,9 @@ Testsuite: in de volgorde van `runtests.fth` draaien `prelimtest.fth`, `tester.f
 - **Meten (algemeen):** draai de testfiles in `tests/forth2012-test-suite/src` met een bestand dat
   ze met `INCLUDE` laadt. Kijk dan tot welke regel hij komt en hoeveel
   `INCORRECT RESULT`/`WRONG NUMBER OF RESULTS` er zijn.
-- **Opmaak:** `src/main.rs` is nooit door `rustfmt` gehaald (ook de eerste commit niet).
-  Volg de bestaande stijl; herformatteren is een aparte, bewuste stap.
+- **Opmaak:** de code volgt `rustfmt` (instellingen in `rustfmt.toml`). Draai `cargo fmt`
+  voor elke commit; `cargo fmt -- --check` moet schoon zijn. De formatteercommit `7d16ded`
+  staat in `.git-blame-ignore-revs`, zodat `git blame` hem overslaat.
 - **Repo:** https://github.com/DeSchaker/forthling (publiek, MIT). De testsuite staat lokaal
   in `tests/forth2012-test-suite` en wordt door git genegeerd.
 - **Windows:** PowerShell 5.1 geeft argumenten met `"` of `/` verkeerd door aan `git` en `gh`.
