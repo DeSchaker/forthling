@@ -35,6 +35,20 @@ Testsuite: in de volgorde van `runtests.fth` draaien `prelimtest.fth`, `tester.f
 meerdere bestanden neemt (`filetest.fth` heeft `coreexttest.fth` nodig). `toolstest.fth`
 slaat zijn `TRAVERSE-WORDLIST`-deel over zolang SEARCH ontbreekt.
 
+### CI en hygiëne (sinds 2026-10-30)
+
+GitHub Actions (`.github/workflows/ci.yml`) draait bij elke push en pull request:
+`cargo fmt --check`, `cargo clippy --all-targets -D warnings` en `cargo test` op Rust 1.74
+(de `rust-version` in `Cargo.toml`, gelijk aan de lokale toolchain), plus `cargo test` op de
+nieuwste stable op Linux en Windows. De testsuite wordt daar gekloond op commit `4c87e56`.
+Verhoog je de `rust-version`, pas dan ook de toolchain in `ci.yml` aan. `.gitattributes`
+zet alle tekstbestanden op LF, ook in een Windows-checkout.
+
+Kleine opschoonpunten om mee te nemen bij volgende wordsets: een `pop_str()` voor het
+patroon `pop2` + `check` (8×), benoemde constanten voor de THROW-codes, een registratie voor
+compile-only woorden in plaats van `need_def()` in elk woord (30×), en constanten als
+`R/O W/O R/W` naar `prelude.fs`.
+
 ### Codeindeling (sinds 2026-10-30)
 
 De interpreter is een library-crate (`src/lib.rs`) met een dunne binary (`src/main.rs`: de

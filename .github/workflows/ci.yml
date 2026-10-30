@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  # The Forth-2012 test suite, at the commit the README names.
+  SUITE_REPO: https://github.com/gerryjackson/forth2012-test-suite.git
+  SUITE_COMMIT: 4c87e56
+
+jobs:
+  # Formatting, lints and tests on the minimum supported Rust version
+  # (rust-version in Cargo.toml), so CI checks exactly what we check locally.
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.74"
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Fetch the Forth-2012 test suite
+        run: |
+          git clone --quiet "$SUITE_REPO" tests/forth2012-test-suite
+          git -C tests/forth2012-test-suite checkout --quiet "$SUITE_COMMIT"
+      - run: cargo fmt -- --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+
+  # The tests on the latest stable Rust, on Linux and Windows.
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Fetch the Forth-2012 test suite
+        shell: bash
+        run: |
+          git clone --quiet "$SUITE_REPO" tests/forth2012-test-suite
+          git -C tests/forth2012-test-suite checkout --quiet "$SUITE_COMMIT"
+      - run: cargo test

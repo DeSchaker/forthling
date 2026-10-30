@@ -1,0 +1,3 @@
+# Text files have LF line endings in the repository and in every checkout,
+# also on Windows.
+* text=auto eol=lf

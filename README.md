@@ -1,5 +1,7 @@
 # forthling
 
+[![CI](https://github.com/DeSchaker/forthling/actions/workflows/ci.yml/badge.svg)](https://github.com/DeSchaker/forthling/actions/workflows/ci.yml)
+
 > **forthling** *(noun)*
 >
 > 1. A diminutive creature thriving on a two-stack diet.
@@ -125,3 +127,7 @@ The tests from the Forth-2012 test suite need the suite to be cloned first:
 git clone https://github.com/gerryjackson/forth2012-test-suite.git tests/forth2012-test-suite
 git -C tests/forth2012-test-suite checkout 4c87e56
 ```
+
+forthling needs Rust 1.74 or newer. CI (`.github/workflows/ci.yml`) checks formatting and
+clippy lints and runs all tests, the test suite included, on Rust 1.74 and on the latest
+stable Rust on Linux and Windows.
