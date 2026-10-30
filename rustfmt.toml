@@ -1,0 +1,2 @@
+# Keep short constructs on one line, as the code was written before rustfmt.
+use_small_heuristics = "Max"

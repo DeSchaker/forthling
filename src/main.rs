@@ -106,18 +106,11 @@ pub struct Throw {
 
 impl Throw {
     fn new(code: Cell) -> Self {
-        Throw {
-            code,
-            detail: None,
-            location: None,
-        }
+        Throw { code, detail: None, location: None }
     }
 
     fn with(code: Cell, detail: impl Into<String>) -> Self {
-        Throw {
-            detail: Some(detail.into()),
-            ..Throw::new(code)
-        }
+        Throw { detail: Some(detail.into()), ..Throw::new(code) }
     }
 
     /// Records where the error happened; the innermost location wins.
@@ -179,19 +172,19 @@ enum Instr {
     Lit(Cell),
     Branch(usize),
     ZBranch(usize),
-    Of(usize), // ( x1 x2 -- | x1 ): equal drops both, else jumps to the target
-    Drop,      // the selector, dropped by ENDCASE
-    Do(usize),  // target: just past the matching LOOP
-    QDo(usize), // like Do, but skips the loop when limit == index
+    Of(usize),       // ( x1 x2 -- | x1 ): equal drops both, else jumps to the target
+    Drop,            // the selector, dropped by ENDCASE
+    Do(usize),       // target: just past the matching LOOP
+    QDo(usize),      // like Do, but skips the loop when limit == index
     Loop(usize),     // target: start of the loop body
     PlusLoop(usize), // target: start of the loop body
     Leave,
     Print(Rc<[u8]>),
     Abort(Rc<[u8]>), // ABORT": throws -2 with this message if the flag is nonzero
-    Compile(usize), // POSTPONEd non-immediate word: compiles a call to it
-    SetDoes(usize), // gives the latest CREATEd word the code at this offset
-    Store(usize),   // compiled TO and IS: stores the top of the stack here
-    Fetch(usize),   // compiled ACTION-OF: pushes the cell stored here
+    Compile(usize),  // POSTPONEd non-immediate word: compiles a call to it
+    SetDoes(usize),  // gives the latest CREATEd word the code at this offset
+    Store(usize),    // compiled TO and IS: stores the top of the stack here
+    Fetch(usize),    // compiled ACTION-OF: pushes the cell stored here
     Exit,
 }
 
@@ -272,7 +265,7 @@ pub struct Forth {
     ctrl: Vec<Ctrl>,
     sources: Vec<Source>,
     sq_next: usize,
-    hld: usize, // start of the pictured numeric output string
+    hld: usize,              // start of the pictured numeric output string
     input: Box<dyn BufRead>, // the terminal: the REPL, ACCEPT and KEY read from here
     interactive: bool,       // flush output before waiting for input
     out: Vec<u8>,
@@ -529,13 +522,7 @@ impl Forth {
     }
 
     fn variable(&mut self, name: &str, addr: usize) {
-        self.define(
-            name,
-            Kind::Created {
-                addr: addr as Cell,
-                does: None,
-            },
-        );
+        self.define(name, Kind::Created { addr: addr as Cell, does: None });
     }
 
     fn find(&self, name: &str) -> Option<usize> {
@@ -618,7 +605,8 @@ impl Forth {
                 b'x' => {
                     let mut v = 0;
                     for _ in 0..2 {
-                        let Some(d) = self.mem[i..end].first().and_then(|&h| (h as char).to_digit(16))
+                        let Some(d) =
+                            self.mem[i..end].first().and_then(|&h| (h as char).to_digit(16))
                         else {
                             break;
                         };
@@ -827,13 +815,7 @@ impl Forth {
         }
         let saved_in = self.get(IN_ADDR);
         self.sources.last_mut().unwrap().saved_in = saved_in;
-        self.sources.push(Source {
-            origin,
-            buf,
-            len,
-            line: 0,
-            saved_in: 0,
-        });
+        self.sources.push(Source { origin, buf, len, line: 0, saved_in: 0 });
         self.set(IN_ADDR, 0);
         Ok(())
     }
@@ -994,11 +976,7 @@ impl Forth {
         if self.frames.len() >= MAX_FRAMES {
             return Err(Throw::new(-5));
         }
-        self.frames.push(Frame {
-            code,
-            pc,
-            loops: self.loops.len(),
-        });
+        self.frames.push(Frame { code, pc, loops: self.loops.len() });
         Ok(())
     }
 
@@ -1072,10 +1050,9 @@ impl Forth {
                 Instr::SetDoes(pc) => {
                     let code = self.frames.last().unwrap().code.clone();
                     match self.dict.last_mut() {
-                        Some(Word {
-                            kind: Kind::Created { does, .. },
-                            ..
-                        }) => *does = Some((code, pc)),
+                        Some(Word { kind: Kind::Created { does, .. }, .. }) => {
+                            *does = Some((code, pc))
+                        }
                         _ => return Err(Throw::with(-21, "DOES> without CREATE")),
                     }
                 }
@@ -1600,11 +1577,7 @@ impl Forth {
         });
         self.prim("WORD", |f| {
             let delim = f.pop()? as u8;
-            let (a, n) = if delim == b' ' {
-                f.parse_name()
-            } else {
-                f.scan(true, |c| c == delim)
-            };
+            let (a, n) = if delim == b' ' { f.parse_name() } else { f.scan(true, |c| c == delim) };
             if n > 255 {
                 return Err(Throw::new(-18));
             }
@@ -1800,11 +1773,7 @@ impl Forth {
             f.need_def()?;
             let name = f.name()?;
             let xt = f.find_or_err(&name)?;
-            f.code.push(if f.dict[xt].immediate {
-                Instr::Call(xt)
-            } else {
-                Instr::Compile(xt)
-            });
+            f.code.push(if f.dict[xt].immediate { Instr::Call(xt) } else { Instr::Compile(xt) });
             Ok(())
         });
         self.prim("COMPILE,", |f| {
@@ -2191,7 +2160,10 @@ mod tests {
         assert_eq!(run("255 HEX <# 0 #S -1 SIGN #> TYPE"), "-FF");
         assert_eq!(run(r#"<# 0 0 #S S" x=" HOLDS #> TYPE"#), "x=0");
         assert_eq!(run("-1 -1 2 BASE ! <# #S #> NIP DECIMAL ."), "128 ");
-        assert_eq!(run("0 . -42 . -1 U. -9223372036854775808 ."), "0 -42 18446744073709551615 -9223372036854775808 ");
+        assert_eq!(
+            run("0 . -42 . -1 U. -9223372036854775808 ."),
+            "0 -42 18446744073709551615 -9223372036854775808 "
+        );
         assert_eq!(run("12 1 BASE ! . DECIMAL"), "12 ");
         assert_eq!(err(": T <# 300 0 DO 65 HOLD LOOP ; T").code, -17);
     }
@@ -2249,7 +2221,10 @@ mod tests {
         assert_eq!(run("1 C, CREATE X X 8 MOD ."), "0 ");
         assert_eq!(run("0 ALIGNED . 1 ALIGNED . 8 ALIGNED . 9 ALIGNED ."), "0 8 8 16 ");
         assert_eq!(run("1 C, ALIGN HERE 8 MOD ."), "0 ");
-        assert_eq!(run("CREATE B 8 ALLOT B 8 65 FILL B 3 66 FILL B 0 67 FILL B 8 TYPE"), "BBBAAAAA");
+        assert_eq!(
+            run("CREATE B 8 ALLOT B 8 65 FILL B 3 66 FILL B 0 67 FILL B 8 TYPE"),
+            "BBBAAAAA"
+        );
         let moves = r#"CREATE B 8 ALLOT S" abcdef" B SWAP MOVE
                        B B 2 + 3 MOVE B 6 TYPE  B 2 + B 3 MOVE B 6 TYPE  B B 0 MOVE"#;
         assert_eq!(run(moves), "ababcfabcbcf");
@@ -2293,7 +2268,10 @@ mod tests {
         assert_eq!(run("255 HEX . DECIMAL"), "FF ");
         assert_eq!(run("$10 #10 %10 + + ."), "28 ");
         assert_eq!(run("-1 U."), "18446744073709551615 ");
-        assert_eq!(run("18446744073709551615 -9223372036854775808 . ."), "-9223372036854775808 -1 ");
+        assert_eq!(
+            run("18446744073709551615 -9223372036854775808 . ."),
+            "-9223372036854775808 -1 "
+        );
         assert_eq!(err("18446744073709551616").code, -13);
         assert_eq!(err("12A").code, -13);
     }
@@ -2421,7 +2399,8 @@ mod tests {
         // REFILL continues in the next line; the rest of the current one is skipped.
         let file = temp_file("refill.fs", "SOURCE-ID 0> . REFILL 99 .\n. 2 .\n");
         assert_eq!(run(&format!("INCLUDE {file}")), "-1 -1 2 ");
-        let lines = "VARIABLE N  : AGAIN? N @ 3 < IF 2OVER 2OVER RESTORE-INPUT . ELSE 2DROP 2DROP THEN ;\n\
+        let lines =
+            "VARIABLE N  : AGAIN? N @ 3 < IF 2OVER 2OVER RESTORE-INPUT . ELSE 2DROP 2DROP THEN ;\n\
                      SAVE-INPUT\n\
                      1 N +! AGAIN?\n\
                      N @ .\n";
@@ -2541,9 +2520,8 @@ mod tests {
     // ---- Forth-2012 test suite (tests/forth2012-test-suite, see STANDAARD.md)
 
     fn suite_file(name: &str) -> Option<String> {
-        let path: PathBuf = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/forth2012-test-suite/src")
-            .join(name);
+        let path: PathBuf =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/forth2012-test-suite/src").join(name);
         if path.exists() {
             Some(path.to_string_lossy().into_owned())
         } else {
@@ -2586,8 +2564,16 @@ mod tests {
     /// The CORE EXT tests, preceded by what runtests.fth loads before them.
     #[test]
     fn suite_core_ext() {
-        let files = ["tester.fr", "core.fr", "coreplustest.fth", "utilities.fth", "errorreport.fth", "coreexttest.fth"];
-        let Some(paths) = files.iter().map(|name| suite_file(name)).collect::<Option<Vec<_>>>() else {
+        let files = [
+            "tester.fr",
+            "core.fr",
+            "coreplustest.fth",
+            "utilities.fth",
+            "errorreport.fth",
+            "coreexttest.fth",
+        ];
+        let Some(paths) = files.iter().map(|name| suite_file(name)).collect::<Option<Vec<_>>>()
+        else {
             return;
         };
         let mut f = Forth::new();
