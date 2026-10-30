@@ -24,10 +24,12 @@ Run a file: `cargo run --release -- examples/demo.fs`
 - A REPL and file execution (nested with `INCLUDE`)
 - Colon definitions compiled to threaded code, with `RECURSE`, `IMMEDIATE`,
   `POSTPONE`, `LITERAL`, `[ ]`, `' EXECUTE` and `SEE`
-- `IF ELSE THEN`, `BEGIN UNTIL/AGAIN/WHILE REPEAT`, `DO ?DO LOOP +LOOP LEAVE`
-- `VARIABLE`, `CONSTANT`, `CREATE … DOES>`
+- `IF ELSE THEN`, `BEGIN UNTIL/AGAIN/WHILE REPEAT`, `DO ?DO LOOP +LOOP LEAVE`,
+  `CASE OF ENDOF ENDCASE`
+- `VARIABLE`, `CONSTANT`, `VALUE`, `DEFER`, `BUFFER:`, `MARKER`, `:NONAME`, `CREATE … DOES>`
 - Byte-addressed memory with 64-bit cells
-- `SOURCE`, `>IN`, `STATE`, `WORD`, `FIND` and `EVALUATE`, working on input buffers in Forth memory
+- `SOURCE`, `>IN`, `STATE`, `WORD`, `PARSE`, `REFILL`, `SAVE-INPUT`, `FIND` and `EVALUATE`,
+  working on input buffers in Forth memory
 - Errors as standard THROW codes, e.g. `demo.fs:3: error -13: undefined word: FOO`
 
 Part of the dictionary is written in Forth itself (`PRELUDE` in `src/main.rs`).
@@ -35,8 +37,10 @@ Part of the dictionary is written in Forth itself (`PRELUDE` in `src/main.rs`).
 ## Standard compliance
 
 [`STANDAARD.md`](STANDAARD.md) (in Dutch) holds the roadmap to Forth-2012 and the
-current status. The CORE word set is complete: all 133 words are present and the CORE
-tests of the suite (`core.fr`) pass. Next up is CORE EXT.
+current status. The CORE and CORE EXT word sets are complete, and their tests in the
+[Forth-2012 test suite](https://github.com/gerryjackson/forth2012-test-suite) pass
+(`core.fr`, `coreplustest.fth` and `coreexttest.fth`). Next up are the optional word sets,
+starting with EXCEPTION.
 
 ### Implementation-defined choices
 
@@ -56,6 +60,12 @@ tests of the suite (`core.fr`) pass. Next up is CORE EXT.
 - `ABORT` throws `-1` and `ABORT"` throws `-2`; both empty the stacks and return to the
   terminal with a message. `QUIT` keeps the data stack and prints nothing. When running
   files, `QUIT` ends the run, since there is no terminal to return to.
+- `SOURCE-ID` is 0 for the terminal and -1 for `EVALUATE`. Without the FILE word set there
+  are no file ids, so an `INCLUDE`d file gives its (positive) nesting depth.
+- `RESTORE-INPUT` can return to any earlier line of a file, but at the terminal and in
+  `EVALUATE` only within the current line; otherwise it returns true.
+- `S\"` translates `\n` to a single line feed (10). Running a word made by `DEFER` before
+  an action is set with `IS` throws `-21`.
 
 ## License
 

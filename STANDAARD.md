@@ -5,23 +5,31 @@ Eerst de verplichte CORE-wordset, daarna CORE EXT en daarna de optionele wordset
 
 ## Waar staan we nu
 
-*Bijgewerkt 2026-10-30: fase 1 klaar, CORE is compleet (mijlpaal M3).*
+*Bijgewerkt 2026-10-30: fase 1 en 2 klaar, CORE en CORE EXT zijn compleet (mijlpalen M3, M4).*
 
 | Wordset   | Aanwezig  | Ontbreekt |
 |-----------|----------:|----------:|
 | CORE      | 133 / 133 | 0         |
-| CORE EXT  | 13 / 49   | 36        |
+| CORE EXT  | 49 / 49   | 0         |
 
-Testsuite: `prelimtest.fth`, `tester.fr` en **`core.fr` draaien foutloos** (alle 638 tests).
-`cargo test` draait ze alle drie (`suite_core` geeft de `ACCEPT`-test zijn invoer mee).
-`coreexttest.fth` komt tot regel 108 en stopt daar op `U>`.
+Testsuite: in de volgorde van `runtests.fth` draaien `prelimtest.fth`, `tester.fr`, `core.fr`,
+`coreplustest.fth`, `utilities.fth`, `errorreport.fth` en `coreexttest.fth` **foutloos**.
+`cargo test` draait ze allemaal (`suite_prelimtest`, `suite_core`, `suite_core_ext`).
 
 ### Volgende sessie: hier verder
 
-- **Volgende stap:** fase 2, CORE EXT. Begin met de triviale prelude-woorden
-  (`0<> U> WITHIN ERASE 2>R 2R> 2R@ ROLL UNUSED PAD .R U.R`), want `coreexttest.fth` stopt
-  op `U>` (regel 108). Meten: `INCLUDE tester.fr`, `INCLUDE core.fr`, `INCLUDE coreexttest.fth`,
-  met een regel invoer via een pipe voor de `ACCEPT`-test.
+- **Volgende stap:** fase 3, te beginnen met EXCEPTION (`CATCH THROW`, `exceptiontest.fth`).
+  Fouten zijn al `Throw`s met standaardcodes; `CATCH` moet de stacks, frames, loops en de
+  invoerbronnen bewaren en bij een fout terugzetten. Daarna TOOLS (`[IF]` enz.) en STRING.
+- **Meten:** volg `runtests.fth`: `utilities.fth` en `errorreport.fth` komen vóór de
+  wordset-tests, en de `ACCEPT`-test in `core.fr` wil een regel invoer (via een pipe).
+- **Invoerbronnen:** elke `Source` heeft een `Origin` (terminal, `EVALUATE`, bestand met al
+  zijn regels) en een regelteller. `refill()` laadt de volgende regel; `include` is
+  `while refill() { interpret_buffer() }`. `RESTORE-INPUT` kan in een bestand terug naar een
+  eerdere regel, bij de terminal en `EVALUATE` alleen binnen de huidige regel.
+- **Nieuwe soorten woorden:** `Kind::Value`, `Kind::Defer` en `Kind::Marker`. `TO`, `IS` en
+  `ACTION-OF` compileren `Instr::Store`/`Instr::Fetch`; `CASE` gebruikt `Ctrl::Case/Of/EndOf`
+  en `Instr::Of`/`Instr::Drop`. Een `:NONAME`-woord blijft verborgen (lege naam).
 - **Fouten en `QUIT`:** `ABORT` gooit `-1`, `ABORT"` gooit `-2` met de tekst als detail
   (`Instr::Abort`), `QUIT` gooit `-56` (`QUIT` in de code). `reset(clear_stack)` laat bij
   `QUIT` de data stack staan. In bestandsmodus stopt `QUIT` de run zonder melding.
@@ -35,17 +43,14 @@ Testsuite: `prelimtest.fth`, `tester.fr` en **`core.fr` draaien foutloos** (alle
 - **Gerepareerd:** `WHILE` laat zijn orig nu ónder de dest achter, zodat meerdere `WHILE`s
   één `BEGIN` kunnen delen (`core.fr` GI5).
 - **Meten (algemeen):** draai de testfiles in `tests/forth2012-test-suite/src` met een bestand dat
-  `INCLUDE tester.fr` en de testfiles bevat. Kijk dan tot welke regel hij komt en hoeveel
+  ze met `INCLUDE` laadt. Kijk dan tot welke regel hij komt en hoeveel
   `INCORRECT RESULT`/`WRONG NUMBER OF RESULTS` er zijn.
+- **Opmaak:** `src/main.rs` is nooit door `rustfmt` gehaald (ook de eerste commit niet).
+  Volg de bestaande stijl; herformatteren is een aparte, bewuste stap.
 - **Repo:** https://github.com/DeSchaker/forthling (publiek, MIT). De testsuite staat lokaal
   in `tests/forth2012-test-suite` en wordt door git genegeerd.
 - **Windows:** PowerShell 5.1 geeft argumenten met `"` of `/` verkeerd door aan `git` en `gh`.
   Gebruik daarvoor Bash, of een bestand voor commitboodschappen.
-
-Ontbrekende CORE EXT-woorden:
-`.R 0<> 2>R 2R> 2R@ :NONAME ACTION-OF BUFFER: C" CASE OF ENDOF ENDCASE COMPILE, DEFER
-DEFER! DEFER@ IS ERASE MARKER PAD PARSE PARSE-NAME REFILL SAVE-INPUT
-RESTORE-INPUT ROLL S\" SOURCE-ID TO VALUE U.R U> UNUSED WITHIN [COMPILE]`
 
 De meeste ontbrekende woorden zijn klein. Het echte werk zit in een paar
 architectuurkeuzes die nu buiten Forth in Rust-structuren zitten. Die komen eerst.
@@ -147,7 +152,7 @@ In deze volgorde, omdat latere groepen op eerdere leunen:
 
 ---
 
-## Fase 2: CORE EXT
+## Fase 2: CORE EXT ✅ klaar (2026-10-30)
 
 Gegroepeerd van makkelijk naar lastig:
 
@@ -209,7 +214,7 @@ Core word set, the Core Extensions word set, the Exception word set, …"*.
 | M1 ✅ | Fase 0.1 + 0.4 (testsuite + throwcodes) | `prelimtest.fth` draait, fouten tonen een code |
 | M2 ✅ | Fase 0.2 + 0.3 + 0.5 (geheugen en invoer herbouwen) | alle bestaande tests en de demo werken nog |
 | M3 ✅ | Fase 1 | `core.fr` foutloos en alle CORE-woorden aanwezig → **CORE-compliant** (2026-10-30) |
-| M4 | Fase 2 | `coreexttest.fth` foutloos |
+| M4 ✅ | Fase 2 | `coreexttest.fth` foutloos (2026-10-30) |
 | M5 | EXCEPTION + TOOLS + STRING | bijbehorende testfiles foutloos |
 | M6+ | overige wordsets naar behoefte | idem |
 

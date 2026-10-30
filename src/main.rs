@@ -81,8 +81,18 @@ const PRELUDE: &str = r#"
 : #S      BEGIN # 2DUP OR 0= UNTIL ;
 : SIGN    0< IF [CHAR] - HOLD THEN ;
 : HOLDS   BEGIN DUP WHILE 1- 2DUP + C@ HOLD REPEAT 2DROP ;
-: U.      0 <# #S #> TYPE SPACE ;
-: .       DUP ABS 0 <# #S ROT SIGN #> TYPE SPACE ;
+: U.R     >R 0 <# #S #> R> OVER - SPACES TYPE ;
+: .R      >R DUP ABS 0 <# #S ROT SIGN #> R> OVER - SPACES TYPE ;
+: U.      0 U.R SPACE ;
+: .       0 .R SPACE ;
+: 0<>     0= 0= ;
+: U>      SWAP U< ;
+: WITHIN  OVER - >R - R> U< ;
+: ERASE   0 FILL ;
+: BUFFER: CREATE ALLOT ;
+: 2>R     SWAP >R >R ;
+: 2R>     R> R> SWAP ;
+: 2R@     R> R@ OVER >R SWAP ;
 "#;
 
 /// A Forth exception: a THROW code from table 9.1 of the standard, or a
@@ -140,6 +150,7 @@ impl Throw {
             -17 => "pictured numeric output string overflow",
             -29 => "compiler nesting",
             -31 => ">BODY used on non-CREATEd definition",
+            -32 => "invalid name argument",
             -38 => "non-existent file",
             -39 => "unexpected end of file",
             QUIT => "quit",
@@ -168,6 +179,8 @@ enum Instr {
     Lit(Cell),
     Branch(usize),
     ZBranch(usize),
+    Of(usize), // ( x1 x2 -- | x1 ): equal drops both, else jumps to the target
+    Drop,      // the selector, dropped by ENDCASE
     Do(usize),  // target: just past the matching LOOP
     QDo(usize), // like Do, but skips the loop when limit == index
     Loop(usize),     // target: start of the loop body
@@ -177,6 +190,8 @@ enum Instr {
     Abort(Rc<[u8]>), // ABORT": throws -2 with this message if the flag is nonzero
     Compile(usize), // POSTPONEd non-immediate word: compiles a call to it
     SetDoes(usize), // gives the latest CREATEd word the code at this offset
+    Store(usize),   // compiled TO and IS: stores the top of the stack here
+    Fetch(usize),   // compiled ACTION-OF: pushes the cell stored here
     Exit,
 }
 
@@ -188,6 +203,12 @@ enum Kind {
     Created {
         addr: Cell,
         does: Option<(Rc<Vec<Instr>>, usize)>,
+    },
+    Value(usize), // address of the value's cell
+    Defer(usize), // address of the cell holding the xt to run
+    Marker {
+        dict_len: usize, // dictionary length before the marker, itself included
+        here: usize,
     },
 }
 
@@ -216,14 +237,26 @@ enum Ctrl {
     Orig(usize),
     Dest(usize),
     Do(usize),
+    Case,         // an open CASE
+    Of(usize),    // an OF waiting for its ENDOF
+    EndOf(usize), // an ENDOF jump waiting for ENDCASE
 }
 
-/// An input source: its line buffer in memory and, while a nested source
-/// runs, the >IN to restore afterwards.
+/// An input source: where its text comes from, its line buffer in memory,
+/// the number of lines read so far and, while a nested source runs, the
+/// >IN to restore afterwards.
 struct Source {
+    origin: Origin,
     buf: usize,
     len: usize,
+    line: usize,
     saved_in: Cell,
+}
+
+enum Origin {
+    Terminal,
+    Evaluate,
+    File(Rc<Vec<String>>), // all lines of the file; REFILL loads the next one
 }
 
 pub struct Forth {
@@ -294,8 +327,10 @@ impl Forth {
             code: Vec::new(),
             ctrl: Vec::new(),
             sources: vec![Source {
+                origin: Origin::Terminal,
                 buf: SOURCE_AREA,
                 len: 0,
+                line: 0,
                 saved_in: 0,
             }],
             sq_next: 0,
@@ -436,12 +471,24 @@ impl Forth {
         self.here = (self.here + CELL - 1) & !(CELL - 1);
     }
 
-    /// Copies `n` bytes into data space and returns their new address.
-    fn compile_string(&mut self, src: usize, n: usize) -> Res<usize> {
-        let a = self.reserve(n)?;
-        self.mem.copy_within(src..src + n, a);
-        self.align_here();
-        Ok(a)
+    /// The string of S" and S\": compiled into data space, or, when
+    /// interpreting, put in a transient buffer so HERE is left alone.
+    fn string_literal(&mut self, text: &[u8]) -> Res {
+        let n = text.len();
+        if self.compiling() {
+            let a = self.reserve(n)?;
+            self.mem[a..a + n].copy_from_slice(text);
+            self.align_here();
+            self.code.push(Instr::Lit(a as Cell));
+            self.code.push(Instr::Lit(n as Cell));
+        } else {
+            let buf = SQ_BUFS + self.sq_next * LINE_MAX;
+            self.sq_next = 1 - self.sq_next;
+            self.mem[buf..buf + n].copy_from_slice(text);
+            self.push(buf as Cell);
+            self.push(n as Cell);
+        }
+        Ok(())
     }
 
     fn text(&self, a: usize, n: usize) -> String {
@@ -539,6 +586,54 @@ impl Forth {
         self.scan(false, |c| c == delim)
     }
 
+    /// Parses the text of S\" up to an unescaped `"` and translates its
+    /// escapes, such as \n, \" and \x41.
+    fn parse_escaped(&mut self) -> Vec<u8> {
+        let (mut i, end) = self.parse_area();
+        let mut out = Vec::new();
+        while i < end {
+            let c = self.mem[i];
+            i += 1;
+            if c == b'"' {
+                break;
+            }
+            if c != b'\\' || i == end {
+                out.push(c);
+                continue;
+            }
+            let e = self.mem[i];
+            i += 1;
+            match e {
+                b'a' => out.push(7),
+                b'b' => out.push(8),
+                b'e' => out.push(27),
+                b'f' => out.push(12),
+                b'l' | b'n' => out.push(10),
+                b'm' => out.extend_from_slice(b"\r\n"),
+                b'q' => out.push(b'"'),
+                b'r' => out.push(13),
+                b't' => out.push(9),
+                b'v' => out.push(11),
+                b'z' => out.push(0),
+                b'x' => {
+                    let mut v = 0;
+                    for _ in 0..2 {
+                        let Some(d) = self.mem[i..end].first().and_then(|&h| (h as char).to_digit(16))
+                        else {
+                            break;
+                        };
+                        v = v * 16 + d;
+                        i += 1;
+                    }
+                    out.push(v as u8);
+                }
+                other => out.push(other), // \" and \\, and any other character as itself
+            }
+        }
+        self.set_in(i);
+        out
+    }
+
     fn word(&mut self) -> Option<String> {
         let (a, n) = self.parse_name();
         (n > 0).then(|| self.text(a, n))
@@ -630,10 +725,11 @@ impl Forth {
     fn load_line(&mut self, line: &str) -> Res {
         // A byte-order mark (from Windows editors and pipes) is not input.
         let bytes = line.trim_start_matches('\u{feff}').as_bytes();
+        let s = self.sources.last_mut().unwrap();
+        s.line += 1;
         if bytes.len() > LINE_MAX {
             return Err(Throw::with(-18, "input line too long"));
         }
-        let s = self.sources.last_mut().unwrap();
         s.len = bytes.len();
         let buf = s.buf;
         self.mem[buf..buf + bytes.len()].copy_from_slice(bytes);
@@ -673,12 +769,15 @@ impl Forth {
     /// Interprets a file as a nested input source with its own line buffer.
     fn include(&mut self, path: &str) -> Res {
         let src = fs::read_to_string(path).map_err(|e| Throw::with(-38, format!("{path}: {e}")))?;
+        let lines = src.lines().map(String::from).collect();
         let buf = SOURCE_AREA + self.sources.len() * LINE_MAX;
-        self.push_source(buf, 0)?;
-        for (n, line) in src.lines().enumerate() {
-            self.load_line(line)
-                .and_then(|_| self.interpret_buffer())
-                .map_err(|e| e.at(path, n + 1))?;
+        self.push_source(Origin::File(Rc::new(lines)), buf, 0)?;
+        // Read the line number before interpreting: a nested source may be
+        // on top of the stack when an error comes back.
+        let line = |f: &Forth| f.sources.last().unwrap().line;
+        while self.refill().map_err(|e| e.at(path, line(self)))? {
+            let n = line(self);
+            self.interpret_buffer().map_err(|e| e.at(path, n))?;
             if self.bye {
                 break;
             }
@@ -689,27 +788,95 @@ impl Forth {
 
     /// Interprets a string in memory as a nested input source (EVALUATE).
     fn evaluate(&mut self, a: usize, n: usize) -> Res {
-        self.push_source(a, n)?;
+        self.push_source(Origin::Evaluate, a, n)?;
         self.interpret_buffer()?;
         self.pop_source();
         Ok(())
     }
 
+    /// Loads the next line of the current source (REFILL); false when there
+    /// is none, which is always the case for an EVALUATEd string.
+    fn refill(&mut self) -> Res<bool> {
+        let s = self.sources.last().unwrap();
+        let line = match &s.origin {
+            Origin::Evaluate => None,
+            Origin::File(lines) => lines.get(s.line).cloned(),
+            Origin::Terminal => self.read_line().map(|l| String::from_utf8_lossy(&l).into_owned()),
+        };
+        match line {
+            Some(line) => self.load_line(&line).map(|_| true),
+            None => Ok(false),
+        }
+    }
+
+    /// SOURCE-ID: 0 for the terminal, -1 for EVALUATE. Without the FILE word
+    /// set there are no file ids, so a file gets its (positive) nesting depth.
+    fn source_id(&self) -> Cell {
+        match self.sources.last().unwrap().origin {
+            Origin::Terminal => 0,
+            Origin::Evaluate => -1,
+            Origin::File(_) => self.sources.len() as Cell - 1,
+        }
+    }
+
     /// Makes `buf` the current input source, remembering the >IN of the
     /// source it interrupts.
-    fn push_source(&mut self, buf: usize, len: usize) -> Res {
+    fn push_source(&mut self, origin: Origin, buf: usize, len: usize) -> Res {
         if self.sources.len() == MAX_SOURCES {
             return Err(Throw::new(NESTING_TOO_DEEP));
         }
         let saved_in = self.get(IN_ADDR);
         self.sources.last_mut().unwrap().saved_in = saved_in;
         self.sources.push(Source {
+            origin,
             buf,
             len,
+            line: 0,
             saved_in: 0,
         });
         self.set(IN_ADDR, 0);
         Ok(())
+    }
+
+    /// SAVE-INPUT: >IN, the line number and the nesting depth.
+    fn save_input(&mut self) {
+        let s = self.sources.last().unwrap();
+        let (line, depth) = (s.line as Cell, self.sources.len() as Cell);
+        self.push(self.get(IN_ADDR));
+        self.push(line);
+        self.push(depth);
+        self.push(3);
+    }
+
+    /// The core of RESTORE-INPUT; returns whether the input was restored.
+    /// A file can go back to any line, the terminal and EVALUATE only within
+    /// the current line.
+    fn restore_input(&mut self) -> Res<bool> {
+        let n = self.pop()?;
+        if n != 3 {
+            for _ in 0..n.max(0) {
+                self.pop()?;
+            }
+            return Ok(false);
+        }
+        let depth = self.pop()?;
+        let line = self.pop()?;
+        let to_in = self.pop()?;
+        let s = self.sources.last().unwrap();
+        if depth != self.sources.len() as Cell {
+            return Ok(false);
+        }
+        if line != s.line as Cell {
+            let Origin::File(lines) = &s.origin else { return Ok(false) };
+            let Some(text) = usize::try_from(line - 1).ok().and_then(|i| lines.get(i)) else {
+                return Ok(false);
+            };
+            let text = text.clone();
+            self.sources.last_mut().unwrap().line = line as usize - 1;
+            self.load_line(&text)?;
+        }
+        self.set(IN_ADDR, to_in);
+        Ok(true)
     }
 
     fn pop_source(&mut self) {
@@ -778,7 +945,20 @@ impl Forth {
     }
 
     /// Runs a primitive directly, or pushes a frame for compiled code.
-    fn invoke(&mut self, xt: usize) -> Res {
+    fn invoke(&mut self, mut xt: usize) -> Res {
+        // A deferred word runs its action; follow chains of them in a loop,
+        // so a DEFER that refers to itself cannot overflow the Rust stack.
+        let mut hops = 0;
+        while let Some(Word { kind: Kind::Defer(addr), name, .. }) = self.dict.get(xt) {
+            match self.get(*addr) {
+                -1 => return Err(Throw::with(-21, format!("{name} has no action yet"))),
+                action => xt = action as usize,
+            }
+            hops += 1;
+            if hops > MAX_FRAMES {
+                return Err(Throw::new(-5));
+            }
+        }
         let word = self
             .dict
             .get(xt)
@@ -796,6 +976,16 @@ impl Forth {
                     Some((code, pc)) => self.enter(code, pc),
                     None => Ok(()),
                 }
+            }
+            Kind::Value(addr) => {
+                self.push(self.get(addr));
+                Ok(())
+            }
+            Kind::Defer(_) => unreachable!("resolved above"),
+            Kind::Marker { dict_len, here } => {
+                self.dict.truncate(dict_len);
+                self.here = here;
+                Ok(())
             }
         }
     }
@@ -842,6 +1032,16 @@ impl Forth {
                         self.jump(t);
                     }
                 }
+                Instr::Of(t) => {
+                    let (x1, x2) = self.pop2()?;
+                    if x1 != x2 {
+                        self.push(x1);
+                        self.jump(t);
+                    }
+                }
+                Instr::Drop => {
+                    self.pop()?;
+                }
                 Instr::Do(exit) => {
                     let (limit, index) = self.pop2()?;
                     self.loops.push(LoopFrame { index, limit, exit });
@@ -879,6 +1079,11 @@ impl Forth {
                         _ => return Err(Throw::with(-21, "DOES> without CREATE")),
                     }
                 }
+                Instr::Store(addr) => {
+                    let v = self.pop()?;
+                    self.set(addr, v);
+                }
+                Instr::Fetch(addr) => self.push(self.get(addr)),
                 Instr::Exit => self.leave_frame(),
             }
         }
@@ -902,6 +1107,48 @@ impl Forth {
 
     // ---- compiler helpers -------------------------------------------------
 
+    /// Starts a colon definition (hidden until `;`) and enters compilation state.
+    fn start_def(&mut self, name: &str) -> Res<usize> {
+        if self.current.is_some() {
+            return Err(Throw::new(-29));
+        }
+        let xt = self.define(name, Kind::Colon(Rc::new(Vec::new())));
+        self.dict[xt].hidden = true;
+        self.current = Some(xt);
+        self.set_state(true);
+        self.code.clear();
+        self.ctrl.clear();
+        Ok(xt)
+    }
+
+    /// The cell behind a VALUE (`defer` false) or a DEFER (`defer` true).
+    fn cell_of(&self, xt: Cell, defer: bool) -> Res<usize> {
+        let word = usize::try_from(xt).ok().and_then(|i| self.dict.get(i));
+        match word.map(|w| &w.kind) {
+            Some(Kind::Value(addr)) if !defer => Ok(*addr),
+            Some(Kind::Defer(addr)) if defer => Ok(*addr),
+            _ => Err(Throw::new(-32)),
+        }
+    }
+
+    /// Parses a name and returns the cell behind it, as `cell_of`.
+    fn named_cell(&mut self, defer: bool) -> Res<usize> {
+        let name = self.name()?;
+        let xt = self.find_or_err(&name)?;
+        self.cell_of(xt as Cell, defer).map_err(|e| Throw { detail: Some(name), ..e })
+    }
+
+    /// Stores into a VALUE or DEFER cell now, or compiles the store.
+    fn store_to(&mut self, addr: usize) -> Res {
+        if self.compiling() {
+            self.code.push(Instr::Store(addr));
+        } else {
+            let v = self.pop()?;
+            self.set(addr, v);
+        }
+        Ok(())
+    }
+
     fn need_def(&self) -> Res {
         if self.current.is_some() {
             Ok(())
@@ -917,7 +1164,9 @@ impl Forth {
 
     fn patch(&mut self, at: usize, target: usize) {
         match &mut self.code[at] {
-            Instr::Branch(t) | Instr::ZBranch(t) | Instr::Do(t) | Instr::QDo(t) => *t = target,
+            Instr::Branch(t) | Instr::ZBranch(t) | Instr::Do(t) | Instr::QDo(t) | Instr::Of(t) => {
+                *t = target
+            }
             _ => unreachable!("patching a non-jump instruction"),
         }
     }
@@ -960,6 +1209,8 @@ impl Forth {
             Instr::Lit(n) => n.to_string(),
             Instr::Branch(t) => format!("BRANCH {t}"),
             Instr::ZBranch(t) => format!("0BRANCH {t}"),
+            Instr::Of(t) => format!("(OF) {t}"),
+            Instr::Drop => "DROP".into(),
             Instr::Do(t) => format!("(DO) {t}"),
             Instr::QDo(t) => format!("(?DO) {t}"),
             Instr::Loop(t) => format!("(LOOP) {t}"),
@@ -969,6 +1220,8 @@ impl Forth {
             Instr::Abort(s) => format!("ABORT\" {}\"", String::from_utf8_lossy(s)),
             Instr::Compile(xt) => format!("POSTPONE {}", self.dict[*xt].name),
             Instr::SetDoes(_) => "DOES>".into(),
+            Instr::Store(addr) => format!("{addr} !"),
+            Instr::Fetch(addr) => format!("{addr} @"),
             Instr::Exit => "EXIT".into(),
         }
     }
@@ -991,6 +1244,12 @@ impl Forth {
                 }
                 s + ";"
             }
+            Kind::Value(addr) => format!("{} VALUE {}", self.get(*addr), w.name),
+            Kind::Defer(addr) => match self.dict.get(self.get(*addr) as usize) {
+                Some(action) => format!("DEFER {} IS {}", w.name, action.name),
+                None => format!("DEFER {}", w.name),
+            },
+            Kind::Marker { .. } => format!("MARKER {}", w.name),
         };
         if w.immediate {
             text += " IMMEDIATE";
@@ -1064,6 +1323,16 @@ impl Forth {
                 return Err(Throw::new(-4));
             }
             f.push(f.stack[(len - 1 - n) as usize]);
+            Ok(())
+        });
+        self.prim("ROLL", |f| {
+            let n = f.pop()?;
+            let len = f.stack.len() as Cell;
+            if n < 0 || n >= len {
+                return Err(Throw::new(-4));
+            }
+            let x = f.stack.remove((len - 1 - n) as usize);
+            f.push(x);
             Ok(())
         });
         self.prim("DEPTH", |f| {
@@ -1207,6 +1476,14 @@ impl Forth {
             f.here = new as usize;
             Ok(())
         });
+        self.prim("UNUSED", |f| {
+            f.push((DATA_END - f.here) as Cell);
+            Ok(())
+        });
+        self.prim("PAD", |f| {
+            f.push(PAD_ADDR as Cell);
+            Ok(())
+        });
         self.prim("FILL", |f| {
             let c = f.pop()?;
             let (a, n) = f.pop2()?;
@@ -1290,6 +1567,37 @@ impl Forth {
             f.push(len as Cell);
             Ok(())
         });
+        self.prim("PARSE", |f| {
+            let delim = f.pop()? as u8;
+            let (a, n) = f.parse(delim);
+            f.push(a as Cell);
+            f.push(n as Cell);
+            Ok(())
+        });
+        self.prim("PARSE-NAME", |f| {
+            let (a, n) = f.parse_name();
+            f.push(a as Cell);
+            f.push(n as Cell);
+            Ok(())
+        });
+        self.prim("REFILL", |f| {
+            let more = f.refill()?;
+            f.push(flag(more));
+            Ok(())
+        });
+        self.prim("SOURCE-ID", |f| {
+            f.push(f.source_id());
+            Ok(())
+        });
+        self.prim("SAVE-INPUT", |f| {
+            f.save_input();
+            Ok(())
+        });
+        self.prim("RESTORE-INPUT", |f| {
+            let restored = f.restore_input()?;
+            f.push(flag(!restored));
+            Ok(())
+        });
         self.prim("WORD", |f| {
             let delim = f.pop()? as u8;
             let (a, n) = if delim == b' ' {
@@ -1327,16 +1635,13 @@ impl Forth {
 
         // definitions
         self.prim(":", |f| {
-            if f.current.is_some() {
-                return Err(Throw::new(-29));
-            }
             let name = f.name()?;
-            let xt = f.define(&name, Kind::Colon(Rc::new(Vec::new())));
-            f.dict[xt].hidden = true;
-            f.current = Some(xt);
-            f.set_state(true);
-            f.code.clear();
-            f.ctrl.clear();
+            f.start_def(&name)?;
+            Ok(())
+        });
+        self.prim(":NONAME", |f| {
+            let xt = f.start_def("")?;
+            f.push(xt as Cell);
             Ok(())
         });
         self.imm(";", |f| {
@@ -1345,7 +1650,8 @@ impl Forth {
                 return Err(Throw::new(-22));
             }
             f.dict[xt].kind = Kind::Colon(Rc::new(std::mem::take(&mut f.code)));
-            f.dict[xt].hidden = false;
+            // A :NONAME definition is only reachable through its xt.
+            f.dict[xt].hidden = f.dict[xt].name.is_empty();
             f.current = None;
             f.set_state(false);
             Ok(())
@@ -1372,6 +1678,59 @@ impl Forth {
             let name = f.name()?;
             let v = f.pop()?;
             f.define(&name, Kind::Constant(v));
+            Ok(())
+        });
+        self.prim("VALUE", |f| {
+            let name = f.name()?;
+            let v = f.pop()?;
+            f.align_here();
+            let addr = f.reserve(CELL)?;
+            f.set(addr, v);
+            f.define(&name, Kind::Value(addr));
+            Ok(())
+        });
+        self.prim("DEFER", |f| {
+            let name = f.name()?;
+            f.align_here();
+            let addr = f.reserve(CELL)?;
+            f.set(addr, -1); // no action yet
+            f.define(&name, Kind::Defer(addr));
+            Ok(())
+        });
+        self.prim("MARKER", |f| {
+            let name = f.name()?;
+            let (dict_len, here) = (f.dict.len(), f.here);
+            f.define(&name, Kind::Marker { dict_len, here });
+            Ok(())
+        });
+        // TO, IS and ACTION-OF parse a name; compiled, they become Store/Fetch.
+        self.imm("TO", |f| {
+            let addr = f.named_cell(false)?;
+            f.store_to(addr)
+        });
+        self.imm("IS", |f| {
+            let addr = f.named_cell(true)?;
+            f.store_to(addr)
+        });
+        self.imm("ACTION-OF", |f| {
+            let addr = f.named_cell(true)?;
+            if f.compiling() {
+                f.code.push(Instr::Fetch(addr));
+            } else {
+                f.push(f.get(addr));
+            }
+            Ok(())
+        });
+        self.prim("DEFER@", |f| {
+            let xt = f.pop()?;
+            let addr = f.cell_of(xt, true)?;
+            f.push(f.get(addr));
+            Ok(())
+        });
+        self.prim("DEFER!", |f| {
+            let (action, xt) = f.pop2()?;
+            let addr = f.cell_of(xt, true)?;
+            f.set(addr, action);
             Ok(())
         });
         self.prim("'", |f| {
@@ -1448,6 +1807,22 @@ impl Forth {
             });
             Ok(())
         });
+        self.prim("COMPILE,", |f| {
+            f.need_def()?;
+            let xt = f.pop()?;
+            match usize::try_from(xt).ok().filter(|&i| i < f.dict.len()) {
+                Some(xt) => f.code.push(Instr::Call(xt)),
+                None => return Err(Throw::with(-24, format!("invalid execution token {xt}"))),
+            }
+            Ok(())
+        });
+        self.imm("[COMPILE]", |f| {
+            f.need_def()?;
+            let name = f.name()?;
+            let xt = f.find_or_err(&name)?;
+            f.code.push(Instr::Call(xt));
+            Ok(())
+        });
         self.imm("RECURSE", |f| {
             f.need_def()?;
             f.code.push(Instr::Call(f.current.unwrap()));
@@ -1516,6 +1891,40 @@ impl Forth {
             let end = f.code.len();
             f.patch(p, end);
             Ok(())
+        });
+        self.imm("CASE", |f| {
+            f.need_def()?;
+            f.ctrl.push(Ctrl::Case);
+            Ok(())
+        });
+        self.imm("OF", |f| {
+            f.need_def()?;
+            let p = f.emit_fwd(Instr::Of(0));
+            f.ctrl.push(Ctrl::Of(p));
+            Ok(())
+        });
+        self.imm("ENDOF", |f| {
+            f.need_def()?;
+            let Some(Ctrl::Of(p)) = f.ctrl.pop() else {
+                return Err(Throw::new(-22));
+            };
+            let q = f.emit_fwd(Instr::Branch(0));
+            f.patch(p, q + 1);
+            f.ctrl.push(Ctrl::EndOf(q));
+            Ok(())
+        });
+        // ENDCASE drops the selector when no OF matched; every ENDOF jumps past that.
+        self.imm("ENDCASE", |f| {
+            f.need_def()?;
+            f.code.push(Instr::Drop);
+            let end = f.code.len();
+            loop {
+                match f.ctrl.pop() {
+                    Some(Ctrl::EndOf(p)) => f.patch(p, end),
+                    Some(Ctrl::Case) => return Ok(()),
+                    _ => return Err(Throw::new(-22)),
+                }
+            }
         });
         self.imm("DO", |f| {
             f.need_def()?;
@@ -1587,18 +1996,24 @@ impl Forth {
         });
         self.imm("S\"", |f| {
             let (a, n) = f.parse(b'"');
-            if f.compiling() {
-                let addr = f.compile_string(a, n)?;
-                f.code.push(Instr::Lit(addr as Cell));
-                f.code.push(Instr::Lit(n as Cell));
-            } else {
-                // Interpreted strings go to a transient buffer, leaving HERE alone.
-                let buf = SQ_BUFS + f.sq_next * LINE_MAX;
-                f.sq_next = 1 - f.sq_next;
-                f.mem.copy_within(a..a + n, buf);
-                f.push(buf as Cell);
-                f.push(n as Cell);
+            let text = f.mem[a..a + n].to_vec();
+            f.string_literal(&text)
+        });
+        self.imm("S\\\"", |f| {
+            let text = f.parse_escaped();
+            f.string_literal(&text)
+        });
+        self.imm("C\"", |f| {
+            f.need_def()?;
+            let (a, n) = f.parse(b'"');
+            if n > 255 {
+                return Err(Throw::with(-18, "counted string longer than 255 characters"));
             }
+            let addr = f.reserve(n + 1)?;
+            f.mem[addr] = n as u8;
+            f.mem.copy_within(a..a + n, addr + 1);
+            f.align_here();
+            f.code.push(Instr::Lit(addr as Cell));
             Ok(())
         });
 
@@ -1967,6 +2382,89 @@ mod tests {
     }
 
     #[test]
+    fn core_ext_basics() {
+        assert_eq!(run("1 2 3 4 3 ROLL .S"), "<4> 2 3 4 1 ");
+        assert_eq!(run("5 0<> . 0 0<> . -1 1 U> . 1 -1 U> ."), "-1 0 -1 0 ");
+        assert_eq!(run("2 1 3 WITHIN . 3 1 3 WITHIN . -1 -5 5 WITHIN ."), "-1 0 -1 ");
+        assert_eq!(run(": T 1 2 2>R 2R@ 2R> ; T .S"), "<4> 1 2 1 2 ");
+        assert_eq!(run("42 5 .R -42 5 .R 42 1 .R 7 3 U.R"), "   42  -4242  7");
+        assert_eq!(run("PAD 3 65 FILL PAD 1 ERASE PAD C@ . PAD 1+ C@ ."), "0 65 ");
+        assert_eq!(run("UNUSED HERE 100 ALLOT DROP UNUSED - ."), "100 ");
+    }
+
+    #[test]
+    fn noname_and_compiling_words() {
+        assert_eq!(run(":NONAME 6 7 * ; EXECUTE ."), "42 ");
+        assert_eq!(run(":NONAME DUP IF 1- RECURSE THEN ; 5 SWAP EXECUTE ."), "0 ");
+        assert_eq!(run(":NONAME 1 ; DROP CREATE E 0 C, E FIND NIP ."), "0 ");
+        assert_eq!(run(": Q ['] DUP COMPILE, ; IMMEDIATE : T Q * ; 7 T ."), "49 ");
+        assert_eq!(run(": MYIF [COMPILE] IF ; IMMEDIATE : T MYIF 1 THEN ; -1 T ."), "1 ");
+        assert_eq!(run(r#": T C" abc" ; T COUNT TYPE T C@ ."#), "abc3 ");
+        assert_eq!(err(r#"C" abc""#).code, -14);
+        assert_eq!(err("5 COMPILE,").code, -14);
+    }
+
+    #[test]
+    fn escaped_strings() {
+        let codes = |lit: &str| run(&format!(": T {lit} 0 ?DO DUP I + C@ . LOOP DROP ; T"));
+        assert_eq!(codes(r#"S\" a\tb\"\\\x41\x4a\m""#), "97 9 98 34 92 65 74 13 10 ");
+        assert_eq!(codes(r#"S\" \z\q\xF""#), "0 34 15 ");
+        assert_eq!(run(r#"S\" x\"y" TYPE"#), "x\"y");
+    }
+
+    #[test]
+    fn parse_refill_and_input_state() {
+        assert_eq!(run("CHAR | PARSE abc| TYPE PARSE-NAME   word TYPE"), "abcword");
+        assert_eq!(run(": T PARSE-NAME NIP . ; T"), "0 ");
+        assert_eq!(run(r#"SOURCE-ID . S" SOURCE-ID ." EVALUATE S" REFILL ." EVALUATE"#), "0 -1 0 ");
+        // REFILL in a file moves to the next line; RESTORE-INPUT can go back.
+        // REFILL continues in the next line; the rest of the current one is skipped.
+        let file = temp_file("refill.fs", "SOURCE-ID 0> . REFILL 99 .\n. 2 .\n");
+        assert_eq!(run(&format!("INCLUDE {file}")), "-1 -1 2 ");
+        let lines = "VARIABLE N  : AGAIN? N @ 3 < IF 2OVER 2OVER RESTORE-INPUT . ELSE 2DROP 2DROP THEN ;\n\
+                     SAVE-INPUT\n\
+                     1 N +! AGAIN?\n\
+                     N @ .\n";
+        let file = temp_file("restore.fs", lines);
+        assert_eq!(run(&format!("INCLUDE {file}")), "0 0 3 ");
+        // Another source cannot be restored: the flag is true.
+        assert_eq!(run(r#"SAVE-INPUT S" RESTORE-INPUT ." EVALUATE"#), "-1 ");
+        assert_eq!(run_with_input("REFILL", "1 2 + . SOURCE TYPE\n"), "3 1 2 + . SOURCE TYPE");
+    }
+
+    #[test]
+    fn case_of_endof_endcase() {
+        let src = ": T CASE 1 OF 10 ENDOF 2 OF 20 ENDOF DUP 100 * SWAP ENDCASE ; \
+                   1 T . 2 T . 3 T . : E CASE ENDCASE ; 5 E DEPTH .";
+        assert_eq!(run(src), "10 20 300 0 ");
+        let nested = ": N CASE 1 OF CASE 2 OF 12 ENDOF 0 SWAP ENDCASE ENDOF 9 SWAP ENDCASE ; \
+                      2 1 N . 3 1 N . 1 7 N . DEPTH .";
+        assert_eq!(run(nested), "12 0 9 1 ");
+        assert_eq!(err(": BAD CASE 1 OF ENDCASE ;").code, -22);
+        assert_eq!(err(": BAD IF ENDCASE ;").code, -22);
+        assert_eq!(err(": BAD CASE 1 OF THEN ;").code, -22);
+        assert_eq!(run("2 CELLS BUFFER: B 7 B CELL+ ! B CELL+ @ . B 8 MOD ."), "7 0 ");
+    }
+
+    #[test]
+    fn values_defers_and_markers() {
+        assert_eq!(run("5 VALUE V V . 7 TO V V . : T 9 TO V ; T V ."), "5 7 9 ");
+        let defer = "DEFER D ' 1+ IS D 5 D . : T ['] 2* IS D ; T 5 D . ACTION-OF D ' 2* = .";
+        assert_eq!(run(defer), "6 10 -1 ");
+        assert_eq!(run("DEFER D ' NEGATE ' D DEFER! 3 D . ' D DEFER@ ' NEGATE = ."), "-3 -1 ");
+        assert_eq!(run("DEFER D : A ACTION-OF D ; ' DUP IS D A ' DUP = ."), "-1 ");
+        assert_eq!(err("DEFER D D").code, -21);
+        assert_eq!(err("DEFER D ' D IS D D").code, -5);
+        assert_eq!(err("5 CONSTANT C 6 TO C").code, -32);
+        assert_eq!(err("0 VALUE V ' V DEFER@").code, -32);
+        assert_eq!(run("MARKER M : A 1 ; MARKER N : A 2 ; A . N A . M"), "2 1 ");
+        assert_eq!(err("MARKER M : A 1 ; M A").code, -13);
+        assert_eq!(err("MARKER M M M").code, -13);
+        assert_eq!(run("HERE MARKER M 100 ALLOT M HERE = ."), "-1 ");
+        assert_eq!(run("1 VALUE X MARKER M 2 TO X M X ."), "2 ");
+    }
+
+    #[test]
     fn stack_limits() {
         assert_eq!(err(": T BEGIN 1 AGAIN ; T").code, -3);
         assert_eq!(err(": T BEGIN 1 >R AGAIN ; T").code, -5);
@@ -2083,6 +2581,28 @@ mod tests {
         assert!(out.contains("End of Core word set tests"), "{out}");
         f.interpret("#ERRORS @ .").unwrap();
         assert!(output(f).ends_with("0 "));
+    }
+
+    /// The CORE EXT tests, preceded by what runtests.fth loads before them.
+    #[test]
+    fn suite_core_ext() {
+        let files = ["tester.fr", "core.fr", "coreplustest.fth", "utilities.fth", "errorreport.fth", "coreexttest.fth"];
+        let Some(paths) = files.iter().map(|name| suite_file(name)).collect::<Option<Vec<_>>>() else {
+            return;
+        };
+        let mut f = Forth::new();
+        f.input = Box::new(io::Cursor::new(b"typed line\n".to_vec()));
+        for path in &paths {
+            let result = f.include(path);
+            let out = String::from_utf8_lossy(&f.out).into_owned();
+            result.unwrap_or_else(|e| panic!("{e}\n{out}"));
+        }
+        let out = output(f);
+        assert!(!out.contains("INCORRECT RESULT"), "{out}");
+        assert!(!out.contains("WRONG NUMBER OF RESULTS"), "{out}");
+        assert!(!out.contains("FIND returns a TRUE value"), "{out}");
+        assert!(out.contains("End of additional Core tests"), "{out}");
+        assert!(out.contains("End of Core Extension word tests"), "{out}");
     }
 
     #[test]
