@@ -5,7 +5,7 @@ Eerst de verplichte CORE-wordset, daarna CORE EXT en daarna de optionele wordset
 
 ## Waar staan we nu
 
-*Bijgewerkt 2026-10-30: CORE, CORE EXT en EXCEPTION zijn compleet (fase 3 is begonnen).*
+*Bijgewerkt 2026-10-30: CORE, CORE EXT, EXCEPTION en TOOLS zijn compleet (fase 3 loopt).*
 
 | Wordset       | Aanwezig  | Ontbreekt |
 |---------------|----------:|----------:|
@@ -13,18 +13,30 @@ Eerst de verplichte CORE-wordset, daarna CORE EXT en daarna de optionele wordset
 | CORE EXT      | 49 / 49   | 0         |
 | EXCEPTION     | 2 / 2     | 0         |
 | EXCEPTION EXT | 2 / 2     | 0         |
+| TOOLS         | 5 / 5     | 0         |
+| TOOLS EXT     | 13 / 22   | 9 (zie hieronder) |
+
+Ontbrekend in TOOLS EXT: `;CODE ASSEMBLER CODE EDITOR` (er is geen assembler en geen
+editor), `FORGET` (verouderd; gebruik `MARKER`) en `NAME>COMPILE NAME>INTERPRET NAME>STRING
+TRAVERSE-WORDLIST` (die hebben wordlists nodig en komen met SEARCH).
 
 Testsuite: in de volgorde van `runtests.fth` draaien `prelimtest.fth`, `tester.fr`, `core.fr`,
-`coreplustest.fth`, `utilities.fth`, `errorreport.fth`, `coreexttest.fth` en
-`exceptiontest.fth` **foutloos**. `cargo test` draait ze allemaal (`suite_prelimtest`,
-`suite_core`, `suite_core_ext`, `suite_exception`); een nieuwe wordset-test is één regel met
-de hulpfunctie `run_suite`.
+`coreplustest.fth`, `utilities.fth`, `errorreport.fth`, `coreexttest.fth`,
+`exceptiontest.fth` en `toolstest.fth` **foutloos**. `cargo test` draait ze allemaal
+(`suite_prelimtest`, `suite_core`, `suite_core_ext`, `suite_exception`, `suite_tools`); een
+nieuwe wordset-test is één regel met de hulpfunctie `run_suite`. `toolstest.fth` slaat zijn
+`TRAVERSE-WORDLIST`-deel over zolang SEARCH ontbreekt.
 
 ### Volgende sessie: hier verder
 
-- **Volgende stap:** fase 3, TOOLS (`toolstest.fth`). De suite gebruikt zelf `[IF] [ELSE]
-  [THEN]`; verder `AHEAD CS-PICK CS-ROLL N>R NR> [DEFINED] [UNDEFINED] SYNONYM ? DUMP`.
-  Daarna STRING (`stringtest.fth`), en dan is mijlpaal M5 bereikt.
+- **Volgende stap:** fase 3, STRING (`stringtest.fth`): `COMPARE SEARCH /STRING -TRAILING
+  BLANK CMOVE CMOVE> SLITERAL`, plus `REPLACES SUBSTITUTE UNESCAPE`. Daarmee is mijlpaal M5
+  bereikt.
+- **TOOLS:** `[IF]` en `[ELSE]` slaan woorden over met `skip_conditional`, ook over regels heen
+  (via `refill()`), en tellen geneste `[IF]`s mee. `CS-PICK`/`CS-ROLL` werken op de
+  control-flow stack `ctrl` (`Ctrl` is nu `Copy`). `SYNONYM` kopieert `kind` en
+  `immediate` van het oude woord. `N>R` zet n cellen en dan n op de return stack.
+  `DUMP` toont hex en ASCII, 16 bytes per regel. `?` staat in de prelude.
 - **`CATCH`:** legt diepte van data stack, return stack, loops, frames, invoerbronnen, `>IN`,
   `STATE` en de control-flow stack vast en zet die bij een `THROW` terug. Een definitie die
   binnen `CATCH` begon, wordt geschrapt. `QUIT` gaat door `CATCH` heen.
@@ -188,7 +200,7 @@ Gegroepeerd van makkelijk naar lastig:
 | Prioriteit | Wordset   | Waarom / wat |
 |-----------:|-----------|--------------|
 | 1 ✅ | EXCEPTION | `CATCH THROW`, plus `ABORT ABORT"` uit EXCEPTION EXT. Klaar 2026-10-30. |
-| 2 | TOOLS     | `.S ? DUMP SEE WORDS` (deels aanwezig), `[IF] [ELSE] [THEN]`, `AHEAD`, `CS-PICK`, `CS-ROLL`, `BYE`, `N>R`/`NR>`, `[DEFINED]`/`[UNDEFINED]`, `SYNONYM`. De testsuite zelf gebruikt `[IF]`. |
+| 2 ✅ | TOOLS     | `.S ? DUMP SEE WORDS`, `[IF] [ELSE] [THEN]`, `AHEAD`, `CS-PICK`, `CS-ROLL`, `BYE`, `N>R`/`NR>`, `[DEFINED]`/`[UNDEFINED]`, `SYNONYM`. Klaar 2026-10-30; `NAME>…` en `TRAVERSE-WORDLIST` volgen met SEARCH. |
 | 3 | STRING    | `COMPARE SEARCH /STRING -TRAILING BLANK CMOVE CMOVE> SLITERAL`, plus `REPLACES`/`SUBSTITUTE`/`UNESCAPE`. |
 | 4 | FILE      | `INCLUDED INCLUDE REQUIRE`, plus file-I/O (`OPEN-FILE READ-LINE WRITE-FILE …`). `INCLUDE` bestaat al in eenvoudige vorm. |
 | 5 | DOUBLE    | `D+ D- D. D< DNEGATE 2CONSTANT 2VARIABLE M+ M*/ …`, en getallen met een punt (`123.`) als dubbele cel. |

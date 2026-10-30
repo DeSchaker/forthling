@@ -30,17 +30,23 @@ Run a file: `cargo run --release -- examples/demo.fs`
 - Byte-addressed memory with 64-bit cells
 - `SOURCE`, `>IN`, `STATE`, `WORD`, `PARSE`, `REFILL`, `SAVE-INPUT`, `FIND` and `EVALUATE`,
   working on input buffers in Forth memory
-- Errors as standard THROW codes, e.g. `demo.fs:3: error -13: undefined word: FOO`
+- Errors as standard THROW codes, e.g. `demo.fs:3: error -13: undefined word: FOO`,
+  which `CATCH` can catch
+- Programming tools: `.S ? DUMP SEE WORDS`, `[IF] [ELSE] [THEN]`, `[DEFINED] [UNDEFINED]`,
+  `AHEAD CS-PICK CS-ROLL`, `N>R NR>` and `SYNONYM`
 
 Part of the dictionary is written in Forth itself (`PRELUDE` in `src/main.rs`).
 
 ## Standard compliance
 
 [`STANDAARD.md`](STANDAARD.md) (in Dutch) holds the roadmap to Forth-2012 and the
-current status. The CORE, CORE EXT and EXCEPTION word sets are complete, and their tests
-in the [Forth-2012 test suite](https://github.com/gerryjackson/forth2012-test-suite) pass
-(`core.fr`, `coreplustest.fth`, `coreexttest.fth` and `exceptiontest.fth`). Next up are
-the other optional word sets, starting with TOOLS.
+current status. The CORE, CORE EXT, EXCEPTION and TOOLS word sets are complete, and their
+tests in the [Forth-2012 test suite](https://github.com/gerryjackson/forth2012-test-suite)
+pass (`core.fr`, `coreplustest.fth`, `coreexttest.fth`, `exceptiontest.fth` and
+`toolstest.fth`). Of TOOLS EXT, everything is present except `;CODE ASSEMBLER CODE EDITOR`
+(there is no assembler or editor), the obsolescent `FORGET` (use `MARKER`), and
+`NAME>COMPILE NAME>INTERPRET NAME>STRING TRAVERSE-WORDLIST`, which will come with the
+SEARCH word set. Next up is STRING.
 
 ### Implementation-defined choices
 
@@ -70,6 +76,9 @@ the other optional word sets, starting with TOOLS.
   detects (such as `-13` for an undefined word). `QUIT` is not an exception and is not
   caught. `CATCH` can be nested 1000 deep; one more throws `-5`. When a `THROW` unwinds a
   definition that was started inside the `CATCH`, that definition is dropped.
+- `[IF]` and `[ELSE]` skip words across lines, reading further lines from the file or the
+  terminal; if the input ends before the matching `[ELSE]` or `[THEN]`, skipping just stops.
+  `DUMP` prints the address and 16 bytes per line in hexadecimal, plus their characters.
 
 ## License
 

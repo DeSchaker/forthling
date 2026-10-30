@@ -94,6 +94,7 @@ const PRELUDE: &str = r#"
 : 2>R     SWAP >R >R ;
 : 2R>     R> R> SWAP ;
 : 2R@     R> R@ OVER >R SWAP ;
+: ?       @ . ;
 "#;
 
 /// A Forth exception: a THROW code from table 9.1 of the standard, or a
@@ -227,6 +228,7 @@ struct LoopFrame {
 
 /// Compile-time control-flow markers: an unresolved forward jump, a
 /// backward jump target, or an open DO.
+#[derive(Clone, Copy)]
 enum Ctrl {
     Orig(usize),
     Dest(usize),
@@ -1190,6 +1192,38 @@ impl Forth {
         }
     }
 
+    /// The index in the control-flow stack of item u (0 is the top), for
+    /// CS-PICK and CS-ROLL.
+    fn cs_index(&mut self) -> Res<usize> {
+        let u = self.pop()?;
+        match usize::try_from(u).ok().filter(|&u| u < self.ctrl.len()) {
+            Some(u) => Ok(self.ctrl.len() - 1 - u),
+            None => Err(Throw::new(-22)),
+        }
+    }
+
+    /// Skips words for [IF] and [ELSE], across lines, up to the matching
+    /// [THEN], or the matching [ELSE] when `to_else` is set. A nested
+    /// [IF] … [THEN] is skipped whole.
+    fn skip_conditional(&mut self, to_else: bool) -> Res {
+        let mut depth = 0;
+        loop {
+            let Some(word) = self.word() else {
+                if self.refill()? {
+                    continue;
+                }
+                return Ok(()); // the input ended first
+            };
+            match word.to_ascii_uppercase().as_str() {
+                "[IF]" => depth += 1,
+                "[ELSE]" if depth == 0 && to_else => return Ok(()),
+                "[THEN]" if depth == 0 => return Ok(()),
+                "[THEN]" => depth -= 1,
+                _ => {}
+            }
+        }
+    }
+
     fn pop_orig(&mut self) -> Res<usize> {
         match self.ctrl.pop() {
             Some(Ctrl::Orig(p)) => Ok(p),
@@ -1913,6 +1947,25 @@ impl Forth {
             f.patch(p, end);
             Ok(())
         });
+        self.imm("AHEAD", |f| {
+            f.need_def()?;
+            let p = f.emit_fwd(Instr::Branch(0));
+            f.ctrl.push(Ctrl::Orig(p));
+            Ok(())
+        });
+        self.prim("CS-PICK", |f| {
+            f.need_def()?;
+            let i = f.cs_index()?;
+            f.ctrl.push(f.ctrl[i]);
+            Ok(())
+        });
+        self.prim("CS-ROLL", |f| {
+            f.need_def()?;
+            let i = f.cs_index()?;
+            let item = f.ctrl.remove(i);
+            f.ctrl.push(item);
+            Ok(())
+        });
         self.imm("CASE", |f| {
             f.need_def()?;
             f.ctrl.push(Ctrl::Case);
@@ -2035,6 +2088,77 @@ impl Forth {
             f.mem.copy_within(a..a + n, addr + 1);
             f.align_here();
             f.code.push(Instr::Lit(addr as Cell));
+            Ok(())
+        });
+
+        // programming tools
+        self.imm("[IF]", |f| match f.pop()? {
+            0 => f.skip_conditional(true),
+            _ => Ok(()),
+        });
+        self.imm("[ELSE]", |f| f.skip_conditional(false));
+        self.imm("[THEN]", |_| Ok(()));
+        self.imm("[DEFINED]", |f| {
+            let name = f.name()?;
+            f.push(flag(f.find(&name).is_some()));
+            Ok(())
+        });
+        self.imm("[UNDEFINED]", |f| {
+            let name = f.name()?;
+            f.push(flag(f.find(&name).is_none()));
+            Ok(())
+        });
+        // N>R moves n cells and then n itself to the return stack; NR> undoes it.
+        self.prim("N>R", |f| {
+            let n = f.pop()?;
+            let len = f.stack.len();
+            let n = usize::try_from(n).ok().filter(|&n| n <= len).ok_or(Throw::new(-4))?;
+            if f.rstack.len() + n >= RSTACK_CELLS {
+                return Err(Throw::new(-5));
+            }
+            f.rstack.extend(f.stack.drain(len - n..));
+            f.rstack.push(n as Cell);
+            Ok(())
+        });
+        self.prim("NR>", |f| {
+            let n = f.rstack.pop().ok_or(Throw::new(-6))?;
+            let len = f.rstack.len();
+            let n = usize::try_from(n).ok().filter(|&n| n <= len).ok_or(Throw::new(-6))?;
+            f.stack.extend(f.rstack.drain(len - n..));
+            f.push(n as Cell);
+            Ok(())
+        });
+        // A synonym is a copy of the word: the same behaviour and immediacy.
+        self.prim("SYNONYM", |f| {
+            let name = f.name()?;
+            let old = f.name()?;
+            let xt = f.find_or_err(&old)?;
+            let (kind, immediate) = (f.dict[xt].kind.clone(), f.dict[xt].immediate);
+            let new = f.define(&name, kind);
+            f.dict[new].immediate = immediate;
+            Ok(())
+        });
+        self.prim("DUMP", |f| {
+            let (a, n) = f.pop2()?;
+            let i = f.check(a, n.max(0))?;
+            let mut text = String::new();
+            for (row, bytes) in f.mem[i..i + n.max(0) as usize].chunks(16).enumerate() {
+                text += &format!("{:08X} ", a as usize + 16 * row);
+                for b in bytes {
+                    text += &format!(" {b:02X}");
+                }
+                text += &"   ".repeat(16 - bytes.len());
+                text += "  ";
+                text.extend(bytes.iter().map(|&b| {
+                    if b == b' ' || b.is_ascii_graphic() {
+                        b as char
+                    } else {
+                        '.'
+                    }
+                }));
+                text.push('\n');
+            }
+            f.emit_str(&text);
             Ok(())
         });
 
@@ -2488,6 +2612,34 @@ mod tests {
     }
 
     #[test]
+    fn conditional_interpretation() {
+        assert_eq!(run("-1 [IF] 1 [ELSE] 2 [THEN] . 0 [IF] 1 [ELSE] 2 [THEN] ."), "1 2 ");
+        assert_eq!(run("0 [IF] 1 [if] 2 [ELSE] 3 [THEN] 4 [ELSE] 5 [THEN] ."), "5 ");
+        assert_eq!(run("[ELSE] 1 . [THEN] 2 . [THEN] 3 ."), "2 3 ");
+        assert_eq!(run(": T [ 0 ] [IF] 1 [ELSE] 2 [THEN] ; T ."), "2 ");
+        // skipping goes on across lines read from the terminal
+        assert_eq!(run_with_input("0 [IF] 1 .", "2 .\n[ELSE] 4 . [THEN] 5 .\n"), "4 5 ");
+        assert_eq!(run("[DEFINED] DUP . [UNDEFINED] DUP . [DEFINED] NOSUCHWORD ."), "-1 0 0 ");
+    }
+
+    #[test]
+    fn programming_tools() {
+        assert_eq!(run(": T AHEAD 1 THEN 2 ; T . DEPTH ."), "2 0 ");
+        // WHILE as IF 1 CS-ROLL
+        let src = ": W POSTPONE IF 1 CS-ROLL ; IMMEDIATE \
+                   : T 0 BEGIN DUP 3 < W 1+ REPEAT ; T .";
+        assert_eq!(run(src), "3 ");
+        assert_eq!(err(": T [ 5 CS-PICK ] ;").code, -22);
+        assert_eq!(run(": T N>R DEPTH NR> ; 7 8 9 2 T . . . . ."), "2 9 8 1 7 ");
+        assert_eq!(err("1 2 5 N>R").code, -4);
+        // B is immediate too: compiling C runs it, leaving a 1
+        assert_eq!(run(": A 1 ; IMMEDIATE SYNONYM B A : C B ; B . C DEPTH ."), "1 1 ");
+        assert_eq!(run("VARIABLE V 42 V ! V ?"), "42 ");
+        let dump = run("HERE 65 C, 0 C, HERE OVER - DUMP");
+        assert_eq!(dump[8..], format!("  41 00{}  A.\n", " ".repeat(42)));
+    }
+
+    #[test]
     fn values_defers_and_markers() {
         assert_eq!(run("5 VALUE V V . 7 TO V V . : T 9 TO V ; T V ."), "5 7 9 ");
         let defer = "DEFER D ' 1+ IS D 5 D . : T ['] 2* IS D ; T 5 D . ACTION-OF D ' 2* = .";
@@ -2695,6 +2847,12 @@ mod tests {
     fn suite_exception() {
         let Some(out) = run_suite("exceptiontest.fth") else { return };
         assert!(out.contains("End of Exception word tests"), "{out}");
+    }
+
+    #[test]
+    fn suite_tools() {
+        let Some(out) = run_suite("toolstest.fth") else { return };
+        assert!(out.contains("End of Programming Tools word tests"), "{out}");
     }
 
     #[test]
