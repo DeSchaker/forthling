@@ -19,6 +19,8 @@ type Prim = fn(&mut Forth) -> Res;
 
 const CELL: usize = 8;
 const MAX_FRAMES: usize = 10_000;
+const STACK_CELLS: usize = 1 << 16; // data stack size, reported by ENVIRONMENT?
+const RSTACK_CELLS: usize = 1 << 16; // return stack size, idem
 
 // Memory map: system variables at the bottom, then the data space that
 // HERE grows through, then transient buffers and the input buffers on top.
@@ -32,7 +34,6 @@ const MAX_SOURCES: usize = 16; // the terminal plus nested INCLUDEs
 const SOURCE_AREA: usize = MEM_SIZE - MAX_SOURCES * LINE_MAX;
 const SQ_BUFS: usize = SOURCE_AREA - 2 * LINE_MAX; // two alternating S" buffers
 const WORD_BUF: usize = SQ_BUFS - 264; // counted string, trailing space, padding
-#[allow(dead_code)] // reserved for PAD (CORE EXT)
 const PAD_ADDR: usize = WORD_BUF - 256;
 // <# #> builds its string downwards from here, down to DATA_END
 const HOLD_END: usize = PAD_ADDR;
@@ -40,6 +41,9 @@ const DATA_END: usize = PAD_ADDR - 256;
 
 /// System THROW code: INCLUDEs nested deeper than MAX_SOURCES.
 const NESTING_TOO_DEEP: Cell = -256;
+
+/// THROW code of QUIT: back to the terminal, keeping the data stack.
+const QUIT: Cell = -56;
 
 /// Words that are easier to express in Forth itself.
 const PRELUDE: &str = r#"
@@ -116,6 +120,8 @@ impl Throw {
 
     fn message(&self) -> &'static str {
         match self.code {
+            -1 | -2 => "aborted",
+            -3 => "stack overflow",
             -4 => "stack underflow",
             -5 => "return stack overflow",
             -6 => "return stack underflow",
@@ -136,6 +142,7 @@ impl Throw {
             -31 => ">BODY used on non-CREATEd definition",
             -38 => "non-existent file",
             -39 => "unexpected end of file",
+            QUIT => "quit",
             NESTING_TOO_DEEP => "input nesting too deep",
             _ => "exception",
         }
@@ -167,6 +174,7 @@ enum Instr {
     PlusLoop(usize), // target: start of the loop body
     Leave,
     Print(Rc<[u8]>),
+    Abort(Rc<[u8]>), // ABORT": throws -2 with this message if the flag is nonzero
     Compile(usize), // POSTPONEd non-immediate word: compiles a call to it
     SetDoes(usize), // gives the latest CREATEd word the code at this offset
     Exit,
@@ -313,6 +321,13 @@ impl Forth {
         self.stack.pop().ok_or(Throw::new(-4))
     }
 
+    fn check_stack(&self) -> Res {
+        if self.stack.len() > STACK_CELLS {
+            return Err(Throw::new(-3));
+        }
+        Ok(())
+    }
+
     fn pop2(&mut self) -> Res<(Cell, Cell)> {
         let b = self.pop()?;
         let a = self.pop()?;
@@ -361,6 +376,14 @@ impl Forth {
         let q = Cell::try_from(q).map_err(|_| Throw::new(-11))?;
         self.push(r as Cell);
         self.push(q);
+        Ok(())
+    }
+
+    /// The run-time part of ABORT".
+    fn abort_if(&mut self, msg: &[u8]) -> Res {
+        if self.pop()? != 0 {
+            return Err(Throw::with(-2, String::from_utf8_lossy(msg)));
+        }
         Ok(())
     }
 
@@ -585,8 +608,9 @@ impl Forth {
     /// Interprets text line by line, as if typed at the terminal.
     pub fn interpret(&mut self, src: &str) -> Res {
         let result = self.interpret_lines(src);
-        if result.is_err() {
-            self.reset();
+        if let Err(e) = &result {
+            // QUIT leaves the data stack alone; every other error empties it.
+            self.reset(e.code != QUIT);
         }
         result
     }
@@ -621,6 +645,7 @@ impl Forth {
         while !self.bye {
             let Some(w) = self.word() else { break };
             self.handle(&w)?;
+            self.check_stack()?;
         }
         Ok(())
     }
@@ -693,10 +718,12 @@ impl Forth {
         self.set(IN_ADDR, saved_in);
     }
 
-    /// Recovers from an error: clears the stacks, returns to the terminal
-    /// and drops a half-finished definition.
-    fn reset(&mut self) {
-        self.stack.clear();
+    /// Recovers from an error: clears the stacks (the data stack only if asked),
+    /// returns to the terminal and drops a half-finished definition.
+    fn reset(&mut self, clear_stack: bool) {
+        if clear_stack {
+            self.stack.clear();
+        }
         self.rstack.clear();
         self.loops.clear();
         self.frames.clear();
@@ -799,6 +826,7 @@ impl Forth {
 
     fn run(&mut self, base: usize) -> Res {
         while self.frames.len() > base {
+            self.check_stack()?;
             let frame = self.frames.last_mut().unwrap();
             let Some(instr) = frame.code.get(frame.pc).cloned() else {
                 self.leave_frame();
@@ -836,6 +864,7 @@ impl Forth {
                     self.jump(lf.exit);
                 }
                 Instr::Print(s) => self.out.extend_from_slice(&s),
+                Instr::Abort(s) => self.abort_if(&s)?,
                 Instr::Compile(xt) => {
                     self.need_def()?;
                     self.code.push(Instr::Call(xt));
@@ -937,6 +966,7 @@ impl Forth {
             Instr::PlusLoop(t) => format!("(+LOOP) {t}"),
             Instr::Leave => "LEAVE".into(),
             Instr::Print(s) => format!(".\" {}\"", String::from_utf8_lossy(s)),
+            Instr::Abort(s) => format!("ABORT\" {}\"", String::from_utf8_lossy(s)),
             Instr::Compile(xt) => format!("POSTPONE {}", self.dict[*xt].name),
             Instr::SetDoes(_) => "DOES>".into(),
             Instr::Exit => "EXIT".into(),
@@ -1042,6 +1072,9 @@ impl Forth {
         });
         self.prim(">R", |f| {
             let a = f.pop()?;
+            if f.rstack.len() >= RSTACK_CELLS {
+                return Err(Throw::new(-5));
+            }
             f.rstack.push(a);
             Ok(())
         });
@@ -1542,6 +1575,16 @@ impl Forth {
             }
             Ok(())
         });
+        self.imm("ABORT\"", |f| {
+            let (a, n) = f.parse(b'"');
+            let msg: Rc<[u8]> = Rc::from(&f.mem[a..a + n]);
+            if f.compiling() {
+                f.code.push(Instr::Abort(msg));
+                Ok(())
+            } else {
+                f.abort_if(&msg)
+            }
+        });
         self.imm("S\"", |f| {
             let (a, n) = f.parse(b'"');
             if f.compiling() {
@@ -1602,6 +1645,33 @@ impl Forth {
             let i = f.check(a, n)?;
             f.evaluate(i, n as usize)
         });
+        self.prim("ABORT", |_| Err(Throw::new(-1)));
+        self.prim("QUIT", |_| Err(Throw::new(QUIT)));
+        self.prim("ENVIRONMENT?", |f| {
+            let (a, n) = f.pop2()?;
+            let i = f.check(a, n.max(0))?;
+            let query = f.text(i, n.max(0) as usize).to_ascii_uppercase();
+            match query.as_str() {
+                "/COUNTED-STRING" => f.push(255),
+                "/HOLD" => f.push((HOLD_END - DATA_END) as Cell),
+                "/PAD" => f.push((WORD_BUF - PAD_ADDR) as Cell),
+                "ADDRESS-UNIT-BITS" => f.push(8),
+                "FLOORED" => f.push(-1),
+                "MAX-CHAR" => f.push(255),
+                "MAX-D" => f.push_d(i128::MAX),
+                "MAX-N" => f.push(Cell::MAX),
+                "MAX-U" => f.push(-1),
+                "MAX-UD" => f.push_ud(u128::MAX),
+                "RETURN-STACK-CELLS" => f.push(RSTACK_CELLS as Cell),
+                "STACK-CELLS" => f.push(STACK_CELLS as Cell),
+                _ => {
+                    f.push(0); // unknown query
+                    return Ok(());
+                }
+            }
+            f.push(-1);
+            Ok(())
+        });
         self.prim("BYE", |f| {
             f.bye = true;
             Ok(())
@@ -1617,9 +1687,14 @@ fn main() {
         for path in &files {
             let result = forth.include(path);
             forth.flush();
-            if let Err(e) = result {
-                eprintln!("{e}");
-                std::process::exit(1);
+            match result {
+                // There is no terminal to return to, so QUIT ends the run.
+                Err(e) if e.code == QUIT => break,
+                Err(e) => {
+                    eprintln!("{e}");
+                    std::process::exit(1);
+                }
+                Ok(()) => {}
             }
             if forth.bye {
                 break;
@@ -1637,6 +1712,7 @@ fn main() {
             Ok(()) if forth.bye => break,
             Ok(()) if forth.current.is_some() => println!(" compiled"),
             Ok(()) => println!(" ok"),
+            Err(e) if e.code == QUIT => println!(),
             Err(e) => println!(" {e}"),
         }
     }
@@ -1866,6 +1942,48 @@ mod tests {
         let mut f = Forth::new();
         f.input = Box::new(io::Cursor::new(Vec::new()));
         assert_eq!(f.interpret("KEY").unwrap_err().code, -39);
+    }
+
+    #[test]
+    fn abort_and_quit() {
+        let mut f = Forth::new();
+        let e = f.interpret("1 2 ABORT 3").unwrap_err();
+        assert_eq!((e.code, f.stack.len()), (-1, 0));
+        f.interpret(r#": CHECK  DUP 0< ABORT" negative!" ;  5 CHECK"#).unwrap();
+        assert_eq!(f.stack, [5]);
+        let e = f.interpret("-5 CHECK").unwrap_err();
+        assert_eq!(e.code, -2);
+        assert_eq!(e.to_string(), "error -2: aborted: negative!");
+        assert!(f.stack.is_empty());
+        assert_eq!(f.interpret(r#"1 ABORT" direct""#).unwrap_err().code, -2);
+        f.interpret(r#"0 ABORT" not shown""#).unwrap();
+        // QUIT empties the return stack and leaves compilation, but keeps the data stack.
+        let e = f.interpret(": Q 7 8 >R QUIT ; 1 2 Q 3").unwrap_err();
+        assert_eq!(e.code, QUIT);
+        assert_eq!((f.stack.as_slice(), f.rstack.len()), ([1, 2, 7].as_slice(), 0));
+        f.interpret(": HALF [ QUIT").unwrap_err();
+        assert!(!f.compiling() && f.find("HALF").is_none());
+        assert_eq!(output(f), "");
+    }
+
+    #[test]
+    fn stack_limits() {
+        assert_eq!(err(": T BEGIN 1 AGAIN ; T").code, -3);
+        assert_eq!(err(": T BEGIN 1 >R AGAIN ; T").code, -5);
+    }
+
+    #[test]
+    fn environment_queries() {
+        let q = |s: &str| run(&format!(r#"S" {s}" ENVIRONMENT? .S"#));
+        assert_eq!(q("ADDRESS-UNIT-BITS"), "<2> 8 -1 ");
+        assert_eq!(q("floored"), "<2> -1 -1 ");
+        assert_eq!(q("/HOLD"), "<2> 256 -1 ");
+        assert_eq!(q("MAX-N"), "<2> 9223372036854775807 -1 ");
+        assert_eq!(q("MAX-U"), "<2> -1 -1 ");
+        assert_eq!(q("MAX-D"), "<3> -1 9223372036854775807 -1 ");
+        assert_eq!(q("MAX-UD"), "<3> -1 -1 -1 ");
+        assert_eq!(q("STACK-CELLS"), "<2> 65536 -1 ");
+        assert_eq!(q("NO-SUCH-THING"), "<1> 0 ");
     }
 
     #[test]

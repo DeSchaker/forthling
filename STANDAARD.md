@@ -5,24 +5,28 @@ Eerst de verplichte CORE-wordset, daarna CORE EXT en daarna de optionele wordset
 
 ## Waar staan we nu
 
-*Bijgewerkt 2026-10-30, na fase 1 stap 1 t/m 5.*
+*Bijgewerkt 2026-10-30: fase 1 klaar, CORE is compleet (mijlpaal M3).*
 
 | Wordset   | Aanwezig  | Ontbreekt |
 |-----------|----------:|----------:|
-| CORE      | 129 / 133 | 4         |
+| CORE      | 133 / 133 | 0         |
 | CORE EXT  | 13 / 49   | 36        |
 
 Testsuite: `prelimtest.fth`, `tester.fr` en **`core.fr` draaien foutloos** (alle 638 tests).
 `cargo test` draait ze alle drie (`suite_core` geeft de `ACCEPT`-test zijn invoer mee).
-
-Ontbrekende CORE-woorden (niet getest door `core.fr`):
-`ABORT ABORT" ENVIRONMENT? QUIT`
+`coreexttest.fth` komt tot regel 108 en stopt daar op `U>`.
 
 ### Volgende sessie: hier verder
 
-- **Volgende stap:** fase 1, stap 6: `ABORT ABORT" QUIT ENVIRONMENT?`. Daarmee is CORE
-  compleet (mijlpaal M3). `ABORT` en `ABORT"` gooien `-1`/`-2`; `QUIT` gooit `-56` en de REPL
-  leegt dan alleen de return stack. Zie fase 0.4 en stap 6 hieronder.
+- **Volgende stap:** fase 2, CORE EXT. Begin met de triviale prelude-woorden
+  (`0<> U> WITHIN ERASE 2>R 2R> 2R@ ROLL UNUSED PAD .R U.R`), want `coreexttest.fth` stopt
+  op `U>` (regel 108). Meten: `INCLUDE tester.fr`, `INCLUDE core.fr`, `INCLUDE coreexttest.fth`,
+  met een regel invoer via een pipe voor de `ACCEPT`-test.
+- **Fouten en `QUIT`:** `ABORT` gooit `-1`, `ABORT"` gooit `-2` met de tekst als detail
+  (`Instr::Abort`), `QUIT` gooit `-56` (`QUIT` in de code). `reset(clear_stack)` laat bij
+  `QUIT` de data stack staan. In bestandsmodus stopt `QUIT` de run zonder melding.
+- **Stacklimieten:** data stack en return stack hebben elk 65536 cellen (`STACK_CELLS`,
+  `RSTACK_CELLS`); overloop geeft `-3`/`-5`. `ENVIRONMENT?` meldt deze waarden.
 - **Terminalinvoer:** `Forth::input` is het enige invoerkanaal van de terminal; de REPL,
   `ACCEPT` en `KEY` lezen er allemaal uit. Tests stoppen er een `io::Cursor` in. `KEY` leest
   per regel gebufferd (de terminal staat niet in raw mode), zie de README.
@@ -30,8 +34,8 @@ Ontbrekende CORE-woorden (niet getest door `core.fr`):
   en gebruiken `FM/MOD`. Gedocumenteerd in de README.
 - **Gerepareerd:** `WHILE` laat zijn orig nu ónder de dest achter, zodat meerdere `WHILE`s
   één `BEGIN` kunnen delen (`core.fr` GI5).
-- **Meten:** draai `core.fr` in `tests/forth2012-test-suite/src` met een bestand dat
-  `INCLUDE tester.fr` en `INCLUDE core.fr` bevat. Kijk dan tot welke regel hij komt en hoeveel
+- **Meten (algemeen):** draai de testfiles in `tests/forth2012-test-suite/src` met een bestand dat
+  `INCLUDE tester.fr` en de testfiles bevat. Kijk dan tot welke regel hij komt en hoeveel
   `INCORRECT RESULT`/`WRONG NUMBER OF RESULTS` er zijn.
 - **Repo:** https://github.com/DeSchaker/forthling (publiek, MIT). De testsuite staat lokaal
   in `tests/forth2012-test-suite` en wordt door git genegeerd.
@@ -120,7 +124,7 @@ Fouten zijn nu `String`s. Vervang ze door standaard-throwcodes (tabel 9.1), bijv
 
 ---
 
-## Fase 1: CORE afmaken
+## Fase 1: CORE afmaken ✅ klaar (2026-10-30)
 
 In deze volgorde, omdat latere groepen op eerdere leunen:
 
@@ -135,7 +139,7 @@ In deze volgorde, omdat latere groepen op eerdere leunen:
    `EVALUATE` wordt een extra soort invoerbron waarvan de buffer de string zelf is.
    Laat de eigen getalconversie (`number()`) daarna `>NUMBER` gebruiken.
 5. ✅ **Woordenboek**: `>BODY` (`STATE` en `FIND` zijn er al sinds fase 0).
-6. **Systeem**: `ABORT ABORT" QUIT ENVIRONMENT?`. `ENVIRONMENT?` beantwoordt in elk geval
+6. ✅ **Systeem**: `ABORT ABORT" QUIT ENVIRONMENT?`. `ENVIRONMENT?` beantwoordt in elk geval
    `/COUNTED-STRING /HOLD /PAD ADDRESS-UNIT-BITS FLOORED MAX-CHAR MAX-D MAX-N MAX-U
    MAX-UD RETURN-STACK-CELLS STACK-CELLS`.
 
@@ -204,7 +208,7 @@ Core word set, the Core Extensions word set, the Exception word set, …"*.
 |---|--------|-----------|
 | M1 ✅ | Fase 0.1 + 0.4 (testsuite + throwcodes) | `prelimtest.fth` draait, fouten tonen een code |
 | M2 ✅ | Fase 0.2 + 0.3 + 0.5 (geheugen en invoer herbouwen) | alle bestaande tests en de demo werken nog |
-| M3 | Fase 1 | `core.fr` foutloos ✅ (2026-10-30) en alle CORE-woorden aanwezig → **CORE-compliant** |
+| M3 ✅ | Fase 1 | `core.fr` foutloos en alle CORE-woorden aanwezig → **CORE-compliant** (2026-10-30) |
 | M4 | Fase 2 | `coreexttest.fth` foutloos |
 | M5 | EXCEPTION + TOOLS + STRING | bijbehorende testfiles foutloos |
 | M6+ | overige wordsets naar behoefte | idem |

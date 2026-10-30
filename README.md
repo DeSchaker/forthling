@@ -35,8 +35,8 @@ Part of the dictionary is written in Forth itself (`PRELUDE` in `src/main.rs`).
 ## Standard compliance
 
 [`STANDAARD.md`](STANDAARD.md) (in Dutch) holds the roadmap to Forth-2012 and the
-current status. The CORE tests of the suite (`core.fr`) pass; 129 of the 133 CORE words
-are present.
+current status. The CORE word set is complete: all 133 words are present and the CORE
+tests of the suite (`core.fr`) pass. Next up is CORE EXT.
 
 ### Implementation-defined choices
 
@@ -51,6 +51,11 @@ are present.
   returns once a line is entered, and the line ending is a character too. `ACCEPT` keeps
   at most the requested number of characters and drops the rest of the line. At the end
   of input `ACCEPT` returns 0 and `KEY` throws `-39`.
+- The data stack and the return stack hold 65536 cells each; overflowing them throws `-3`
+  and `-5`. `ENVIRONMENT?` reports these sizes and the other standard queries.
+- `ABORT` throws `-1` and `ABORT"` throws `-2`; both empty the stacks and return to the
+  terminal with a message. `QUIT` keeps the data stack and prints nothing. When running
+  files, `QUIT` ends the run, since there is no terminal to return to.
 
 ## License
 
