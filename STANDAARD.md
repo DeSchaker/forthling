@@ -5,24 +5,24 @@ Eerst de verplichte CORE-wordset, daarna CORE EXT en daarna de optionele wordset
 
 ## Waar staan we nu
 
-*Bijgewerkt 2026-10-30, na fase 1 stap 1, `ALIGN ALIGNED >BODY` en `EVALUATE`.*
+*Bijgewerkt 2026-10-30, na fase 1 stap 1 en 2, `ALIGN ALIGNED >BODY` en `EVALUATE`.*
 
 | Wordset   | Aanwezig  | Ontbreekt |
 |-----------|----------:|----------:|
-| CORE      | 118 / 133 | 15        |
-| CORE EXT  | 12 / 49   | 37        |
+| CORE      | 124 / 133 | 9         |
+| CORE EXT  | 13 / 49   | 36        |
 
-Testsuite: `prelimtest.fth` foutloos, `tester.fr` werkt. `core.fr` komt tot regel 835
-(590 van 638 tests, allemaal geslaagd) en stopt daar op `<#`.
+Testsuite: `prelimtest.fth` foutloos, `tester.fr` werkt. `core.fr` komt tot regel 893
+(598 van 638 tests, allemaal geslaagd) en stopt daar op `>NUMBER`.
 
 Ontbrekende CORE-woorden:
-`# #> #S <# >NUMBER ABORT ABORT" ACCEPT ENVIRONMENT? FILL HOLD KEY MOVE QUIT SIGN`
+`>NUMBER ABORT ABORT" ACCEPT ENVIRONMENT? FILL KEY MOVE QUIT`
 
 ### Volgende sessie: hier verder
 
-- **Volgende stap:** fase 1, stap 2: pictured output `<# # #S HOLD SIGN #>`, want daar stopt
-  `core.fr` nu (regel 835). De buffer is al gereserveerd (`HOLD_END` in `src/main.rs`).
-  Daarna stap 3 (`FILL MOVE`), de rest van 4 (`>NUMBER ACCEPT KEY`) en 6.
+- **Volgende stap:** fase 1, stap 4: `>NUMBER`, want daar stopt `core.fr` nu (regel 893).
+  Laat daarna de eigen getalconversie (`number()`) `>NUMBER` gebruiken.
+  Daarna stap 3 (`FILL MOVE`), de rest van 4 (`ACCEPT KEY`) en 6.
 - **Besloten (2026-10-30):** deling is floored. `/ MOD /MOD */ */MOD` staan in de prelude
   en gebruiken `FM/MOD`. Gedocumenteerd in de README.
 - **Gerepareerd:** `WHILE` laat zijn orig nu ónder de dest achter, zodat meerdere `WHILE`s
@@ -37,7 +37,7 @@ Ontbrekende CORE-woorden:
 
 Ontbrekende CORE EXT-woorden:
 `.R 0<> 2>R 2R> 2R@ :NONAME ACTION-OF BUFFER: C" CASE OF ENDOF ENDCASE COMPILE, DEFER
-DEFER! DEFER@ IS ERASE HOLDS MARKER PAD PARSE PARSE-NAME REFILL SAVE-INPUT
+DEFER! DEFER@ IS ERASE MARKER PAD PARSE PARSE-NAME REFILL SAVE-INPUT
 RESTORE-INPUT ROLL S\" SOURCE-ID TO VALUE U.R U> UNUSED WITHIN [COMPILE]`
 
 De meeste ontbrekende woorden zijn klein. Het echte werk zit in een paar
@@ -123,8 +123,8 @@ In deze volgorde, omdat latere groepen op eerdere leunen:
 
 1. ✅ **Dubbele cellen en rekenen**: `S>D M* UM* UM/MOD FM/MOD SM/REM */MOD 2@ 2!`.
    Deling is floored; `/` en `MOD` zijn gedefinieerd via `FM/MOD`.
-2. **Pictured numeric output**: `<# # #S HOLD SIGN #>`. Daarna kunnen `.`, `U.`, `.R` en `U.R`
-   in Forth in de prelude, net als in een echte Forth.
+2. ✅ **Pictured numeric output**: `<# # #S HOLD SIGN #>`, plus `HOLDS` uit CORE EXT. `.` en `U.`
+   staan nu in Forth in de prelude; `.R` en `U.R` (CORE EXT) kunnen er zo bij.
 3. **Geheugen en strings**: `FILL MOVE` (`ALIGN ALIGNED COUNT` zijn er al).
 4. **Parsing en invoer**: `>NUMBER ACCEPT KEY` (`SOURCE >IN WORD` zijn er al sinds fase 0,
    `EVALUATE` sinds 2026-10-30: een geneste `Source` waarvan de buffer de string zelf is).
@@ -143,7 +143,7 @@ In deze volgorde, omdat latere groepen op eerdere leunen:
 
 Gegroepeerd van makkelijk naar lastig:
 
-- **Triviaal (prelude)**: `0<> U> WITHIN ERASE 2>R 2R> 2R@ ROLL UNUSED PAD HOLDS .R U.R`
+- **Triviaal (prelude)**: `0<> U> WITHIN ERASE 2>R 2R> 2R@ ROLL UNUSED PAD .R U.R`
 - **Controlestructuren**: `CASE OF ENDOF ENDCASE`, opgebouwd uit `IF`/`THEN`, met een eigen `Ctrl`-markering.
 - **Compiler**: `:NONAME` (een definitie zonder naam die een xt achterlaat), `COMPILE,` en
   `[COMPILE]` (verouderd, maar goedkoop).

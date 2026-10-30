@@ -35,7 +35,7 @@ Part of the dictionary is written in Forth itself (`PRELUDE` in `src/main.rs`).
 ## Standard compliance
 
 [`STANDAARD.md`](STANDAARD.md) (in Dutch) holds the roadmap to Forth-2012 and the
-current status. Phase 0, the groundwork, is done. Of the CORE word set, 118 of the
+current status. Phase 0, the groundwork, is done. Of the CORE word set, 124 of the
 133 words are present.
 
 ### Implementation-defined choices
@@ -45,6 +45,8 @@ current status. Phase 0, the groundwork, is done. Of the CORE word set, 118 of t
   are defined via `FM/MOD`; `SM/REM` is available for symmetric division.
 - A double cell on the stack has its high cell on top. Division by zero throws `-10`,
   a quotient that does not fit throws `-11`.
+- The pictured numeric output buffer (`<# … #>`) holds 256 characters; overflowing it
+  throws `-17`. `.` and `U.` use the same buffer.
 
 ## License
 

@@ -34,7 +34,7 @@ const SQ_BUFS: usize = SOURCE_AREA - 2 * LINE_MAX; // two alternating S" buffers
 const WORD_BUF: usize = SQ_BUFS - 264; // counted string, trailing space, padding
 #[allow(dead_code)] // reserved for PAD (CORE EXT)
 const PAD_ADDR: usize = WORD_BUF - 256;
-#[allow(dead_code)] // reserved for <# #>, which builds downwards from here
+// <# #> builds its string downwards from here, down to DATA_END
 const HOLD_END: usize = PAD_ADDR;
 const DATA_END: usize = PAD_ADDR - 256;
 
@@ -74,6 +74,11 @@ const PRELUDE: &str = r#"
 : SPACES  BEGIN DUP 0> WHILE SPACE 1- REPEAT DROP ;
 : DECIMAL 10 BASE ! ;
 : HEX     16 BASE ! ;
+: #S      BEGIN # 2DUP OR 0= UNTIL ;
+: SIGN    0< IF [CHAR] - HOLD THEN ;
+: HOLDS   BEGIN DUP WHILE 1- 2DUP + C@ HOLD REPEAT 2DROP ;
+: U.      0 <# #S #> TYPE SPACE ;
+: .       DUP ABS 0 <# #S ROT SIGN #> TYPE SPACE ;
 "#;
 
 /// A Forth exception: a THROW code from table 9.1 of the standard, or a
@@ -126,6 +131,7 @@ impl Throw {
             -22 => "control structure mismatch",
             -24 => "invalid numeric argument",
             -26 => "loop parameters unavailable",
+            -17 => "pictured numeric output string overflow",
             -29 => "compiler nesting",
             -31 => ">BODY used on non-CREATEd definition",
             -38 => "non-existent file",
@@ -224,6 +230,7 @@ pub struct Forth {
     ctrl: Vec<Ctrl>,
     sources: Vec<Source>,
     sq_next: usize,
+    hld: usize, // start of the pictured numeric output string
     out: Vec<u8>,
     bye: bool,
 }
@@ -268,6 +275,7 @@ impl Forth {
                 saved_in: 0,
             }],
             sq_next: 0,
+            hld: HOLD_END,
             out: Vec::new(),
             bye: false,
         };
@@ -524,10 +532,28 @@ impl Forth {
         Some(if neg { v.wrapping_neg() } else { v })
     }
 
-    fn fmt_num(&self, n: Cell) -> String {
+    /// BASE for number output, with decimal as the fallback for an invalid BASE.
+    fn base(&self) -> u64 {
         let base = self.get(BASE_ADDR);
-        let base = if (2..=36).contains(&base) { base as u64 } else { 10 };
-        let s = fmt_unsigned(n.unsigned_abs(), base);
+        if (2..=36).contains(&base) {
+            base as u64
+        } else {
+            10
+        }
+    }
+
+    /// Adds a character in front of the pictured numeric output string.
+    fn hold(&mut self, c: u8) -> Res {
+        if self.hld <= DATA_END {
+            return Err(Throw::new(-17));
+        }
+        self.hld -= 1;
+        self.mem[self.hld] = c;
+        Ok(())
+    }
+
+    fn fmt_num(&self, n: Cell) -> String {
+        let s = fmt_unsigned(n.unsigned_abs(), self.base());
         if n < 0 {
             format!("-{s}")
         } else {
@@ -1111,18 +1137,27 @@ impl Forth {
         });
 
         // output
-        self.prim(".", |f| {
-            let n = f.pop()?;
-            let s = f.fmt_num(n);
-            f.emit_str(&s);
-            f.out.push(b' ');
+        // pictured numeric output; #S SIGN HOLDS . U. are in the prelude
+        self.prim("<#", |f| {
+            f.hld = HOLD_END;
             Ok(())
         });
-        self.prim("U.", |f| {
-            let n = f.pop()?;
-            let base = f.get(BASE_ADDR).clamp(2, 36) as u64;
-            f.emit_str(&fmt_unsigned(n as u64, base));
-            f.out.push(b' ');
+        self.prim("HOLD", |f| {
+            let c = f.pop()?;
+            f.hold(c as u8)
+        });
+        self.prim("#", |f| {
+            let ud = f.pop_ud()?;
+            let base = f.base() as u128;
+            let d = std::char::from_digit((ud % base) as u32, base as u32).unwrap();
+            f.hold(d.to_ascii_uppercase() as u8)?;
+            f.push_ud(ud / base);
+            Ok(())
+        });
+        self.prim("#>", |f| {
+            f.pop2()?;
+            f.push(f.hld as Cell);
+            f.push((HOLD_END - f.hld) as Cell);
             Ok(())
         });
         self.prim(".S", |f| {
@@ -1566,6 +1601,19 @@ mod tests {
         assert_eq!(err("0 1 1 UM/MOD").code, -11);
         assert_eq!(err("1 0 0 FM/MOD").code, -10);
         assert_eq!(err("0 -9223372036854775808 -1 SM/REM").code, -11);
+    }
+
+    #[test]
+    fn pictured_output() {
+        assert_eq!(run("<# 66 HOLD 65 HOLD 0 0 #> TYPE"), "AB");
+        assert_eq!(run("<# 1 0 # # #> TYPE"), "01");
+        assert_eq!(run("<# -1 SIGN 0 SIGN 255 0 #S #> TYPE"), "255-");
+        assert_eq!(run("255 HEX <# 0 #S -1 SIGN #> TYPE"), "-FF");
+        assert_eq!(run(r#"<# 0 0 #S S" x=" HOLDS #> TYPE"#), "x=0");
+        assert_eq!(run("-1 -1 2 BASE ! <# #S #> NIP DECIMAL ."), "128 ");
+        assert_eq!(run("0 . -42 . -1 U. -9223372036854775808 ."), "0 -42 18446744073709551615 -9223372036854775808 ");
+        assert_eq!(run("12 1 BASE ! . DECIMAL"), "12 ");
+        assert_eq!(err(": T <# 300 0 DO 65 HOLD LOOP ; T").code, -17);
     }
 
     #[test]
