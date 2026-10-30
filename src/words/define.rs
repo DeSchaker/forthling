@@ -1,0 +1,228 @@
+//! Defining words and the compiler words that go with them.
+
+use crate::*;
+
+pub(crate) fn install(f: &mut Forth) {
+    f.prim(":", |f| {
+        let name = f.name()?;
+        f.start_def(&name)?;
+        Ok(())
+    });
+    f.prim(":NONAME", |f| {
+        let xt = f.start_def("")?;
+        f.push(xt as Cell);
+        Ok(())
+    });
+    f.imm(";", |f| {
+        let xt = f.current.ok_or(Throw::new(-22))?;
+        if !f.ctrl.is_empty() {
+            return Err(Throw::new(-22));
+        }
+        f.dict[xt].kind = Kind::Colon(Rc::new(std::mem::take(&mut f.code)));
+        // A :NONAME definition is only reachable through its xt.
+        f.dict[xt].hidden = f.dict[xt].name.is_empty();
+        f.current = None;
+        f.set_state(false);
+        Ok(())
+    });
+    f.prim("IMMEDIATE", |f| {
+        f.dict.last_mut().unwrap().immediate = true;
+        Ok(())
+    });
+    f.prim("CREATE", |f| {
+        let name = f.name()?;
+        f.align_here();
+        let addr = f.here as Cell;
+        f.define(&name, Kind::Created { addr, does: None });
+        Ok(())
+    });
+    f.imm("DOES>", |f| {
+        f.need_def()?;
+        let at = f.code.len();
+        f.code.push(Instr::SetDoes(at + 2));
+        f.code.push(Instr::Exit);
+        Ok(())
+    });
+    f.prim("CONSTANT", |f| {
+        let name = f.name()?;
+        let v = f.pop()?;
+        f.define(&name, Kind::Constant(v));
+        Ok(())
+    });
+    f.prim("VALUE", |f| {
+        let name = f.name()?;
+        let v = f.pop()?;
+        f.align_here();
+        let addr = f.reserve(CELL)?;
+        f.set(addr, v);
+        f.define(&name, Kind::Value(addr));
+        Ok(())
+    });
+    f.prim("2VALUE", |f| {
+        let name = f.name()?;
+        let (x1, x2) = f.pop2()?;
+        f.align_here();
+        let addr = f.reserve(2 * CELL)?;
+        f.set(addr, x2);
+        f.set(addr + CELL, x1);
+        f.define(&name, Kind::TwoValue(addr));
+        Ok(())
+    });
+    f.prim("DEFER", |f| {
+        let name = f.name()?;
+        f.align_here();
+        let addr = f.reserve(CELL)?;
+        f.set(addr, -1); // no action yet
+        f.define(&name, Kind::Defer(addr));
+        Ok(())
+    });
+    f.prim("MARKER", |f| {
+        let name = f.name()?;
+        let (dict_len, here) = (f.dict.len(), f.here);
+        f.define(&name, Kind::Marker { dict_len, here });
+        Ok(())
+    });
+    // TO, IS and ACTION-OF parse a name; compiled, they become Store/Fetch.
+    f.imm("TO", |f| {
+        let name = f.name()?;
+        let xt = f.find_or_err(&name)?;
+        if let Kind::TwoValue(addr) = f.dict[xt].kind {
+            // x2 is on top and goes in the first cell, as with 2!
+            f.store_to(addr)?;
+            return f.store_to(addr + CELL);
+        }
+        let addr = f.cell_of(xt as Cell, false).map_err(|e| Throw { detail: Some(name), ..e })?;
+        f.store_to(addr)
+    });
+    f.imm("IS", |f| {
+        let addr = f.named_cell(true)?;
+        f.store_to(addr)
+    });
+    f.imm("ACTION-OF", |f| {
+        let addr = f.named_cell(true)?;
+        if f.compiling() {
+            f.code.push(Instr::Fetch(addr));
+        } else {
+            f.push(f.get(addr));
+        }
+        Ok(())
+    });
+    f.prim("DEFER@", |f| {
+        let xt = f.pop()?;
+        let addr = f.cell_of(xt, true)?;
+        f.push(f.get(addr));
+        Ok(())
+    });
+    f.prim("DEFER!", |f| {
+        let (action, xt) = f.pop2()?;
+        let addr = f.cell_of(xt, true)?;
+        f.set(addr, action);
+        Ok(())
+    });
+    f.prim("'", |f| {
+        let name = f.name()?;
+        let xt = f.find_or_err(&name)?;
+        f.push(xt as Cell);
+        Ok(())
+    });
+    f.imm("[']", |f| {
+        f.need_def()?;
+        let name = f.name()?;
+        let xt = f.find_or_err(&name)?;
+        f.code.push(Instr::Lit(xt as Cell));
+        Ok(())
+    });
+    f.prim("EXECUTE", |f| {
+        let xt = f.pop()?;
+        if xt < 0 {
+            return Err(Throw::with(-24, format!("invalid execution token {xt}")));
+        }
+        f.invoke(xt as usize)
+    });
+    f.prim("CATCH", |f| {
+        let xt = f.pop()?;
+        let code = f.catch(xt)?;
+        f.push(code);
+        Ok(())
+    });
+    f.prim("THROW", |f| match f.pop()? {
+        0 => Ok(()),
+        code => Err(Throw::new(code)),
+    });
+    f.prim(">BODY", |f| {
+        let xt = f.pop()?;
+        match usize::try_from(xt).ok().and_then(|i| f.dict.get(i)) {
+            Some(Word { kind: Kind::Created { addr, .. }, .. }) => {
+                let addr = *addr;
+                f.push(addr);
+                Ok(())
+            }
+            _ => Err(Throw::new(-31)),
+        }
+    });
+    f.prim("CHAR", |f| {
+        let (a, n) = f.parse_name();
+        if n == 0 {
+            return Err(Throw::new(-16));
+        }
+        f.push(f.mem[a] as Cell);
+        Ok(())
+    });
+    f.imm("[CHAR]", |f| {
+        f.need_def()?;
+        let (a, n) = f.parse_name();
+        if n == 0 {
+            return Err(Throw::new(-16));
+        }
+        f.code.push(Instr::Lit(f.mem[a] as Cell));
+        Ok(())
+    });
+    f.imm("LITERAL", |f| {
+        f.need_def()?;
+        let v = f.pop()?;
+        f.code.push(Instr::Lit(v));
+        Ok(())
+    });
+    f.imm("[", |f| {
+        f.set_state(false);
+        Ok(())
+    });
+    f.prim("]", |f| {
+        f.need_def()?;
+        f.set_state(true);
+        Ok(())
+    });
+    f.imm("POSTPONE", |f| {
+        f.need_def()?;
+        let name = f.name()?;
+        let xt = f.find_or_err(&name)?;
+        f.code.push(if f.dict[xt].immediate { Instr::Call(xt) } else { Instr::Compile(xt) });
+        Ok(())
+    });
+    f.prim("COMPILE,", |f| {
+        f.need_def()?;
+        let xt = f.pop()?;
+        match usize::try_from(xt).ok().filter(|&i| i < f.dict.len()) {
+            Some(xt) => f.code.push(Instr::Call(xt)),
+            None => return Err(Throw::with(-24, format!("invalid execution token {xt}"))),
+        }
+        Ok(())
+    });
+    f.imm("[COMPILE]", |f| {
+        f.need_def()?;
+        let name = f.name()?;
+        let xt = f.find_or_err(&name)?;
+        f.code.push(Instr::Call(xt));
+        Ok(())
+    });
+    f.imm("RECURSE", |f| {
+        f.need_def()?;
+        f.code.push(Instr::Call(f.current.unwrap()));
+        Ok(())
+    });
+    f.imm("EXIT", |f| {
+        f.need_def()?;
+        f.code.push(Instr::Exit);
+        Ok(())
+    });
+}

@@ -29,11 +29,37 @@ TRAVERSE-WORDLIST` (die hebben wordlists nodig en komen met SEARCH).
 Testsuite: in de volgorde van `runtests.fth` draaien `prelimtest.fth`, `tester.fr`, `core.fr`,
 `coreplustest.fth`, `utilities.fth`, `errorreport.fth`, `coreexttest.fth`, `doubletest.fth`,
 `exceptiontest.fth`, `filetest.fth`, `stringtest.fth` en `toolstest.fth` **foutloos**.
-`cargo test` draait ze allemaal (`suite_prelimtest`, `suite_core`, `suite_core_ext`,
-`suite_double`, `suite_exception`, `suite_file_access`, `suite_string`, `suite_tools`); een nieuwe
-wordset-test is één regel met de hulpfunctie `run_suite`, die ook meerdere bestanden neemt
-(`filetest.fth` heeft `coreexttest.fth` nodig). `toolstest.fth` slaat zijn
-`TRAVERSE-WORDLIST`-deel over zolang SEARCH ontbreekt.
+`cargo test` draait ze allemaal vanuit `tests/suite.rs` (`suite_prelimtest`, `suite_core`,
+`suite_core_ext`, `suite_double`, `suite_exception`, `suite_file_access`, `suite_string`,
+`suite_tools`); een nieuwe wordset-test is één regel met de hulpfunctie `run_suite`, die ook
+meerdere bestanden neemt (`filetest.fth` heeft `coreexttest.fth` nodig). `toolstest.fth`
+slaat zijn `TRAVERSE-WORDLIST`-deel over zolang SEARCH ontbreekt.
+
+### Codeindeling (sinds 2026-10-30)
+
+De interpreter is een library-crate (`src/lib.rs`) met een dunne binary (`src/main.rs`: de
+REPL en het draaien van bestanden). Elke module begint met `use crate::*;`; `lib.rs`
+her-exporteert de items van alle modules, zodat ze overal beschikbaar zijn. De methodes van
+`Forth` zijn over de modules verdeeld en `pub(crate)`.
+
+| Bestand | Inhoud |
+|---|---|
+| `lib.rs` | `struct Forth`, `Forth::new`, de publieke API (`interpret`, `include`, `set_input`, `output`, …) |
+| `throw.rs` | `Throw` en de foutcodetabel |
+| `stack.rs` | data stack, return stack, hulpjes voor dubbele cellen |
+| `memory.rs` | geheugenindeling (constanten), `get`/`set`/`check`/`reserve`, strings in het geheugen |
+| `dictionary.rs` | `Word`, `Kind`, `define`/`find`, `SEE` en `WORDS` |
+| `parse.rs` | parsen van de invoerbuffer, getallen, pictured numeric output |
+| `interpreter.rs` | buitenste interpreter, invoerbronnen (`Source`, `Origin`), terminal |
+| `files.rs` | file ids, `INCLUDED`/`REQUIRED`, hulpfuncties voor de FILE-woorden |
+| `run.rs` | binnenste interpreter: `Instr`, frames, loops, `CATCH` |
+| `compiler.rs` | `Ctrl`, hulpjes voor definities en control flow, `TO`/`IS` |
+| `words/*.rs` | de primitieven per groep (`stack`, `double`, `memory`, `console`, `define`, `control`, `string`, `tools`, `system`, `file`) |
+| `prelude.fs` | woorden die in Forth zelf geschreven zijn (`include_str!`) |
+| `tests.rs` | unit-tests (mogen bij de interne staat); de suites staan in `tests/suite.rs` |
+
+Een nieuwe wordset krijgt zijn eigen `words/<naam>.rs` met een `install(f)`, aangeroepen in
+`words/mod.rs`; de volgorde daar is de volgorde in het woordenboek.
 
 ### Volgende sessie: hier verder
 
@@ -117,7 +143,7 @@ Wat er gebouwd is:
   `cargo test` draait `prelimtest.fth` en controleert `tester.fr`. Ontbreekt de map,
   dan worden die twee tests overgeslagen met een melding.
 - **Geheugen**: 1 MiB, adresseerbaar per byte, cellen van 8 bytes (little-endian).
-  `CREATE` aligneert. Geheugenindeling (`src/main.rs`, bovenaan): systeemvariabelen
+  `CREATE` aligneert. Geheugenindeling (`src/memory.rs`, bovenaan): systeemvariabelen
   (`BASE`, `STATE`, `>IN`) vanaf adres 0, data space vanaf 64, tijdelijke buffers en
   invoerbuffers bovenin.
 - **Invoer**: elke invoerbron (terminal, en per geneste `INCLUDE`) heeft een eigen regelbuffer

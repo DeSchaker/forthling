@@ -41,7 +41,17 @@ Run a file: `cargo run --release -- examples/demo.fs`
 - Programming tools: `.S ? DUMP SEE WORDS`, `[IF] [ELSE] [THEN]`, `[DEFINED] [UNDEFINED]`,
   `AHEAD CS-PICK CS-ROLL`, `N>R NR>` and `SYNONYM`
 
-Part of the dictionary is written in Forth itself (`PRELUDE` in `src/main.rs`).
+Part of the dictionary is written in Forth itself (`src/prelude.fs`).
+
+The interpreter is a library crate (`src/lib.rs`, with one module per part: stacks, memory,
+parsing, the inner and outer interpreter, and the primitives in `src/words/`); `src/main.rs`
+only holds the REPL. Another Rust program can embed it:
+
+```rust
+let mut forth = forthling::Forth::new();
+forth.interpret(": SQUARE DUP * ; 7 SQUARE .")?;
+assert_eq!(forth.output(), b"49 ");
+```
 
 ## Standard compliance
 

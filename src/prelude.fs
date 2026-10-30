@@ -1,0 +1,57 @@
+\ Words that are easier to express in Forth itself; Forth::new loads them.
+-1 CONSTANT TRUE   0 CONSTANT FALSE   32 CONSTANT BL
+: NIP     SWAP DROP ;
+: TUCK    SWAP OVER ;
+: -ROT    ROT ROT ;
+: ?DUP    DUP IF DUP THEN ;
+: 2DUP    OVER OVER ;
+: 2DROP   DROP DROP ;
+: 2SWAP   ROT >R ROT R> ;
+: 2OVER   3 PICK 3 PICK ;
+\ Division is floored (see README).
+: */MOD   >R M* R> FM/MOD ;
+: */      */MOD NIP ;
+: /MOD    >R S>D R> FM/MOD ;
+: /       /MOD NIP ;
+: MOD     /MOD DROP ;
+: 1+  1 + ;   : 1-  1 - ;   : 2*  2 * ;
+: 0=  0 = ;   : 0<  0 < ;   : 0>  0 > ;   : <>  = 0= ;
+: NEGATE  0 SWAP - ;
+: ABS     DUP 0< IF NEGATE THEN ;
+: MIN     2DUP > IF SWAP THEN DROP ;
+: MAX     2DUP < IF SWAP THEN DROP ;
+: +!      DUP @ ROT + SWAP ! ;
+: CELLS  8 * ;   : CELL+  8 + ;   : CHARS ;   : CHAR+  1+ ;
+: ALIGNED  7 + -8 AND ;
+: ALIGN    HERE ALIGNED HERE - ALLOT ;
+: VARIABLE  CREATE 0 , ;
+: CR      10 EMIT ;
+: SPACE   BL EMIT ;
+: SPACES  BEGIN DUP 0> WHILE SPACE 1- REPEAT DROP ;
+: DECIMAL 10 BASE ! ;
+: HEX     16 BASE ! ;
+: #S      BEGIN # 2DUP OR 0= UNTIL ;
+: SIGN    0< IF [CHAR] - HOLD THEN ;
+: HOLDS   BEGIN DUP WHILE 1- 2DUP + C@ HOLD REPEAT 2DROP ;
+: U.R     >R 0 <# #S #> R> OVER - SPACES TYPE ;
+: .R      >R DUP ABS 0 <# #S ROT SIGN #> R> OVER - SPACES TYPE ;
+: U.      0 U.R SPACE ;
+: .       0 .R SPACE ;
+: 0<>     0= 0= ;
+: U>      SWAP U< ;
+: WITHIN  OVER - >R - R> U< ;
+: ERASE   0 FILL ;
+: BUFFER: CREATE ALLOT ;
+: 2>R     SWAP >R >R ;
+: 2R>     R> R> SWAP ;
+: 2R@     R> R@ OVER >R SWAP ;
+: ?       @ . ;
+: /STRING ROT OVER + ROT ROT - ;
+: BLANK   BL FILL ;
+: -TRAILING  BEGIN DUP WHILE 2DUP + 1- C@ BL <> IF EXIT THEN 1- REPEAT ;
+: 2CONSTANT  CREATE , , DOES> 2@ ;
+: 2VARIABLE  CREATE 2 CELLS ALLOT ;
+: 2LITERAL   SWAP POSTPONE LITERAL POSTPONE LITERAL ; IMMEDIATE
+: 2ROT    2>R 2SWAP 2R> 2SWAP ;
+: D.R     >R DUP >R DABS <# #S R> SIGN #> R> OVER - SPACES TYPE ;
+: D.      0 D.R SPACE ;
