@@ -1142,6 +1142,26 @@ impl Forth {
             f.here = new as usize;
             Ok(())
         });
+        self.prim("FILL", |f| {
+            let c = f.pop()?;
+            let (a, n) = f.pop2()?;
+            if n > 0 {
+                let i = f.check(a, n)?;
+                f.mem[i..i + n as usize].fill(c as u8);
+            }
+            Ok(())
+        });
+        self.prim("MOVE", |f| {
+            let n = f.pop()?;
+            let (src, dst) = f.pop2()?;
+            if n > 0 {
+                let s = f.check(src, n)?;
+                let d = f.check(dst, n)?;
+                // copy_within handles overlapping ranges in either direction
+                f.mem.copy_within(s..s + n as usize, d);
+            }
+            Ok(())
+        });
         self.prim("COUNT", |f| {
             let a = f.pop()?;
             let i = f.check(a, 1)?;
@@ -1695,6 +1715,13 @@ mod tests {
         assert_eq!(run("1 C, CREATE X X 8 MOD ."), "0 ");
         assert_eq!(run("0 ALIGNED . 1 ALIGNED . 8 ALIGNED . 9 ALIGNED ."), "0 8 8 16 ");
         assert_eq!(run("1 C, ALIGN HERE 8 MOD ."), "0 ");
+        assert_eq!(run("CREATE B 8 ALLOT B 8 65 FILL B 3 66 FILL B 0 67 FILL B 8 TYPE"), "BBBAAAAA");
+        let moves = r#"CREATE B 8 ALLOT S" abcdef" B SWAP MOVE
+                       B B 2 + 3 MOVE B 6 TYPE  B 2 + B 3 MOVE B 6 TYPE  B B 0 MOVE"#;
+        assert_eq!(run(moves), "ababcfabcbcf");
+        assert_eq!(run("-5 0 0 FILL 0 -1 0 MOVE"), "");
+        assert_eq!(err("-5 8 0 FILL").code, -9);
+        assert_eq!(err("0 -5 8 MOVE").code, -9);
         assert_eq!(err("-1 @").code, -9);
         assert_eq!(err("1048570 @").code, -9);
     }
