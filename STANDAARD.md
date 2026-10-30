@@ -5,24 +5,27 @@ Eerst de verplichte CORE-wordset, daarna CORE EXT en daarna de optionele wordset
 
 ## Waar staan we nu
 
-*Bijgewerkt 2026-10-30, na fase 1 stap 1, 2 en 3, `>BODY`, `EVALUATE` en `>NUMBER`.*
+*Bijgewerkt 2026-10-30, na fase 1 stap 1 t/m 5.*
 
 | Wordset   | Aanwezig  | Ontbreekt |
 |-----------|----------:|----------:|
-| CORE      | 127 / 133 | 6         |
+| CORE      | 129 / 133 | 4         |
 | CORE EXT  | 13 / 49   | 36        |
 
-Testsuite: `prelimtest.fth` foutloos, `tester.fr` werkt. `core.fr` komt tot regel 993
-(635 van 638 tests, allemaal geslaagd) en stopt daar op `ACCEPT`.
+Testsuite: `prelimtest.fth`, `tester.fr` en **`core.fr` draaien foutloos** (alle 638 tests).
+`cargo test` draait ze alle drie (`suite_core` geeft de `ACCEPT`-test zijn invoer mee).
 
-Ontbrekende CORE-woorden:
-`ABORT ABORT" ACCEPT ENVIRONMENT? KEY QUIT`
+Ontbrekende CORE-woorden (niet getest door `core.fr`):
+`ABORT ABORT" ENVIRONMENT? QUIT`
 
 ### Volgende sessie: hier verder
 
-- **Volgende stap:** fase 1, stap 4: `ACCEPT KEY`, want daar stopt `core.fr` nu (regel 993).
-  De `ACCEPT`-test van `core.fr` is interactief (hij vraagt om invoer). Daarna stap 6
-  (`ABORT ABORT" QUIT ENVIRONMENT?`).
+- **Volgende stap:** fase 1, stap 6: `ABORT ABORT" QUIT ENVIRONMENT?`. Daarmee is CORE
+  compleet (mijlpaal M3). `ABORT` en `ABORT"` gooien `-1`/`-2`; `QUIT` gooit `-56` en de REPL
+  leegt dan alleen de return stack. Zie fase 0.4 en stap 6 hieronder.
+- **Terminalinvoer:** `Forth::input` is het enige invoerkanaal van de terminal; de REPL,
+  `ACCEPT` en `KEY` lezen er allemaal uit. Tests stoppen er een `io::Cursor` in. `KEY` leest
+  per regel gebufferd (de terminal staat niet in raw mode), zie de README.
 - **Besloten (2026-10-30):** deling is floored. `/ MOD /MOD */ */MOD` staan in de prelude
   en gebruiken `FM/MOD`. Gedocumenteerd in de README.
 - **Gerepareerd:** `WHILE` laat zijn orig nu ónder de dest achter, zodat meerdere `WHILE`s
@@ -126,7 +129,7 @@ In deze volgorde, omdat latere groepen op eerdere leunen:
 2. ✅ **Pictured numeric output**: `<# # #S HOLD SIGN #>`, plus `HOLDS` uit CORE EXT. `.` en `U.`
    staan nu in Forth in de prelude; `.R` en `U.R` (CORE EXT) kunnen er zo bij.
 3. ✅ **Geheugen en strings**: `ALIGN ALIGNED COUNT FILL MOVE`.
-4. **Parsing en invoer**: `ACCEPT KEY` (`SOURCE >IN WORD` zijn er al sinds fase 0,
+4. ✅ **Parsing en invoer**: `ACCEPT KEY` (`SOURCE >IN WORD` zijn er al sinds fase 0,
    `EVALUATE` en `>NUMBER` sinds 2026-10-30. `EVALUATE` is een geneste `Source` waarvan de buffer
    de string zelf is; `>NUMBER` en de eigen getalconversie delen `to_number`).
    `EVALUATE` wordt een extra soort invoerbron waarvan de buffer de string zelf is.
@@ -201,7 +204,7 @@ Core word set, the Core Extensions word set, the Exception word set, …"*.
 |---|--------|-----------|
 | M1 ✅ | Fase 0.1 + 0.4 (testsuite + throwcodes) | `prelimtest.fth` draait, fouten tonen een code |
 | M2 ✅ | Fase 0.2 + 0.3 + 0.5 (geheugen en invoer herbouwen) | alle bestaande tests en de demo werken nog |
-| M3 | Fase 1 | `core.fr` foutloos → **CORE-compliant** |
+| M3 | Fase 1 | `core.fr` foutloos ✅ (2026-10-30) en alle CORE-woorden aanwezig → **CORE-compliant** |
 | M4 | Fase 2 | `coreexttest.fth` foutloos |
 | M5 | EXCEPTION + TOOLS + STRING | bijbehorende testfiles foutloos |
 | M6+ | overige wordsets naar behoefte | idem |

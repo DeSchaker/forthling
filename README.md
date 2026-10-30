@@ -35,8 +35,8 @@ Part of the dictionary is written in Forth itself (`PRELUDE` in `src/main.rs`).
 ## Standard compliance
 
 [`STANDAARD.md`](STANDAARD.md) (in Dutch) holds the roadmap to Forth-2012 and the
-current status. Phase 0, the groundwork, is done. Of the CORE word set, 127 of the
-133 words are present.
+current status. The CORE tests of the suite (`core.fr`) pass; 129 of the 133 CORE words
+are present.
 
 ### Implementation-defined choices
 
@@ -47,6 +47,10 @@ current status. Phase 0, the groundwork, is done. Of the CORE word set, 127 of t
   a quotient that does not fit throws `-11`.
 - The pictured numeric output buffer (`<# … #>`) holds 256 characters; overflowing it
   throws `-17`. `.` and `U.` use the same buffer.
+- `ACCEPT` and `KEY` read from standard input, which the terminal buffers per line: `KEY`
+  returns once a line is entered, and the line ending is a character too. `ACCEPT` keeps
+  at most the requested number of characters and drops the rest of the line. At the end
+  of input `ACCEPT` returns 0 and `KEY` throws `-39`.
 
 ## License
 

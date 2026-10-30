@@ -135,6 +135,7 @@ impl Throw {
             -29 => "compiler nesting",
             -31 => ">BODY used on non-CREATEd definition",
             -38 => "non-existent file",
+            -39 => "unexpected end of file",
             NESTING_TOO_DEEP => "input nesting too deep",
             _ => "exception",
         }
@@ -231,6 +232,8 @@ pub struct Forth {
     sources: Vec<Source>,
     sq_next: usize,
     hld: usize, // start of the pictured numeric output string
+    input: Box<dyn BufRead>, // the terminal: the REPL, ACCEPT and KEY read from here
+    interactive: bool,       // flush output before waiting for input
     out: Vec<u8>,
     bye: bool,
 }
@@ -289,6 +292,8 @@ impl Forth {
             }],
             sq_next: 0,
             hld: HOLD_END,
+            input: Box::new(io::BufReader::new(io::stdin())),
+            interactive: false,
             out: Vec::new(),
             bye: false,
         };
@@ -708,6 +713,33 @@ impl Forth {
         io::stdout().write_all(&self.out).ok();
         self.out.clear();
         io::stdout().flush().ok();
+    }
+
+    // ---- terminal input ---------------------------------------------------
+
+    /// Reads a line from the terminal without its line ending; None at end of input.
+    fn read_line(&mut self) -> Option<Vec<u8>> {
+        if self.interactive {
+            self.flush();
+        }
+        let mut line = Vec::new();
+        if self.input.read_until(b'\n', &mut line).unwrap_or(0) == 0 {
+            return None;
+        }
+        while matches!(line.last(), Some(b'\n' | b'\r')) {
+            line.pop();
+        }
+        Some(line)
+    }
+
+    /// Reads one character from the terminal; None at end of input.
+    fn read_key(&mut self) -> Option<u8> {
+        if self.interactive {
+            self.flush();
+        }
+        let c = *self.input.fill_buf().ok()?.first()?;
+        self.input.consume(1);
+        Some(c)
     }
 
     // ---- inner interpreter ------------------------------------------------
@@ -1537,6 +1569,21 @@ impl Forth {
             let path = f.name()?;
             f.include(&path)
         });
+        self.prim("ACCEPT", |f| {
+            let (a, n) = f.pop2()?;
+            let n = n.max(0);
+            let i = f.check(a, n)?;
+            let line = f.read_line().unwrap_or_default();
+            let len = line.len().min(n as usize);
+            f.mem[i..i + len].copy_from_slice(&line[..len]);
+            f.push(len as Cell);
+            Ok(())
+        });
+        self.prim("KEY", |f| {
+            let c = f.read_key().ok_or(Throw::new(-39))?;
+            f.push(c as Cell);
+            Ok(())
+        });
         self.prim(">NUMBER", |f| {
             let (a, n) = f.pop2()?;
             let ud = f.pop_ud()?;
@@ -1564,6 +1611,7 @@ impl Forth {
 
 fn main() {
     let mut forth = Forth::new();
+    forth.interactive = true;
     let files: Vec<String> = env::args().skip(1).collect();
     if !files.is_empty() {
         for path in &files {
@@ -1581,14 +1629,9 @@ fn main() {
     }
 
     println!("forthling — WORDS shows the dictionary, BYE quits.");
-    let stdin = io::stdin();
-    loop {
-        io::stdout().flush().ok();
-        let mut line = String::new();
-        if stdin.lock().read_line(&mut line).unwrap_or(0) == 0 {
-            break;
-        }
-        let result = forth.interpret(&line);
+    // The REPL reads through the same buffer as ACCEPT and KEY.
+    while let Some(line) = forth.read_line() {
+        let result = forth.interpret(&String::from_utf8_lossy(&line));
         forth.flush();
         match result {
             Ok(()) if forth.bye => break,
@@ -1807,6 +1850,24 @@ mod tests {
         assert_eq!(run(&format!("INCLUDE {outer} 3 .S")), "<3> 1 30 2 <4> 1 30 2 3 ");
     }
 
+    fn run_with_input(src: &str, input: &str) -> String {
+        let mut f = Forth::new();
+        f.input = Box::new(io::Cursor::new(input.as_bytes().to_vec()));
+        f.interpret(src).unwrap();
+        output(f)
+    }
+
+    #[test]
+    fn accept_and_key_read_the_terminal() {
+        let accept = "CREATE B 10 ALLOT : T B 10 ACCEPT B SWAP TYPE [CHAR] | EMIT ; T T T";
+        assert_eq!(run_with_input(accept, "hello\r\nforthling rocks\n"), "hello|forthling ||");
+        assert_eq!(run_with_input("KEY . KEY . KEY .", "ab\n"), "97 98 10 ");
+        assert_eq!(run_with_input("CREATE B 4 ALLOT B 4 ACCEPT . KEY .", "x\ny"), "1 121 ");
+        let mut f = Forth::new();
+        f.input = Box::new(io::Cursor::new(Vec::new()));
+        assert_eq!(f.interpret("KEY").unwrap_err().code, -39);
+    }
+
     #[test]
     fn evaluate_is_a_nested_source() {
         assert_eq!(run(r#"S" 1 2 + ." EVALUATE 4 ."#), "3 4 ");
@@ -1884,6 +1945,26 @@ mod tests {
         assert!(!out.contains("Error #"), "{out}");
         assert!(out.contains("Pass #23: testing S\""), "{out}");
         assert!(out.contains("\n0 tests failed out of"), "{out}");
+    }
+
+    #[test]
+    fn suite_core() {
+        let (Some(tester), Some(core)) = (suite_file("tester.fr"), suite_file("core.fr")) else {
+            return;
+        };
+        let mut f = Forth::new();
+        // core.fr's ACCEPT test asks for a line of input
+        f.input = Box::new(io::Cursor::new(b"typed line\n".to_vec()));
+        f.include(&tester).unwrap();
+        let result = f.include(&core);
+        let out = String::from_utf8_lossy(&f.out).into_owned();
+        result.unwrap_or_else(|e| panic!("{e}\n{out}"));
+        assert!(!out.contains("INCORRECT RESULT"), "{out}");
+        assert!(!out.contains("WRONG NUMBER OF RESULTS"), "{out}");
+        assert!(out.contains("RECEIVED: \"typed line\""), "{out}");
+        assert!(out.contains("End of Core word set tests"), "{out}");
+        f.interpret("#ERRORS @ .").unwrap();
+        assert!(output(f).ends_with("0 "));
     }
 
     #[test]
