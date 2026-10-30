@@ -1,3 +1,5 @@
 /target
 # Forth-2012 test suite, cloned separately (see STANDAARD.md)
 /tests/forth2012-test-suite/
+# left behind by a failing filetest.fth
+/fatest*.txt

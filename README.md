@@ -21,7 +21,9 @@ Run a file: `cargo run --release -- examples/demo.fs`
 
 ## Features
 
-- A REPL and file execution (nested with `INCLUDE`)
+- A REPL and file execution (nested with `INCLUDE`, `INCLUDED` and `REQUIRE`)
+- File access: `OPEN-FILE CREATE-FILE READ-LINE READ-FILE WRITE-LINE WRITE-FILE`,
+  `FILE-POSITION REPOSITION-FILE FILE-SIZE RESIZE-FILE`, `DELETE-FILE RENAME-FILE` and more
 - Colon definitions compiled to threaded code, with `RECURSE`, `IMMEDIATE`,
   `POSTPONE`, `LITERAL`, `[ ]`, `' EXECUTE` and `SEE`
 - `IF ELSE THEN`, `BEGIN UNTIL/AGAIN/WHILE REPEAT`, `DO ?DO LOOP +LOOP LEAVE`,
@@ -42,14 +44,14 @@ Part of the dictionary is written in Forth itself (`PRELUDE` in `src/main.rs`).
 ## Standard compliance
 
 [`STANDAARD.md`](STANDAARD.md) (in Dutch) holds the roadmap to Forth-2012 and the
-current status. The CORE, CORE EXT, EXCEPTION, STRING and TOOLS word sets are complete,
-and their tests in the [Forth-2012 test suite](https://github.com/gerryjackson/forth2012-test-suite)
+current status. The CORE, CORE EXT, EXCEPTION, FILE, STRING and TOOLS word sets are
+complete, and their tests in the [Forth-2012 test suite](https://github.com/gerryjackson/forth2012-test-suite)
 pass (`core.fr`, `coreplustest.fth`, `coreexttest.fth`, `exceptiontest.fth`,
-`stringtest.fth` and `toolstest.fth`). Of TOOLS EXT, everything is present except
+`filetest.fth`, `stringtest.fth` and `toolstest.fth`). Of TOOLS EXT, everything is present except
 `;CODE ASSEMBLER CODE EDITOR` (there is no assembler or editor), the obsolescent `FORGET`
 (use `MARKER`), and `NAME>COMPILE NAME>INTERPRET NAME>STRING TRAVERSE-WORDLIST`, which will
 come with the SEARCH word set. Of DOUBLE, `2CONSTANT` and `2VARIABLE` are already there.
-Next up is FILE.
+Next up is DOUBLE.
 
 ### Implementation-defined choices
 
@@ -69,8 +71,7 @@ Next up is FILE.
 - `ABORT` throws `-1` and `ABORT"` throws `-2`; both empty the stacks and return to the
   terminal with a message. `QUIT` keeps the data stack and prints nothing. When running
   files, `QUIT` ends the run, since there is no terminal to return to.
-- `SOURCE-ID` is 0 for the terminal and -1 for `EVALUATE`. Without the FILE word set there
-  are no file ids, so an `INCLUDE`d file gives its (positive) nesting depth.
+- `SOURCE-ID` is 0 for the terminal, -1 for `EVALUATE` and the file id for an included file.
 - `RESTORE-INPUT` can return to any earlier line of a file, but at the terminal and in
   `EVALUATE` only within the current line; otherwise it returns true.
 - `S\"` translates `\n` to a single line feed (10). Running a word made by `DEFER` before
@@ -86,6 +87,13 @@ Next up is FILE.
   (`REPLACES`, `SUBSTITUTE`) do not depend on case. A `%name%` that is not a substitution
   name is kept as it is, delimiters included. `SUBSTITUTE` returns `-78` when the result
   does not fit, and `REPLACES` throws `-79` for a name that contains `%`.
+- File ids are small positive numbers. `R/O` is 0, `W/O` 1 and `R/W` 2; `BIN` adds 4 and
+  changes nothing. A failing file word returns its own THROW code as ior (`-62` for
+  `CLOSE-FILE` up to `-76` for `WRITE-LINE`). `WRITE-LINE` ends a line with a line feed;
+  `READ-LINE` accepts both LF and CR LF. `FILE-STATUS` returns 0 as its status.
+- `INCLUDED` and `REQUIRED` look for a relative file name that does not exist in the
+  current directory next to the file that is including it. `REQUIRED` recognises a file by
+  its full path. Inside a file, a `(` comment may continue over several lines.
 
 ## License
 

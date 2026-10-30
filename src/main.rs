@@ -10,7 +10,8 @@ use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fmt;
 use std::fs;
-use std::io::{self, BufRead, Write};
+use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
+use std::path::Path;
 use std::rc::Rc;
 
 type Cell = i64;
@@ -45,6 +46,11 @@ const NESTING_TOO_DEEP: Cell = -256;
 
 /// THROW code of QUIT: back to the terminal, keeping the data stack.
 const QUIT: Cell = -56;
+
+// File access methods; BIN adds 4, which changes nothing.
+const R_O: Cell = 0;
+const W_O: Cell = 1;
+const R_W: Cell = 2;
 
 /// Words that are easier to express in Forth itself.
 const PRELUDE: &str = r#"
@@ -151,8 +157,24 @@ impl Throw {
             -29 => "compiler nesting",
             -31 => ">BODY used on non-CREATEd definition",
             -32 => "invalid name argument",
+            -37 => "file I/O exception",
             -38 => "non-existent file",
             -39 => "unexpected end of file",
+            -62 => "CLOSE-FILE exception",
+            -63 => "CREATE-FILE exception",
+            -64 => "DELETE-FILE exception",
+            -65 => "FILE-POSITION exception",
+            -66 => "FILE-SIZE exception",
+            -67 => "FILE-STATUS exception",
+            -68 => "FLUSH-FILE exception",
+            -69 => "OPEN-FILE exception",
+            -70 => "READ-FILE exception",
+            -71 => "READ-LINE exception",
+            -72 => "RENAME-FILE exception",
+            -73 => "REPOSITION-FILE exception",
+            -74 => "RESIZE-FILE exception",
+            -75 => "WRITE-FILE exception",
+            -76 => "WRITE-LINE exception",
             -78 => "SUBSTITUTE",
             -79 => "REPLACES",
             QUIT => "quit",
@@ -259,7 +281,14 @@ struct Source {
 enum Origin {
     Terminal,
     Evaluate,
-    File(Rc<Vec<String>>), // all lines of the file; REFILL loads the next one
+    // A file being included: its file id and all its lines; REFILL loads the next one.
+    File { fid: Cell, lines: Rc<Vec<String>> },
+}
+
+/// A file opened by OPEN-FILE, CREATE-FILE or INCLUDED; file id n is `files[n - 1]`.
+struct OpenFile {
+    file: fs::File,
+    name: String,
 }
 
 pub struct Forth {
@@ -280,6 +309,8 @@ pub struct Forth {
     interactive: bool,       // flush output before waiting for input
     catches: usize,          // CATCHes in progress
     substitutions: HashMap<String, Vec<u8>>, // REPLACES texts, by upper-case name
+    files: Vec<Option<OpenFile>>, // open files, indexed by file id - 1
+    included: HashSet<String>, // files INCLUDED so far, for REQUIRED
     out: Vec<u8>,
     bye: bool,
 }
@@ -303,6 +334,42 @@ fn to_number(mut ud: u128, digits: &[u8], base: u32) -> (u128, usize) {
         used += 1;
     }
     (ud, used)
+}
+
+/// The name under which REQUIRED remembers a file.
+fn canonical(path: &str) -> String {
+    fs::canonicalize(path).map_or_else(|_| path.to_string(), |p| p.to_string_lossy().into_owned())
+}
+
+/// The ior of a file word: 0 on success, else the word's THROW code.
+fn ior<T>(result: Option<T>, code: Cell) -> Cell {
+    if result.is_some() {
+        0
+    } else {
+        code
+    }
+}
+
+/// The core of READ-LINE: reads at most `max` characters of the next line,
+/// without its line ending. Returns None at the end of the file. A line
+/// longer than `max` is continued by the next read.
+fn read_line_from(file: &mut fs::File, max: usize) -> io::Result<Option<Vec<u8>>> {
+    let mut chunk = Vec::new();
+    file.take(max as u64 + 2).read_to_end(&mut chunk)?;
+    if chunk.is_empty() {
+        return Ok(None);
+    }
+    let limit = chunk.len().min(max);
+    let (len, used) = match chunk[..chunk.len().min(max + 1)].iter().position(|&c| c == b'\n') {
+        Some(i) if i > 0 && chunk[i - 1] == b'\r' => (i - 1, i + 1),
+        Some(i) => (i, i + 1),
+        // A CR LF just past a full buffer still ends the line.
+        None if chunk[limit..].starts_with(b"\r\n") => (limit, limit + 2),
+        None => (limit, limit),
+    };
+    file.seek(SeekFrom::Current(used as i64 - chunk.len() as i64))?;
+    chunk.truncate(len);
+    Ok(Some(chunk))
 }
 
 fn fmt_unsigned(mut v: u64, base: u64) -> String {
@@ -344,6 +411,8 @@ impl Forth {
             interactive: false,
             catches: 0,
             substitutions: HashMap::new(),
+            files: Vec::new(),
+            included: HashSet::new(),
             out: Vec::new(),
             bye: false,
         };
@@ -813,12 +882,62 @@ impl Forth {
         }
     }
 
-    /// Interprets a file as a nested input source with its own line buffer.
+    /// INCLUDED: opens a file, remembers it for REQUIRED and interprets it.
     fn include(&mut self, path: &str) -> Res {
-        let src = fs::read_to_string(path).map_err(|e| Throw::with(-38, format!("{path}: {e}")))?;
-        let lines = src.lines().map(String::from).collect();
+        let path = self.resolve(path);
+        let file = fs::File::open(&path).map_err(|e| Throw::with(-38, format!("{path}: {e}")))?;
+        self.included.insert(canonical(&path));
+        let fid = self.add_file(file, &path);
+        self.include_file(fid)
+    }
+
+    /// REQUIRED: includes a file unless it was included before.
+    fn require(&mut self, path: &str) -> Res {
+        let path = self.resolve(path);
+        if self.included.contains(&canonical(&path)) {
+            return Ok(());
+        }
+        self.include(&path)
+    }
+
+    /// A relative path that does not exist is looked up next to the file
+    /// being included, so a file can include its neighbours.
+    fn resolve(&self, path: &str) -> String {
+        if Path::new(path).exists() {
+            return path.to_string();
+        }
+        let including = self.sources.iter().rev().find_map(|s| match s.origin {
+            Origin::File { fid, .. } => self.open_file(fid),
+            _ => None,
+        });
+        let beside = including.and_then(|f| Path::new(&f.name).parent()).map(|dir| dir.join(path));
+        match beside {
+            Some(p) if p.exists() => p.to_string_lossy().into_owned(),
+            _ => path.to_string(),
+        }
+    }
+
+    /// INCLUDE-FILE: interprets the rest of an open file, then closes it.
+    fn include_file(&mut self, fid: Cell) -> Res {
+        let Some(f) = self.open_file_mut(fid) else {
+            return Err(Throw::with(-37, "invalid file id"));
+        };
+        let name = f.name.clone();
+        let mut bytes = Vec::new();
+        let result = match f.file.read_to_end(&mut bytes) {
+            Ok(_) => self.include_lines(fid, &name, &bytes),
+            Err(e) => Err(Throw::with(-37, format!("{name}: {e}"))),
+        };
+        self.close_file(fid);
+        result
+    }
+
+    /// Interprets the lines of a file as a nested input source with its own
+    /// line buffer.
+    fn include_lines(&mut self, fid: Cell, path: &str, bytes: &[u8]) -> Res {
+        let lines = String::from_utf8_lossy(bytes).lines().map(String::from).collect();
         let buf = SOURCE_AREA + self.sources.len() * LINE_MAX;
-        self.push_source(Origin::File(Rc::new(lines)), buf, 0)?;
+        self.push_source(Origin::File { fid, lines: Rc::new(lines) }, buf, 0)?;
         // Read the line number before interpreting: a nested source may be
         // on top of the stack when an error comes back.
         let line = |f: &Forth| f.sources.last().unwrap().line;
@@ -847,7 +966,7 @@ impl Forth {
         let s = self.sources.last().unwrap();
         let line = match &s.origin {
             Origin::Evaluate => None,
-            Origin::File(lines) => lines.get(s.line).cloned(),
+            Origin::File { lines, .. } => lines.get(s.line).cloned(),
             Origin::Terminal => self.read_line().map(|l| String::from_utf8_lossy(&l).into_owned()),
         };
         match line {
@@ -856,13 +975,90 @@ impl Forth {
         }
     }
 
-    /// SOURCE-ID: 0 for the terminal, -1 for EVALUATE. Without the FILE word
-    /// set there are no file ids, so a file gets its (positive) nesting depth.
+    /// SOURCE-ID: 0 for the terminal, -1 for EVALUATE, else the file id.
     fn source_id(&self) -> Cell {
         match self.sources.last().unwrap().origin {
             Origin::Terminal => 0,
             Origin::Evaluate => -1,
-            Origin::File(_) => self.sources.len() as Cell - 1,
+            Origin::File { fid, .. } => fid,
+        }
+    }
+
+    // ---- files ------------------------------------------------------------
+
+    /// Registers an open file and returns its file id, reusing a free one.
+    fn add_file(&mut self, file: fs::File, name: &str) -> Cell {
+        let entry = Some(OpenFile { file, name: name.to_string() });
+        match self.files.iter().position(Option::is_none) {
+            Some(i) => {
+                self.files[i] = entry;
+                i as Cell + 1
+            }
+            None => {
+                self.files.push(entry);
+                self.files.len() as Cell
+            }
+        }
+    }
+
+    fn open_file(&self, fid: Cell) -> Option<&OpenFile> {
+        let i = usize::try_from(fid.checked_sub(1)?).ok()?;
+        self.files.get(i)?.as_ref()
+    }
+
+    fn open_file_mut(&mut self, fid: Cell) -> Option<&mut OpenFile> {
+        let i = usize::try_from(fid.checked_sub(1)?).ok()?;
+        self.files.get_mut(i)?.as_mut()
+    }
+
+    /// Closes a file; false if the file id is not open.
+    fn close_file(&mut self, fid: Cell) -> bool {
+        let open = self.open_file(fid).is_some();
+        if open {
+            self.files[fid as usize - 1] = None;
+        }
+        open
+    }
+
+    /// Runs a file operation; None for an unknown file id or an I/O error.
+    fn with_file<T>(
+        &mut self,
+        fid: Cell,
+        op: impl FnOnce(&mut fs::File) -> io::Result<T>,
+    ) -> Option<T> {
+        op(&mut self.open_file_mut(fid)?.file).ok()
+    }
+
+    /// Pushes a file position or size as ( ud ior ).
+    fn push_size(&mut self, size: Option<u64>, code: Cell) {
+        self.push_ud(size.unwrap_or(0) as u128);
+        self.push(ior(size, code));
+    }
+
+    /// Pops a file name ( c-addr u ).
+    fn pop_name(&mut self) -> Res<String> {
+        let (a, n) = self.pop2()?;
+        Ok(String::from_utf8_lossy(&self.bytes(a, n)?).into_owned())
+    }
+
+    /// Opens a file for OPEN-FILE and CREATE-FILE and pushes ( fileid ior ).
+    fn open_with(&mut self, name: &str, fam: Cell, create: bool, code: Cell) {
+        let mut options = fs::OpenOptions::new();
+        let access = fam & 3;
+        options.read(access != W_O).write(access != R_O || create);
+        if create {
+            options.create(true).truncate(true);
+        }
+        match options.open(name) {
+            Ok(file) => {
+                let fid = self.add_file(file, name);
+                self.push(fid);
+                self.push(0);
+            }
+            Err(_) => {
+                self.push(0);
+                self.push(code);
+            }
         }
     }
 
@@ -908,7 +1104,7 @@ impl Forth {
             return Ok(false);
         }
         if line != s.line as Cell {
-            let Origin::File(lines) = &s.origin else { return Ok(false) };
+            let Origin::File { lines, .. } = &s.origin else { return Ok(false) };
             let Some(text) = usize::try_from(line - 1).ok().and_then(|i| lines.get(i)) else {
                 return Ok(false);
             };
@@ -2090,8 +2286,14 @@ impl Forth {
 
         // comments and strings
         self.imm("(", |f| {
-            f.parse(b')');
-            Ok(())
+            // In a file, a comment continues on the next lines until the `)`.
+            loop {
+                let (a, n) = f.parse(b')');
+                let in_file = matches!(f.sources.last().unwrap().origin, Origin::File { .. });
+                if a + n < f.parse_area().1 || !in_file || !f.refill()? {
+                    return Ok(());
+                }
+            }
         });
         self.imm("\\", |f| {
             let end = f.parse_area().1;
@@ -2315,6 +2517,151 @@ impl Forth {
         self.prim("INCLUDE", |f| {
             let path = f.name()?;
             f.include(&path)
+        });
+        self.prim("INCLUDED", |f| {
+            let path = f.pop_name()?;
+            f.include(&path)
+        });
+        self.prim("INCLUDE-FILE", |f| {
+            let fid = f.pop()?;
+            f.include_file(fid)
+        });
+        self.prim("REQUIRE", |f| {
+            let path = f.name()?;
+            f.require(&path)
+        });
+        self.prim("REQUIRED", |f| {
+            let path = f.pop_name()?;
+            f.require(&path)
+        });
+
+        // files; the ior of a failing file word is its THROW code
+        self.prim("R/O", |f| {
+            f.push(R_O);
+            Ok(())
+        });
+        self.prim("W/O", |f| {
+            f.push(W_O);
+            Ok(())
+        });
+        self.prim("R/W", |f| {
+            f.push(R_W);
+            Ok(())
+        });
+        self.prim("BIN", |f| {
+            let fam = f.pop()?;
+            f.push(fam | 4);
+            Ok(())
+        });
+        self.prim("OPEN-FILE", |f| {
+            let fam = f.pop()?;
+            let name = f.pop_name()?;
+            f.open_with(&name, fam, false, -69);
+            Ok(())
+        });
+        self.prim("CREATE-FILE", |f| {
+            let fam = f.pop()?;
+            let name = f.pop_name()?;
+            f.open_with(&name, fam, true, -63);
+            Ok(())
+        });
+        self.prim("CLOSE-FILE", |f| {
+            let fid = f.pop()?;
+            let closed = f.close_file(fid);
+            f.push(ior(closed.then_some(()), -62));
+            Ok(())
+        });
+        self.prim("DELETE-FILE", |f| {
+            let name = f.pop_name()?;
+            f.push(ior(fs::remove_file(name).ok(), -64));
+            Ok(())
+        });
+        self.prim("RENAME-FILE", |f| {
+            let to = f.pop_name()?;
+            let from = f.pop_name()?;
+            f.push(ior(fs::rename(from, to).ok(), -72));
+            Ok(())
+        });
+        self.prim("FILE-STATUS", |f| {
+            let name = f.pop_name()?;
+            f.push(0);
+            f.push(ior(fs::metadata(name).ok(), -67));
+            Ok(())
+        });
+        self.prim("FILE-POSITION", |f| {
+            let fid = f.pop()?;
+            let pos = f.with_file(fid, |file| file.stream_position());
+            f.push_size(pos, -65);
+            Ok(())
+        });
+        self.prim("FILE-SIZE", |f| {
+            let fid = f.pop()?;
+            let size = f.with_file(fid, |file| Ok(file.metadata()?.len()));
+            f.push_size(size, -66);
+            Ok(())
+        });
+        self.prim("REPOSITION-FILE", |f| {
+            let fid = f.pop()?;
+            let pos = u64::try_from(f.pop_ud()?).unwrap_or(u64::MAX);
+            let done = f.with_file(fid, |file| file.seek(SeekFrom::Start(pos)));
+            f.push(ior(done, -73));
+            Ok(())
+        });
+        self.prim("RESIZE-FILE", |f| {
+            let fid = f.pop()?;
+            let size = u64::try_from(f.pop_ud()?).unwrap_or(u64::MAX);
+            let done = f.with_file(fid, |file| file.set_len(size));
+            f.push(ior(done, -74));
+            Ok(())
+        });
+        self.prim("FLUSH-FILE", |f| {
+            let fid = f.pop()?;
+            let done = f.with_file(fid, |file| file.flush());
+            f.push(ior(done, -68));
+            Ok(())
+        });
+        self.prim("READ-FILE", |f| {
+            let fid = f.pop()?;
+            let (a, n) = f.pop2()?;
+            let i = f.check(a, n.max(0))?;
+            let mut data = Vec::new();
+            let done = f.with_file(fid, |file| file.take(n.max(0) as u64).read_to_end(&mut data));
+            f.mem[i..i + data.len()].copy_from_slice(&data);
+            f.push(data.len() as Cell);
+            f.push(ior(done, -70));
+            Ok(())
+        });
+        self.prim("READ-LINE", |f| {
+            let fid = f.pop()?;
+            let (a, n) = f.pop2()?;
+            let i = f.check(a, n.max(0))?;
+            let line = f.with_file(fid, |file| read_line_from(file, n.max(0) as usize));
+            let (data, more) = match &line {
+                Some(Some(data)) => (&data[..], true),
+                _ => (&[][..], false),
+            };
+            f.mem[i..i + data.len()].copy_from_slice(data);
+            f.push(data.len() as Cell);
+            f.push(flag(more));
+            f.push(ior(line, -71));
+            Ok(())
+        });
+        self.prim("WRITE-FILE", |f| {
+            let fid = f.pop()?;
+            let (a, n) = f.pop2()?;
+            let data = f.bytes(a, n)?;
+            let done = f.with_file(fid, |file| file.write_all(&data));
+            f.push(ior(done, -75));
+            Ok(())
+        });
+        self.prim("WRITE-LINE", |f| {
+            let fid = f.pop()?;
+            let (a, n) = f.pop2()?;
+            let mut data = f.bytes(a, n)?;
+            data.push(b'\n');
+            let done = f.with_file(fid, |file| file.write_all(&data));
+            f.push(ior(done, -76));
+            Ok(())
         });
         self.prim("ACCEPT", |f| {
             let (a, n) = f.pop2()?;
@@ -2906,6 +3253,35 @@ mod tests {
     }
 
     #[test]
+    fn file_access() {
+        let path = temp_file("io.txt", "");
+        let src = format!(
+            r#"VARIABLE FID  CREATE BUF 20 ALLOT
+            S" {path}" W/O CREATE-FILE . FID !
+            S" ab" FID @ WRITE-LINE .  S" cdef" FID @ WRITE-FILE .  FID @ CLOSE-FILE .
+            S" {path}" R/O BIN OPEN-FILE . FID !  FID @ FILE-SIZE . . .
+            BUF 20 FID @ READ-LINE . . .  BUF 2 TYPE
+            BUF 20 FID @ READ-LINE . . .  BUF 4 TYPE
+            BUF 20 FID @ READ-LINE . . .
+            FID @ CLOSE-FILE .  FID @ CLOSE-FILE .
+            S" {path}" DELETE-FILE .  S" {path}" R/O OPEN-FILE . ."#
+        );
+        assert_eq!(run(&src), "0 0 0 0 0 0 0 7 0 -1 2 ab0 -1 4 cdef0 0 0 0 -62 0 -69 0 ");
+    }
+
+    #[test]
+    fn included_and_required() {
+        let inc = temp_file("inc.fs", "( a comment\n over two lines ) 1+\nSOURCE-ID 0> .\n");
+        let src = format!(
+            r#"0 S" {inc}" INCLUDED  S" {inc}" REQUIRED  REQUIRE {inc}
+            S" {inc}" R/O OPEN-FILE DROP INCLUDE-FILE ."#
+        );
+        assert_eq!(run(&src), "-1 -1 2 ");
+        // At the terminal a comment ends with the line.
+        assert_eq!(run("( no end\n1 ."), "1 ");
+    }
+
+    #[test]
     fn byte_order_mark_is_ignored() {
         assert_eq!(run("\u{feff}1 2 + ."), "3 ");
     }
@@ -2982,12 +3358,13 @@ mod tests {
         assert!(output(f).ends_with("0 "));
     }
 
-    /// Runs a word set's test file after what runtests.fth loads before it,
-    /// checks that no test failed, and returns the output; None when the
-    /// suite is missing.
-    fn run_suite(test_file: &str) -> Option<String> {
+    /// Runs test files after what runtests.fth loads before them, checks
+    /// that no test failed, and returns the output; None when the suite is
+    /// missing.
+    fn run_suite(test_files: &[&str]) -> Option<String> {
         let mut files = vec!["tester.fr", "core.fr", "coreplustest.fth", "utilities.fth"];
-        files.extend(["errorreport.fth", test_file]);
+        files.push("errorreport.fth");
+        files.extend(test_files);
         let paths = files.iter().map(|name| suite_file(name)).collect::<Option<Vec<_>>>()?;
         let mut f = Forth::new();
         // core.fr's ACCEPT test asks for a line of input
@@ -3007,26 +3384,34 @@ mod tests {
 
     #[test]
     fn suite_core_ext() {
-        let Some(out) = run_suite("coreexttest.fth") else { return };
+        let Some(out) = run_suite(&["coreexttest.fth"]) else { return };
         assert!(out.contains("End of Core Extension word tests"), "{out}");
     }
 
     #[test]
     fn suite_exception() {
-        let Some(out) = run_suite("exceptiontest.fth") else { return };
+        let Some(out) = run_suite(&["exceptiontest.fth"]) else { return };
         assert!(out.contains("End of Exception word tests"), "{out}");
     }
 
     #[test]
     fn suite_string() {
-        let Some(out) = run_suite("stringtest.fth") else { return };
+        let Some(out) = run_suite(&["stringtest.fth"]) else { return };
         assert!(out.contains("End of String word tests"), "{out}");
     }
 
     #[test]
     fn suite_tools() {
-        let Some(out) = run_suite("toolstest.fth") else { return };
+        let Some(out) = run_suite(&["toolstest.fth"]) else { return };
         assert!(out.contains("End of Programming Tools word tests"), "{out}");
+    }
+
+    /// filetest.fth uses words from coreexttest.fth. It creates its files in
+    /// the current directory and deletes them again.
+    #[test]
+    fn suite_file_access() {
+        let Some(out) = run_suite(&["coreexttest.fth", "filetest.fth"]) else { return };
+        assert!(out.contains("End of File-Access word set tests"), "{out}");
     }
 
     #[test]
