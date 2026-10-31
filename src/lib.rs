@@ -25,6 +25,7 @@ mod stack;
 mod terminal;
 mod throw;
 mod trace;
+mod typed;
 mod words;
 mod xchar;
 
@@ -39,6 +40,7 @@ pub use sandbox::{Limits, Permission};
 pub use terminal::Input;
 pub use throw::{LIMIT_EXCEEDED, NOT_PERMITTED, QUIT, Throw};
 pub use trace::{Debugger, TRACE_CELLS, TraceEntry};
+pub use typed::{FromForth, IntoForth};
 
 // Every module starts with `use crate::*;`, so these make the items of all
 // modules, and the std items most of them need, available everywhere.

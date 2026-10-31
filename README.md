@@ -150,6 +150,34 @@ forth.interpret("ALSO MATHS 3 CUBE .")?;
 assert_eq!(forth.output(), b"27 ");
 ```
 
+The macro `forth_word!` writes the `pop` and `push` for you: the word is a Rust function
+with typed arguments, taken in stack order (the last is the top), and a typed result:
+
+```rust
+use forthling::{forth_word, Forth, Res, Throw};
+
+let mut forth = Forth::new();
+let wid = forth.wordlist("MATHS");
+forth_word!(forth, wid, "CUBE", (n: i64) -> i64 { n * n * n })?;
+forth_word!(forth, wid, "HYPOT", (a: f64, b: f64) -> f64 { a.hypot(b) })?;
+forth_word!(forth, wid, "SHOUT", (s: String) -> String { s.to_uppercase() })?;
+forth_word!(forth, wid, "DIVMOD", (a: i64, b: i64) -> Res<(i64, i64)> {
+    if b == 0 {
+        return Err(Throw::new(-10));
+    }
+    Ok((a % b, a / b))
+})?;
+forth.interpret("ALSO MATHS 3 CUBE . 3E0 4E0 HYPOT F. S\" hi\" SHOUT TYPE 7 2 DIVMOD . .")?;
+assert_eq!(forth.output(), b"27 5. HI3 1 ");
+```
+
+`i64` and `bool` (a flag) come from the data stack, `f64` from the float stack, `String`
+and `Vec<u8>` from a string ( c-addr u ). A result of those types (or `&str`) goes back
+the same way, a string in `ALLOCATE`d memory that the program frees; a tuple gives
+several, `Res<T>` lets the word throw, and without `-> T` the word gives nothing back.
+A word that gets too few arguments takes none and throws -4 (or -45 for floats). For
+types of your own, implement `FromForth` and `IntoForth`.
+
 ### JSON
 
 The word list `JSON` (`ALSO JSON`) is built in; the forthling program and the Python

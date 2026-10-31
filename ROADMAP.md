@@ -104,6 +104,7 @@ over the modules and are `pub(crate)`, except the public API in `lib.rs` and `ho
 | `json.rs` | the JSON words (`Json: Extension`): reading in place (`whole`, `entries`, `follow`, `unescape`), writing (`Writers`, `<JSON JSON>`) |
 | `sandbox.rs` | `Limits`, `Permission`, the budget of an evaluation (`evaluation`, `step`), `emit_bytes`/`emit_memory`, `sleep` |
 | `report.rs` | `ErrorContext`: the stacks, the running words and the place of an error that reaches the host |
+| `typed.rs` | typed words: the macro `forth_word!`, the traits `FromForth` and `IntoForth` |
 | `trace.rs` | tracing: the extension `Debugger` (`TRACE-ON`, `TRACE-OFF`), `record_trace`/`take_trace`, `TraceEntry` |
 | `host.rs` | the host API: `Extension`, `wordlist`, `add_word`, `state`, `pop_bytes`/`push_bytes`, `memory`, `stack`, `take_output` (tested from outside in `tests/host.rs`) |
 | `float.rs` | the float stack (`fpush`, `fpop`), `F@`/`F!` in memory, text to float (`to_float`) and float to text (`represent`, `fixed`, `scientific`) |
@@ -121,9 +122,21 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
 ### Next session: resume here
 
 - **Next step:** step 11 of the revised order, stepping and breakpoints, on the same
-  hook in `invoke` that tracing now uses. Step 12 (the `forth_word!` macro) is small and
-  independent, and can come first. The website (robbertwesterink.nl, private repo
+  hook in `invoke` that tracing now uses (step 12 was done first, at the maintainer's
+  choice). The website (robbertwesterink.nl, private repo
   `DeSchaker/website`) links to the playground since 2026-10-31.
+- **Typed words (2026-10-31):** step 12 is done, in `src/typed.rs`. `forth_word!(forth,
+  wid, "NAME", (a: T, b: U) -> R { body })` (`macro_rules!`, exported at the crate root)
+  expands to `add_word` with a `move` closure: it takes the arguments as one tuple
+  through `FromForth`, runs the body in a closure of its own (so `return` works), and
+  puts the result back through `IntoForth`. Without `-> R` the result is `()`. The
+  traits are public, for types of a host's own: `FromForth` for `Cell`, `bool`, `f64`,
+  `String`, `Vec<u8>`, `()` and tuples of up to 6; `IntoForth` for those, `&str`,
+  `&[u8]` and `Res<T>`. A tuple checks the depth of both stacks first (consts `CELLS` and
+  `FLOATS`), so a word that gets too few takes nothing, as `pop2` since step 9; then it
+  pops the parts last first. Strings are copied and `charge`d, both ways; a string result
+  is `ALLOCATE`d (`push_bytes`). Tested from outside in `tests/typed.rs` and by the
+  doctest of the macro, which is also the README example.
 - **Tracing (2026-10-31):** step 10 is done, in `src/trace.rs`. `invoke` starts with
   `if self.tracing { self.trace(xt) }`, one test when off; measured against the commit
   before (release, seven runs each): the loop of 30 million 205 ms before and 206 ms
@@ -832,7 +845,7 @@ positioning and what agents need. The old step 8 (debugging and tracing) became 
     once, in MCP and wasm by pausing and resuming `run` (possible, since it works with
     explicit frames, not the Rust stack). With a stack visualizer in the playground,
     where the cells move with each step.
-12. **A `forth_word!` macro** (`macro_rules!`, no dependencies) on top of `add_word`, so
+12. ✅ **A `forth_word!` macro** (`macro_rules!`, no dependencies) on top of `add_word`, so
     that Rust programs add words without writing `pop` and `push`:
     `forth_word!(forth, wid, "SQ", (x: i64) -> i64 { x * x })`. It makes forthling as an
     embedded DSL in Rust programs (a safe configuration or rule language, the niche of
