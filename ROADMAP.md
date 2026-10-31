@@ -833,6 +833,15 @@ Considered, not planned (2026-10-31):
 - **A benchmark against Python or Docker** (token footprint, start-up time). Apples and
   oranges, and "token footprint" is vague. Instead, honest numbers of our own where they
   help: the start-up time of `forthling-mcp`, the size of the `.wasm`, steps per second.
+- **"Fewer tokens than Python" as a selling point.** Measured on 2026-10-31 and dropped:
+  eight small tasks (sum of squares, Fibonacci, GCD, counting primes, summing prices from
+  JSON, counting vowels, a Celsius table, sorting a list), each written plainly in Python
+  and in Forth with the same result, counted with `tiktoken`. Python took 268 tokens in
+  all, Forth 492 (`cl100k_base`; `o200k_base` gives 269 and 493). Forth was shorter only
+  for Fibonacci; Python wins on built-ins such as `sum`, `sorted` and `json.loads`.
+  Claude's own tokenizer was not available offline. What forthling does offer agents is
+  no environment to set up, a hard sandbox, and the stacks and error reports after every
+  call; the README says that, without a number.
 
 ---
 

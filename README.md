@@ -7,19 +7,28 @@
 > 1. A diminutive creature thriving on a two-stack diet.
 > 2. A lean, extensible Forth system built from the ground up.
 
-A small [Forth-2012](https://forth-standard.org/) system in Rust, made to run code you do
-not trust, from a person or an AI agent:
+Forth is a tiny language with a big idea: you build your program out of small words, and
+you can try each one the moment you write it. forthling brings that to today's world: a
+complete [Forth-2012](https://forth-standard.org/) system in Rust that you can run on the
+command line, build into your own program, hand to an AI agent, or
+**[try right now in your browser](https://deschaker.github.io/forthling/)**, with nothing
+to install.
 
-- **Standard Forth.** Every word set of Forth-2012 is there, and its tests in the
-  Forth-2012 test suite pass; only four words of TOOLS EXT are missing (no assembler or
-  editor). See [Standard compliance](#standard-compliance).
-- **Small.** The core has no dependencies and no `unsafe`, and its memory is bounded.
-- **A sandbox.** A limit on steps (which gives the same result on every machine), on time
-  and on output, and no file access. See [Sandbox](#sandbox).
-- **JSON** words in the core; **SQLite** as an extension.
-- **For AI agents**: an [MCP server](#for-ai-agents-mcp) that keeps a session and returns
-  the stacks after every call, and [`llms.txt`](llms.txt), a summary for language models.
-- **Anywhere**: as a program, embedded in Rust or [Python](#from-python), or
+- **The whole standard.** All word sets of Forth-2012, from CORE to FLOATING, pass the
+  Forth-2012 test suite, so standard code from books and tutorials runs as written. See
+  [Standard compliance](#standard-compliance).
+- **Safe to play with.** A sandbox puts limits on steps, time and output, and keeps files
+  out of reach. A runaway loop stops with an error instead of hanging, and gives the same
+  result on every machine. See [Sandbox](#sandbox).
+- **Small and clean.** The core has no dependencies and no `unsafe`, and its memory is
+  bounded.
+- **Talks to the world.** JSON words in the core; SQLite as an extension.
+- **Made for AI agents.** An [MCP server](#for-ai-agents-mcp) gives an agent a Forth
+  session that remembers its definitions and shows the stacks after every call. When
+  something goes wrong, it also says where, which words were running and what the stacks
+  held, so an agent can often fix its code in one round. [`llms.txt`](llms.txt) tells a
+  language model how to use it.
+- **Runs anywhere.** As a program, embedded in Rust or [Python](#from-python), or
   [in the browser](https://deschaker.github.io/forthling/) through WebAssembly.
 
 The extensions (Python, SQLite, MCP, WebAssembly) live in crates of their own. MIT
