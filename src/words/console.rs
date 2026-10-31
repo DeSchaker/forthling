@@ -58,8 +58,11 @@ pub(crate) fn install(f: &mut Forth) {
         Ok(())
     });
     f.prim("PARSE", |f| {
-        let delim = f.pop()? as u8;
-        let (a, n) = f.parse(delim);
+        let delim = f.pop()?;
+        let (a, n) = match delim {
+            0..=0x7F => f.parse(delim as u8),
+            _ => f.parse_seq(&encode(delim)),
+        };
         f.push(a as Cell);
         f.push(n as Cell);
         Ok(())

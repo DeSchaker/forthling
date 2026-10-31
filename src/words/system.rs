@@ -79,9 +79,16 @@ pub(crate) fn install(f: &mut Forth) {
             "MAX-N" => f.push(Cell::MAX),
             "MAX-U" => f.push(-1),
             "MAX-UD" => f.push_ud(u128::MAX),
+            "MAX-XCHAR" => f.push(MAX_XCHAR as Cell),
             "RETURN-STACK-CELLS" => f.push(RSTACK_CELLS as Cell),
             "STACK-CELLS" => f.push(STACK_CELLS as Cell),
             "WORDLISTS" => f.push(MAX_ORDER as Cell),
+            "XCHAR-ENCODING" => {
+                let (a, n) = f.encoding_name()?;
+                f.push(a as Cell);
+                f.push(n as Cell);
+            }
+            "XCHAR-MAXMEM" => f.push(XCHAR_MAXMEM as Cell),
             _ => {
                 f.push(0); // unknown query
                 return Ok(());

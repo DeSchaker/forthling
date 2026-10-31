@@ -72,6 +72,8 @@ block file with `Forth::set_block_file(path)`.
   substitution with `REPLACES SUBSTITUTE UNESCAPE`
 - Blocks: `BLOCK BUFFER UPDATE FLUSH SAVE-BUFFERS EMPTY-BUFFERS LOAD THRU LIST`, kept in
   a block file
+- Extended characters in UTF-8: `XC@+ XC!+ XCHAR+ XEMIT XKEY X-SIZE X-WIDTH XHOLD` and
+  more; `CHAR`, `[CHAR]`, `'€'` and `PARSE` take whole characters
 - Word lists and the search order: `WORDLIST GET-ORDER SET-ORDER ALSO ONLY PREVIOUS
   DEFINITIONS ORDER SEARCH-WORDLIST`, and `TRAVERSE-WORDLIST NAME>STRING`
 - Programming tools: `.S ? DUMP SEE WORDS`, `[IF] [ELSE] [THEN]`, `[DEFINED] [UNDEFINED]`,
@@ -93,13 +95,14 @@ assert_eq!(forth.output(), b"49 ");
 
 [`STANDAARD.md`](STANDAARD.md) (in Dutch) holds the roadmap to Forth-2012 and the
 current status. The CORE, CORE EXT, BLOCK, DOUBLE, EXCEPTION, FACILITY, FILE, LOCALS,
-MEMORY, SEARCH, STRING and TOOLS word sets are complete, and their tests in the
+MEMORY, SEARCH, STRING, TOOLS and XCHAR word sets are complete, and their tests in the
 [Forth-2012 test suite](https://github.com/gerryjackson/forth2012-test-suite) pass (`core.fr`,
 `coreplustest.fth`, `coreexttest.fth`, `blocktest.fth`, `doubletest.fth`, `exceptiontest.fth`,
 `facilitytest.fth`, `filetest.fth`, `localstest.fth`, `memorytest.fth`,
 `searchordertest.fth`, `stringtest.fth` and `toolstest.fth`). Of TOOLS EXT, everything is
-present except `;CODE ASSEMBLER CODE EDITOR` (there is no assembler or editor). Next up is
-XCHAR.
+present except `;CODE ASSEMBLER CODE EDITOR` (there is no assembler or editor). The test
+suite has no XCHAR tests, so forthling has its own, in the same style:
+[`tests/xchartest.fth`](tests/xchartest.fth). Next up is FLOATING.
 
 ### Implementation-defined choices
 
@@ -117,9 +120,16 @@ XCHAR.
   returns once a line is entered, and the line ending is a character too. `ACCEPT` keeps
   at most the requested number of characters and drops the rest of the line. At the end
   of input `ACCEPT` returns 0 and `KEY` throws `-39`. `KEY?` never waits: it is true once
-  a line has been entered and not yet read. `EKEY` returns characters only, like `KEY`;
+  a line has been entered and not yet read. `EKEY` returns characters only, like `XKEY`;
   the special keys (`K-UP`, `K-F1`, …) are numbered from `$110000`, above Unicode, and
   never occur.
+- Extended characters (xchars) are UTF-8, up to `$10FFFF` in at most 4 bytes. A character
+  stays one byte (`MAX-CHAR` is 255), so `KEY`, `EMIT` and `C@` work on bytes and
+  `EKEY>CHAR` is true for ASCII only. Malformed UTF-8 is read a byte at a time: a byte that
+  does not start a complete xchar is one on its own, with the byte as its value. Writing an
+  xchar above `$10FFFF` writes U+FFFD. `XC-WIDTH` knows the common Unicode ranges (0 for
+  control characters and combining marks, 2 for wide East Asian characters and emoji),
+  not the full tables.
 - `TIME&DATE` gives the time in UTC. `AT-XY` and `PAGE` write ANSI escape sequences, which
   current terminals, Windows Terminal included, understand.
 - Memory is 1 MiB unless set otherwise (see Options). The input buffers, the `S"` and

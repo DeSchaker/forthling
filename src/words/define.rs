@@ -184,7 +184,7 @@ pub(crate) fn install(f: &mut Forth) {
         if n == 0 {
             return Err(Throw::new(-16));
         }
-        f.push(f.mem[a] as Cell);
+        f.push(decode(&f.mem[a..a + n]).0);
         Ok(())
     });
     f.imm("[CHAR]", |f| {
@@ -193,7 +193,7 @@ pub(crate) fn install(f: &mut Forth) {
         if n == 0 {
             return Err(Throw::new(-16));
         }
-        f.code.push(Instr::Lit(f.mem[a] as Cell));
+        f.code.push(Instr::Lit(decode(&f.mem[a..a + n]).0));
         Ok(())
     });
     f.imm("LITERAL", |f| {

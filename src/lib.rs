@@ -19,6 +19,7 @@ mod stack;
 mod terminal;
 mod throw;
 mod words;
+mod xchar;
 
 #[cfg(test)]
 mod tests;
@@ -44,6 +45,7 @@ pub(crate) use std::io::{self, BufRead};
 pub(crate) use std::rc::Rc;
 pub(crate) use terminal::*;
 pub(crate) use throw::*;
+pub(crate) use xchar::*;
 
 pub type Cell = i64;
 pub(crate) type Res<T = ()> = Result<T, Throw>;
@@ -75,7 +77,8 @@ pub struct Forth {
     order: Vec<usize>,              // the search order, first searched first
     current_wid: usize,             // the word list new definitions go into
     current: Option<usize>,
-    fence: usize, // the words of the system itself, which FORGET leaves alone
+    encoding_name: Option<usize>, // where XCHAR-ENCODING keeps its answer, once asked
+    fence: usize,                 // the words of the system itself, which FORGET leaves alone
     code: Vec<Instr>,
     ctrl: Vec<Ctrl>,
     local_names: Vec<String>, // the locals of the definition being compiled
@@ -133,6 +136,7 @@ impl Forth {
             current_wid: FORTH_WID,
             current: None,
             fence: 0,
+            encoding_name: None,
             code: Vec::new(),
             ctrl: Vec::new(),
             local_names: Vec::new(),

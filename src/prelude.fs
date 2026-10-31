@@ -61,12 +61,15 @@
 : +FIELD   CREATE OVER , + DOES> @ + ;
 : FIELD:   ALIGNED 1 CELLS +FIELD ;
 : CFIELD:  1 CHARS +FIELD ;
-\ Keyboard events. The terminal delivers characters only, so EKEY is KEY and
-\ the special keys, numbered above the Unicode range, never occur.
-: EKEY   KEY ;
+\ Keyboard events. The terminal delivers characters only, so EKEY is XKEY and
+\ the special keys, numbered above the Unicode range, never occur. Only the
+\ ASCII keys are chars; all keys are xchars (XCHAR EXT).
+: EKEY   XKEY ;
 : EKEY?  KEY? ;
+: XKEY?  KEY? ;
 : EMIT?  TRUE ;
-: EKEY>CHAR  DUP $110000 U< ;
+: EKEY>CHAR   DUP $80 U< ;
+: EKEY>XCHAR  DUP $110000 U< ;
 : EKEY>FKEY  DUP $110000 U< 0= ;
 $110000 CONSTANT K-UP      $110001 CONSTANT K-DOWN    $110002 CONSTANT K-RIGHT
 $110003 CONSTANT K-LEFT    $110004 CONSTANT K-HOME    $110005 CONSTANT K-END

@@ -125,11 +125,14 @@ impl Forth {
     }
 
     /// Converts a word to a number, if it is one. A trailing `.` makes it a
-    /// double cell, which the flag tells.
+    /// double cell, which the flag tells. `'x'` is the value of the xchar x.
     pub(crate) fn number(&self, w: &str) -> Option<(u128, bool)> {
         let b = w.as_bytes();
-        if b.len() == 3 && b[0] == b'\'' && b[2] == b'\'' {
-            return Some((b[1] as u128, false));
+        if let Some(c) = w.strip_prefix('\'').and_then(|w| w.strip_suffix('\'')) {
+            let mut chars = c.chars();
+            if let (Some(c), None) = (chars.next(), chars.next()) {
+                return Some((c as u128, false));
+            }
         }
         let (w, double) = match w.strip_suffix('.') {
             Some(w) => (w, true),

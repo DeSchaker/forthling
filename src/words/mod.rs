@@ -17,6 +17,7 @@ mod stack;
 mod string;
 mod system;
 mod tools;
+mod xchar;
 
 /// Defines the system variables and all primitives, in this order.
 pub(crate) fn install(f: &mut Forth) {
@@ -40,4 +41,5 @@ pub(crate) fn install(f: &mut Forth) {
     locals::install(f);
     search::install(f);
     block::install(f);
+    xchar::install(f);
 }

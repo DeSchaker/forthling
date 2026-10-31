@@ -5,7 +5,7 @@ Eerst de verplichte CORE-wordset, daarna CORE EXT en daarna de optionele wordset
 
 ## Waar staan we nu
 
-*Bijgewerkt 2026-10-31: CORE, CORE EXT, EXCEPTION, TOOLS, STRING, FILE, DOUBLE, FACILITY, MEMORY, LOCALS, SEARCH en BLOCK zijn compleet; mijlpaal M5 is bereikt.*
+*Bijgewerkt 2026-10-31: CORE, CORE EXT, EXCEPTION, TOOLS, STRING, FILE, DOUBLE, FACILITY, MEMORY, LOCALS, SEARCH, BLOCK en XCHAR zijn compleet; mijlpaal M5 is bereikt.*
 
 | Wordset       | Aanwezig  | Ontbreekt |
 |---------------|----------:|----------:|
@@ -30,6 +30,8 @@ Eerst de verplichte CORE-wordset, daarna CORE EXT en daarna de optionele wordset
 | SEARCH EXT    | 5 / 5     | 0         |
 | BLOCK         | 8 / 8     | 0         |
 | BLOCK EXT     | 6 / 6     | 0         |
+| XCHAR         | 10 / 10   | 0         |
+| XCHAR EXT     | 11 / 11   | 0         |
 
 Ontbrekend in TOOLS EXT: `;CODE ASSEMBLER CODE EDITOR` (er is geen assembler en geen
 editor).
@@ -41,10 +43,13 @@ Testsuite: in de volgorde van `runtests.fth` draaien `prelimtest.fth`, `tester.f
 `searchordertest.fth`, `stringtest.fth` en `toolstest.fth`
 **foutloos**. `cargo test` draait ze allemaal vanuit `tests/suite.rs` (`suite_prelimtest`,
 `suite_core`, `suite_core_ext`, `suite_block`, `suite_double`, `suite_exception`, `suite_facility`,
-`suite_file_access`, `suite_locals`, `suite_memory`, `suite_search`, `suite_string`, `suite_tools`); een nieuwe wordset-test is één regel met de hulpfunctie `run_suite`, die ook
+`suite_file_access`, `suite_locals`, `suite_memory`, `suite_search`, `suite_string`, `suite_tools`,
+`suite_xchar`); een nieuwe wordset-test is één regel met de hulpfunctie `run_suite`, die ook
 meerdere bestanden neemt (`filetest.fth` heeft `coreexttest.fth` nodig). Sinds SEARCH
 draaien ook de SEARCH-delen van `toolstest.fth` en `localstest.fth`; `suite_tools` en
-`suite_locals` controleren dat.
+`suite_locals` controleren dat. De suite heeft geen XCHAR-tests; die zijn van forthling
+zelf, in `tests/xchartest.fth` (in de stijl van de suite, met `tester.fr`), en draaien via
+`suite_xchar`.
 
 ### CI en hygiëne (sinds 2026-10-30)
 
@@ -80,10 +85,11 @@ her-exporteert de items van alle modules, zodat ze overal beschikbaar zijn. De m
 | `terminal.rs` | de trait `Input` en `Stdin` (standaardinvoer via een thread, voor `KEY?`) |
 | `blocks.rs` | het blockbestand en de blockbuffers (`Blocks`), `LOAD` en `LIST` |
 | `heap.rs` | de heap van `ALLOCATE FREE RESIZE` (`Heap`), `data_end()` |
+| `xchar.rs` | UTF-8: coderen, decoderen en kolombreedte van xchars, `XKEY` en `PARSE` met een xchar |
 | `files.rs` | file ids, `INCLUDED`/`REQUIRED`, hulpfuncties voor de FILE-woorden |
 | `run.rs` | binnenste interpreter: `Instr`, frames, loops, `CATCH` |
 | `compiler.rs` | `Ctrl`, hulpjes voor definities en control flow, `TO`/`IS` |
-| `words/*.rs` | de primitieven per groep (`stack`, `double`, `memory`, `console`, `define`, `control`, `string`, `tools`, `system`, `file`, `facility`, `heap`, `locals`, `search`, `block`) |
+| `words/*.rs` | de primitieven per groep (`stack`, `double`, `memory`, `console`, `define`, `control`, `string`, `tools`, `system`, `file`, `facility`, `heap`, `locals`, `search`, `block`, `xchar`) |
 | `prelude.fs` | woorden die in Forth zelf geschreven zijn (`include_str!`) |
 | `tests.rs` | unit-tests (mogen bij de interne staat); de suites staan in `tests/suite.rs` |
 
@@ -92,8 +98,19 @@ Een nieuwe wordset krijgt zijn eigen `words/<naam>.rs` met een `install(f)`, aan
 
 ### Volgende sessie: hier verder
 
-- **Volgende stap:** XCHAR (geen testfile in de suite), daarna FLOATING (`fp/`)
-  (voorgestelde volgorde, 2026-10-31; de gebruiker kiest).
+- **Volgende stap:** FLOATING (`fp/`), daarna de verklaring volgens §4.1 en de
+  opschoonpunten (voorgestelde volgorde, 2026-10-31; de gebruiker kiest).
+- **XCHAR:** UTF-8. De hulpfuncties (`encode`, `decode`, `last_start`, `width`,
+  `read_xkey`, `parse_seq`) staan in `xchar.rs`, de woorden in `words/xchar.rs`; `XKEY?` en
+  `EKEY>XCHAR` in de prelude. Een teken (`CHAR`, `C@`, `KEY`, `EMIT`) blijft een byte,
+  `MAX-CHAR` blijft 255. Kapotte UTF-8 wordt byte voor byte gelezen: een byte die geen
+  compleet xchar begint, is er zelf een met de bytewaarde. Een waarde boven `MAX-XCHAR`
+  wordt bij het schrijven U+FFFD. `CHAR`, `[CHAR]` en `'x'` geven het hele xchar; `PARSE`
+  neemt een xchar als scheidingsteken. `EKEY` is nu `XKEY` (hele xchars) en `EKEY>CHAR`
+  is alleen waar voor ASCII (< `$80`). `XC-WIDTH` kent de gangbare bereiken van Unicode
+  (0 voor stuurtekens en combinerende tekens, 2 voor breed Oost-Aziatisch en emoji), niet
+  de volledige tabellen. `XCHAR-ENCODING` geeft `UTF-8`, een string op de heap die bij de
+  eerste vraag wordt aangemaakt (`Forth::encoding_name`).
 - **BLOCK:** `blocks.rs` en `words/block.rs`; `THRU` staat in de prelude. Het bestand is
   standaard `blocks.fb` in de huidige map; `-b`/`--blocks` of `blocks = …` in het
   config-bestand kiest een ander (op verzoek, 2026-10-31; in de library
@@ -145,7 +162,7 @@ Een nieuwe wordset krijgt zijn eigen `words/<naam>.rs` met een `install(f)`, aan
   (`terminal.rs`) is nu een trait `Input` (een `BufRead` met `ready()`); standaardinvoer
   (`Stdin`) wordt door een thread per regel gelezen, die pas start bij het eerste gebruik.
   Zo blokkeert `KEY?` niet: hij is waar zodra er een hele regel getypt is. `EKEY` geeft
-  alleen tekens (de terminal staat niet in raw mode); speciale toetsen hebben nummers boven
+  alleen tekens (sinds XCHAR hele xchars) (de terminal staat niet in raw mode); speciale toetsen hebben nummers boven
   Unicode (`$110000` …) maar komen nooit voor. `TIME&DATE` geeft UTC (std kent geen lokale
   tijdzone; dat zou FFI vergen). `AT-XY` en `PAGE` schrijven ANSI-escapes.
 - **DOUBLE:** de rekenwoorden zijn primitieven op `i128` (`d_unop`, `d_binop`, `d_compare`);
@@ -346,7 +363,7 @@ Gegroepeerd van makkelijk naar lastig:
 | 8 ✅ | LOCALS    | `{: a b | c -- :}`, `LOCALS|`, `(LOCAL)`, op een eigen locals-stack. Klaar 2026-10-31. |
 | 9 ✅ | SEARCH    | Wordlists: `WORDLIST GET-ORDER SET-ORDER DEFINITIONS …`, met de zoekvolgorde in `find()`. Klaar 2026-10-31. |
 | 10 | FLOATING | Aparte float-stack en `F+ F. F@ …` (groot, ongeveer 70 woorden). |
-| 11 | XCHAR    | UTF-8-bewuste tekenwoorden. Pas zinvol na 0.2. |
+| 11 ✅ | XCHAR    | UTF-8-bewuste tekenwoorden, met eigen tests (`tests/xchartest.fth`). Klaar 2026-10-31. |
 | 12 ✅ | BLOCK    | Blocks in een bestand, 8 buffers, `LOAD` als invoerbron. Klaar 2026-10-31. |
 
 ---
@@ -403,7 +420,7 @@ Core word set, the Core Extensions word set, the Exception word set, …"*.
 | M3 ✅ | Fase 1 | `core.fr` foutloos en alle CORE-woorden aanwezig → **CORE-compliant** (2026-10-30) |
 | M4 ✅ | Fase 2 | `coreexttest.fth` foutloos (2026-10-30) |
 | M5 ✅ | EXCEPTION + TOOLS + STRING | bijbehorende testfiles foutloos (2026-10-30) |
-| M6+ | overige wordsets naar behoefte (FILE, DOUBLE en FACILITY ✅ 2026-10-30, MEMORY, LOCALS, SEARCH en BLOCK ✅ 2026-10-31) | idem |
+| M6+ | overige wordsets naar behoefte (FILE, DOUBLE en FACILITY ✅ 2026-10-30, MEMORY, LOCALS, SEARCH, BLOCK en XCHAR ✅ 2026-10-31) | idem |
 
 M2 is de grootste en riskantste stap. Die doe je het best in één keer, met de huidige
 unit-tests als vangnet, voordat er nieuwe woorden bovenop komen.

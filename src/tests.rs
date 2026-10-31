@@ -370,6 +370,19 @@ fn facility_words() {
 }
 
 #[test]
+fn xkey_reads_whole_xchars() {
+    let src = "XKEY? . XKEY . XKEY . EKEY . XKEY . KEY . XKEY? .";
+    assert_eq!(run_with_input(src, "é€😀A\n"), "-1 233 8364 128512 65 10 0 ");
+    // A byte that does not start a complete xchar comes on its own.
+    let mut f = Forth::new();
+    f.input = Box::new(io::Cursor::new(b"\xC3A\xA9".to_vec()));
+    f.interpret("XKEY . XKEY . XKEY .").unwrap();
+    assert_eq!(output(f), "195 65 169 ");
+    assert_eq!(run("'é' . '€' ."), "233 8364 ");
+    assert_eq!(err("'ab'").code, -13);
+}
+
+#[test]
 fn double_numbers() {
     assert_eq!(run("1. . . -2. . . : T 3. ; T D. HEX FF. DECIMAL D."), "0 1 -1 -2 3 255 ");
     assert_eq!(run("1. 2. D+ D. 5. 7. D- D. -3. DABS D. 1. DNEGATE D."), "3 -2 3 -1 ");

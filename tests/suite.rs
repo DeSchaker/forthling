@@ -62,7 +62,8 @@ fn run_suite(test_files: &[&str]) -> Option<String> {
     // core.fr's ACCEPT test asks for a line of input
     f.set_input(Box::new(io::Cursor::new(b"typed line\n".to_vec())));
     // blocktest.fth writes blocks; keep them out of the project directory
-    let blocks = env::temp_dir().join(format!("forthling-{}-{}.fb", process::id(), test_files[0]));
+    let name = Path::new(test_files[0]).file_name().unwrap().to_string_lossy();
+    let blocks = env::temp_dir().join(format!("forthling-{}-{name}.fb", process::id()));
     f.set_block_file(&blocks).unwrap();
     let result = paths.iter().try_for_each(|path| f.include(path));
     fs::remove_file(&blocks).ok();
@@ -138,6 +139,14 @@ fn suite_search() {
 fn suite_block() {
     let Some(out) = run_suite(&["blocktest.fth"]) else { return };
     assert!(out.contains("End of Block word tests"), "{out}");
+}
+
+/// The XCHAR tests are forthling's own (tests/xchartest.fth); the suite has none.
+#[test]
+fn suite_xchar() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/xchartest.fth");
+    let Some(out) = run_suite(&[path.to_str().unwrap()]) else { return };
+    assert!(out.contains("End of XCHAR word tests"), "{out}");
 }
 
 #[test]

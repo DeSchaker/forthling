@@ -1,0 +1,141 @@
+//! The XCHAR word set and its extensions: extended characters in UTF-8.
+//! CHAR, [CHAR] and PARSE take xchars in define.rs and console.rs.
+
+use crate::*;
+
+pub(crate) fn install(f: &mut Forth) {
+    f.prim("X-SIZE", |f| {
+        let (a, n) = f.pop2()?;
+        let size = if n <= 0 { 0 } else { decode(f.xbytes(a, n as usize)?).1 };
+        f.push(size as Cell);
+        Ok(())
+    });
+    f.prim("XC!+", |f| {
+        let (xc, a) = f.pop2()?;
+        let bytes = encode(xc);
+        let i = f.check(a, bytes.len() as Cell)?;
+        f.mem[i..i + bytes.len()].copy_from_slice(&bytes);
+        f.push(a + bytes.len() as Cell);
+        Ok(())
+    });
+    f.prim("XC!+?", |f| {
+        let (a, n) = f.pop2()?;
+        let xc = f.pop()?;
+        let bytes = encode(xc);
+        let len = bytes.len() as Cell;
+        let fits = len <= n;
+        if fits {
+            let i = f.check(a, len)?;
+            f.mem[i..i + bytes.len()].copy_from_slice(&bytes);
+        }
+        let used = if fits { len } else { 0 };
+        f.push(a + used);
+        f.push(n - used);
+        f.push(flag(fits));
+        Ok(())
+    });
+    f.prim("XC,", |f| {
+        let bytes = encode(f.pop()?);
+        let a = f.reserve(bytes.len())?;
+        f.mem[a..a + bytes.len()].copy_from_slice(&bytes);
+        Ok(())
+    });
+    f.prim("XC-SIZE", |f| {
+        let xc = f.pop()?;
+        f.push(encode(xc).len() as Cell);
+        Ok(())
+    });
+    f.prim("XC@+", |f| {
+        let a = f.pop()?;
+        let (xc, size) = decode(f.xbytes(a, XCHAR_MAXMEM)?);
+        f.push(a + size as Cell);
+        f.push(xc);
+        Ok(())
+    });
+    f.prim("XCHAR+", |f| {
+        let a = f.pop()?;
+        let size = decode(f.xbytes(a, XCHAR_MAXMEM)?).1;
+        f.push(a + size as Cell);
+        Ok(())
+    });
+    f.prim("XEMIT", |f| {
+        let bytes = encode(f.pop()?);
+        f.out.extend_from_slice(&bytes);
+        Ok(())
+    });
+    f.prim("XKEY", |f| {
+        let xc = f.read_xkey().ok_or(Throw::new(-39))?;
+        f.push(xc);
+        Ok(())
+    });
+
+    // XCHAR EXT
+    f.prim("+X/STRING", |f| {
+        let (a, n) = f.pop2()?;
+        let size = if n <= 0 { 0 } else { decode(f.xbytes(a, n as usize)?).1 as Cell };
+        f.push(a + size);
+        f.push(n - size);
+        Ok(())
+    });
+    f.prim("X\\STRING-", |f| {
+        let (a, n) = f.pop2()?;
+        let len = if n <= 0 { n } else { last_start(f.xbytes(a, n as usize)?) as Cell };
+        f.push(a);
+        f.push(len);
+        Ok(())
+    });
+    f.prim("-TRAILING-GARBAGE", |f| {
+        let (a, n) = f.pop2()?;
+        let mut len = n;
+        if n > 0 {
+            let bytes = f.xbytes(a, n as usize)?;
+            // An xchar whose last bytes are missing.
+            let j = (0..bytes.len()).rev().take(XCHAR_MAXMEM).find(|&j| !is_cont(bytes[j]));
+            if let Some(j) = j.filter(|&j| lead_size(bytes[j]) > bytes.len() - j) {
+                len = j as Cell;
+            }
+        }
+        f.push(a);
+        f.push(len);
+        Ok(())
+    });
+    f.prim("X-WIDTH", |f| {
+        let (a, n) = f.pop2()?;
+        let i = f.check(a, n.max(0))?;
+        let mut bytes = &f.mem[i..i + n.max(0) as usize];
+        let mut columns = 0;
+        while !bytes.is_empty() {
+            let (xc, size) = decode(bytes);
+            columns += width(xc);
+            bytes = &bytes[size..];
+        }
+        f.push(columns);
+        Ok(())
+    });
+    f.prim("XC-WIDTH", |f| {
+        let xc = f.pop()?;
+        f.push(width(xc));
+        Ok(())
+    });
+    f.prim("XCHAR-", |f| {
+        let a = f.pop()?;
+        // Back over the continuation bytes to the start of the xchar.
+        let mut b = a - 1;
+        while b > 0 && a - b < XCHAR_MAXMEM as Cell && is_cont(f.mem[f.check(b, 1)?]) {
+            b -= 1;
+        }
+        let start = f.check(b, 1)?;
+        if decode(&f.mem[start..a as usize]).1 != (a - b) as usize {
+            b = a - 1;
+        }
+        f.push(b);
+        Ok(())
+    });
+    f.prim("XHOLD", |f| {
+        let bytes = encode(f.pop()?);
+        for &b in bytes.iter().rev() {
+            f.hold(b)?;
+        }
+        Ok(())
+    });
+}
