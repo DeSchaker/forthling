@@ -7,6 +7,7 @@
 //! that memory, and errors are standard THROW codes.
 
 mod blocks;
+pub mod cli;
 mod compiler;
 mod dictionary;
 mod files;
@@ -185,7 +186,7 @@ impl Default for Forth {
 }
 
 /// The interface for programs that embed the interpreter, such as the REPL
-/// in main.rs. `interpret`, `include`, `read_line` and `flush` are public too,
+/// in cli.rs. `interpret`, `include`, `read_line` and `flush` are public too,
 /// and host.rs has the API for adding words.
 impl Forth {
     /// Flushes the output before waiting for terminal input, as a REPL should.

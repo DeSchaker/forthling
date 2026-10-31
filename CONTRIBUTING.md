@@ -40,6 +40,10 @@ latest stable Rust, on Linux and Windows.
   `Cargo.lock`; the core has no dependencies and stays that way. Check it with
   `cargo fmt` and `cargo clippy` with `--manifest-path python/Cargo.toml`, and test it with
   `pip install ./python` and `python -m unittest discover -s python/tests`.
+- `sqlite/`: the SQLite words, likewise a crate of its own (rusqlite), with the program
+  `forthling-sqlite`; check and test it with `--manifest-path sqlite/Cargo.toml`.
+- `src/cli.rs`: the forthling program (options, config file, REPL), in the library so
+  that a program with extensions calls `forthling::cli::main(&[&Extension])`.
 - `src/tests.rs`: the unit tests; `tests/suite.rs` runs the files of the test suite.
 - `COMPLIANCE.md`: the system documentation that the standard asks for (section 4.1).
 

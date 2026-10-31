@@ -82,14 +82,15 @@ Cleanups, done on 2026-10-31:
 
 ### Code layout (since 2026-10-30)
 
-The interpreter is a library crate (`src/lib.rs`) with a thin binary (`src/main.rs`: the
-REPL and running files). Every module starts with `use crate::*;`; `lib.rs` re-exports the
+The interpreter is a library crate (`src/lib.rs`) with a thin binary (`src/main.rs` calls
+`cli::main`; the REPL, running files and the options are in `src/cli.rs`). Every module starts with `use crate::*;`; `lib.rs` re-exports the
 items of all modules, so they are available everywhere. The methods of `Forth` are spread
 over the modules and are `pub(crate)`, except the public API in `lib.rs` and `host.rs`.
 
 | File | Contents |
 |---|---|
-| `main.rs` | the REPL, running files, the options (`--memory`, `--blocks`) and the config file |
+| `main.rs` | `fn main` of the program: `forthling::cli::main(&[])` |
+| `cli.rs` | the program (public, `cli::main(extensions)`): the REPL, running files, the options (`--memory`, `--blocks`) and the config file |
 | `lib.rs` | `struct Forth`, `Forth::new`/`with_memory`, the public API (`interpret`, `include`, `set_input`, `output`, …) |
 | `throw.rs` | `Throw`, the named THROW codes and their messages |
 | `stack.rs` | data stack, return stack, helpers for double cells |
@@ -115,10 +116,29 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
 
 ### Next session: resume here
 
-- **Next step:** step 3 of "Later: extensions", SQLite, or the ideas under
+- **Next step:** step 4 of "Later: extensions", graphics, or the ideas under
   "Later: assembler and editor". All word sets are there (except
-  `;CODE ASSEMBLER CODE EDITOR`), as are the statement of section 4.1, the host API and
-  the Python module.
+  `;CODE ASSEMBLER CODE EDITOR`), as are the statement of section 4.1, the host API, the
+  Python module and the SQLite words.
+- **SQLite (2026-10-31):** step 3 of "Later: extensions" is done, in `sqlite/`: a crate
+  `forthling-sqlite` (own `[workspace]`, like `python/`) with rusqlite 0.40 `bundled`
+  (0.41 needs Rust 1.89). The library has `Sqlite: Extension`; the binary
+  `forthling-sqlite` is `forthling::cli::main(&[&Sqlite])`. For that the program moved
+  from `main.rs` to the public module `cli.rs` (`cli::main(extensions)`, which installs
+  them and names them in the banner; `--help` shows the program's own name). Instead of
+  the `forthling-cli` crate with Cargo features from the design, each extension crate has
+  its own program for now; a joint program can follow once there are more. Words in
+  `SQLITE`: `DB-OPEN DB-CLOSE DB-EXEC DB-PREPARE DB-BIND DB-BIND-TEXT DB-BIND-FLOAT
+  DB-BIND-NULL DB-STEP DB-RESET DB-FINALIZE DB-COLUMNS DB-COLUMN DB-COLUMN-INT
+  DB-COLUMN-FLOAT DB-NULL? DB-CHANGES DB-LAST-ROWID DB-ERROR`. A rusqlite `Statement`
+  borrows its `Connection`, so a statement keeps its SQL and parameters, and its first
+  `DB-STEP` runs it and reads all rows (`rows`), which the next steps hand out; binding a
+  parameter or `DB-RESET` starts again. One counter numbers databases and statements, so
+  a database is never taken for a statement. Codes: -260 (SQLite error, message in
+  `DB-ERROR`), -261 (invalid handle). `DB-COLUMN` and `DB-ERROR` return `ALLOCATE`d
+  strings (no hidden transient buffer, which a `FREE` by the program could corrupt).
+  Tests in `sqlite/tests/sqlite.rs`, including `sqlite/examples/people.fs`; CI job
+  `sqlite` on 1.85 and stable (Linux) and stable (Windows).
 - **Minimum Rust 1.85 (2026-10-31):** raised from 1.74 (November 2023, chosen only because
   it was installed) to 1.85, the Rust of Debian stable and the first with edition 2024;
   PyO3 0.30 needs it too. The local toolchain is stable (1.99.1 on 2026-10-31); CI checks
@@ -251,7 +271,7 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
   to 4G, a multiple of 8. For this, all buffers are now at fixed addresses at the bottom
   (`SOURCE_AREA` from 64, then `SQ_BUFS WORD_BUF HOLD_START…HOLD_END PAD_ADDR`) and the data
   space starts at `DICT_START` above them; only the top of the heap depends on the size.
-  Options and config are in `main.rs` (`parse_args`, `parse_config`, `Settings`, `Run`);
+  Options and config are in `cli.rs` (`parse_args`, `parse_config`, `Settings`, `Run`);
   the library knows only `Forth::with_memory` and `Forth::set_block_file`.
 - **Decided (2026-10-31):** `TIME&DATE` stays UTC.
 - **FACILITY:** structures, `EKEY EKEY? EMIT? EKEY>CHAR EKEY>FKEY` and the `K-…` constants
@@ -600,7 +620,7 @@ uses the same API.
 1. ✅ **The host API.** Everything depends on it, and it is cleanup work in the core without
    dependencies.
 2. ✅ **The Python module.** Small, and it tests the host API from the outside right away.
-3. **SQLite.** A clear API in FILE style and easy to test.
+3. ✅ **SQLite.** A clear API in FILE style and easy to test.
 4. **Graphics.** The most design questions, mainly around the event loop.
 5. **FFI and Windows last,** because of `unsafe`.
 

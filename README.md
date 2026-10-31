@@ -125,6 +125,24 @@ f.add_word("HYPOT", math.hypot, inputs=2)   # a word written in Python
 print(f.interpret("3 4 HYPOT F."))         # 5.
 ```
 
+### SQLite
+
+`sqlite/` adds the word list `SQLITE`, in the style of the FILE words: handles as cells,
+errors as an `ior`. Its program `forthling-sqlite` is forthling with these words; see
+[sqlite/README.md](sqlite/README.md) and [the example](sqlite/examples/people.fs).
+
+```
+$ cargo run --release --manifest-path sqlite/Cargo.toml
+forthling — WORDS shows the dictionary, BYE quits.
+Extensions: FORTHLING-SQLITE.
+ALSO SQLITE  S" :memory:" DB-OPEN THROW VALUE DB
+ ok
+S" SELECT sqlite_version()" DB DB-PREPARE THROW VALUE V
+ ok
+V DB-STEP THROW DROP  0 V DB-COLUMN TYPE
+3.53.2 ok
+```
+
 ## Standard compliance
 
 [`ROADMAP.md`](ROADMAP.md) holds the roadmap to Forth-2012 and the
@@ -282,4 +300,5 @@ git -C tests/forth2012-test-suite checkout 4c87e56
 forthling needs Rust 1.85 or newer. CI (`.github/workflows/ci.yml`) checks formatting and
 clippy lints and runs all tests, the test suite included, on Rust 1.85 and on the latest
 stable Rust on Linux and Windows. It also builds the Python module and runs its tests
-(`python -m unittest discover -s python/tests`, after `pip install ./python`).
+(`python -m unittest discover -s python/tests`, after `pip install ./python`) and checks
+and tests the SQLite words (`cargo test --manifest-path sqlite/Cargo.toml`).

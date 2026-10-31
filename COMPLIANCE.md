@@ -266,7 +266,8 @@ messages when nothing catches them:
 
 forthling has one code of its own: -256, input nesting too deep (more than 15 files,
 `EVALUATE`d strings or `LOAD`ed blocks inside each other). The Python module adds -257, a
-Python exception in a word written in Python (see Extensions). A positive code, or one that is
+Python exception in a word written in Python, and the SQLite words -260, an error that
+SQLite reports, and -261, an invalid database or statement handle (see Extensions). A positive code, or one that is
 not in the table, is shown as `exception`. How forthling acts on each ambiguous
 condition is described in this document, word set by word set.
 
@@ -521,3 +522,11 @@ The forthling program itself installs no extensions. The Python module (`python/
 adds go into `FORTH-WORDLIST` or into a word list it names. A Python exception in such a
 word throws -257, which `CATCH` catches; uncaught, the Python program gets the exception
 itself back.
+
+The SQLite words (`sqlite/`, in the program `forthling-sqlite`) install `FORTHLING-SQLITE`
+(version 1) and the word list `SQLITE`. They follow the FILE word set: databases and
+statements are handles, errors are an ior (-260 for an error of SQLite, with its message
+from `DB-ERROR`; -261 for an invalid handle), and the strings they return are
+`ALLOCATE`d, for the program to `FREE`. The words without an ior (`DB-COLUMN` and the
+like, `DB-CHANGES`, `DB-LAST-ROWID`) throw -261 for an invalid handle and -24 for a
+missing row or column.

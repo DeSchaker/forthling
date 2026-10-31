@@ -269,7 +269,9 @@ als niets ze vangt (de meldingen zelf zijn Engels):
 
 forthling heeft één eigen code: -256, invoer te diep genest (meer dan 15 bestanden,
 `EVALUATE`-strings of ge-`LOAD`-e blocks in elkaar). De Python-module voegt -257 toe, een
-Python-exceptie in een woord dat in Python geschreven is (zie Extensies). Een positieve code, of een die niet
+Python-exceptie in een woord dat in Python geschreven is, en de SQLite-woorden -260, een
+fout die SQLite meldt, en -261, een ongeldige handle van een database of statement (zie
+Extensies). Een positieve code, of een die niet
 in de tabel staat, verschijnt als `exception`. Wat forthling bij elke ambigue situatie
 doet, staat per wordset in dit document.
 
@@ -538,3 +540,11 @@ installeert `FORTHLING-PYTHON` (versie 1), zonder eigen woorden: de woorden die 
 Python-programma toevoegt, komen in `FORTH-WORDLIST` of in een woordenlijst die het noemt.
 Een Python-exceptie in zo'n woord gooit -257, wat `CATCH` vangt; ongevangen krijgt het
 Python-programma de exceptie zelf terug.
+
+De SQLite-woorden (`sqlite/`, in het programma `forthling-sqlite`) installeren
+`FORTHLING-SQLITE` (versie 1) en de woordenlijst `SQLITE`. Ze volgen de FILE-wordset:
+databases en statements zijn handles, fouten zijn een ior (-260 voor een fout van SQLite,
+met de melding via `DB-ERROR`; -261 voor een ongeldige handle), en de strings die ze
+teruggeven zijn ge-`ALLOCATE`d, zodat het programma ze met `FREE` vrijgeeft. De woorden
+zonder ior (`DB-COLUMN` en dergelijke, `DB-CHANGES`, `DB-LAST-ROWID`) gooien -261 bij een
+ongeldige handle en -24 bij een ontbrekende rij of kolom.
