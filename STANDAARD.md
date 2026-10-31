@@ -104,8 +104,16 @@ Een nieuwe wordset krijgt zijn eigen `words/<naam>.rs` met een `install(f)`, aan
 
 ### Volgende sessie: hier verder
 
-- **Volgende stap:** de verklaring volgens §4.1 en de opschoonpunten; alle wordsets zijn
-  er (op `;CODE ASSEMBLER CODE EDITOR` na).
+- **Volgende stap:** de opschoonpunten (zie "CI en hygiëne"); alle wordsets zijn er (op
+  `;CODE ASSEMBLER CODE EDITOR` na) en de verklaring volgens §4.1 is klaar.
+- **Verklaring (§4.1):** `COMPLIANCE.md` (Engels) en `VERKLARING.md` (Nederlands), op
+  verzoek in beide talen (2026-10-31). Ze volgen de volgorde van de standaard: de
+  vermelding van §5.1.1, dan per wordset de keuzes (x.4.1.1), de ambigue situaties
+  (x.4.1.2) en de overige documentatie (x.4.1.3), en bij EXCEPTION de tabel met
+  THROW-codes. Elk antwoord is nagegaan in de code of met een proef in de REPL. **Houd ze
+  bij** als gedrag verandert; de README noemt alleen de belangrijkste keuzes en verwijst
+  ernaar. Daarbij gevonden en verholpen: `TRAVERSE-WORDLIST` gaf een Rust-panic als de xt
+  het woordenboek inkortte (een marker); nu gaat de wandeling verder onder het nieuwe eind.
 - **FLOATING:** `float.rs` en `words/float.rs`; de groottes, `FCONSTANT FVARIABLE`, de
   veldwoorden en de `DF`-woorden staan in de prelude. Floats zijn IEEE-754-doubles op een
   eigen stack (`Forth::fstack`, 1024 diep, `FSTACK_FLOATS`; fouten `-44`/`-45`). Een float,
@@ -415,7 +423,10 @@ het waard is; `EDIT` kan tussendoor.
 
 ---
 
-## Doorlopend: documentatie (§4.1 van de standaard)
+## Doorlopend: documentatie (§4.1 van de standaard) ✅ verklaring klaar (2026-10-31)
+
+De verklaring staat in `COMPLIANCE.md` en `VERKLARING.md` (zie "Volgende sessie"). Het
+oorspronkelijke plan:
 
 Een standaardsysteem moet zijn *implementation-defined* keuzes en *ambiguous conditions*
 documenteren. Houd een sectie bij in de README met onder andere:

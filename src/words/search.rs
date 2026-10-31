@@ -105,7 +105,10 @@ pub(crate) fn install(f: &mut Forth) {
         let xt = f.pop()?;
         let xt = usize::try_from(xt).map_err(|_| Throw::with(-24, xt.to_string()))?;
         let mut nt = f.dict.len();
-        while let Some(i) = f.dict[..nt].iter().rposition(|w| w.wid == wid && !w.hidden) {
+        // The xt may shorten the dictionary (a marker, FORGET); go on below its new end.
+        while let Some(i) =
+            f.dict[..nt.min(f.dict.len())].iter().rposition(|w| w.wid == wid && !w.hidden)
+        {
             nt = i;
             f.push(nt as Cell);
             f.execute(xt)?;

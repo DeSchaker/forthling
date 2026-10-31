@@ -108,7 +108,14 @@ present except `;CODE ASSEMBLER CODE EDITOR` (there is no assembler or editor). 
 suite has no XCHAR tests, so forthling has its own, in the same style:
 [`tests/xchartest.fth`](tests/xchartest.fth).
 
+The system documentation that section 4.1 of the standard asks for (every
+implementation-defined option, how forthling acts on each ambiguous condition, and the
+other facts about the system) is in [`COMPLIANCE.md`](COMPLIANCE.md), with a Dutch
+translation in [`VERKLARING.md`](VERKLARING.md).
+
 ### Implementation-defined choices
+
+The main ones; [`COMPLIANCE.md`](COMPLIANCE.md) lists them all.
 
 - Cells are 64 bits; an address unit and a character are 8 bits.
 - Division is floored: `-7 2 /` gives `-4` and `-7 2 MOD` gives `1`. `/ MOD /MOD */ */MOD`

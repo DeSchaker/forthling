@@ -669,6 +669,10 @@ fn name_tokens() {
     let src = "WORDLIST CONSTANT W  W SET-CURRENT : A 1 ; : B 2 ; IMMEDIATE \
                FORTH-WORDLIST SET-CURRENT : SHOW NAME>STRING TYPE SPACE TRUE ;";
     assert_eq!(run(&format!("{src} ' SHOW W TRAVERSE-WORDLIST")), "B A ");
+    // the xt may run a marker, which removes the words still to come, and
+    // here the xt itself too: no panic, but -24 for the next call
+    let gone = "MARKER M1 : A1 ; : TW DROP M1 TRUE ; ' TW FORTH-WORDLIST TRAVERSE-WORDLIST";
+    assert_eq!(err(gone).code, -24);
     let src = format!("{src} S\" A\" W SEARCH-WORDLIST DROP");
     assert_eq!(run(&format!("{src} NAME>INTERPRET EXECUTE .")), "1 ");
     assert_eq!(run(&format!("{src} NAME>COMPILE ' COMPILE, = . DROP")), "-1 ");
