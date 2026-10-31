@@ -44,14 +44,14 @@ pub(crate) fn install(f: &mut Forth) {
     f.prim("ALLOT", |f| {
         let n = f.pop()?;
         let new = f.here as Cell + n;
-        if new < DICT_START as Cell || new > DATA_END as Cell {
+        if new < DICT_START as Cell || new > f.data_end() as Cell {
             return Err(Throw::new(-8));
         }
         f.here = new as usize;
         Ok(())
     });
     f.prim("UNUSED", |f| {
-        f.push((DATA_END - f.here) as Cell);
+        f.push((f.data_end() - f.here) as Cell);
         Ok(())
     });
     f.prim("PAD", |f| {

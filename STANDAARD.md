@@ -5,7 +5,7 @@ Eerst de verplichte CORE-wordset, daarna CORE EXT en daarna de optionele wordset
 
 ## Waar staan we nu
 
-*Bijgewerkt 2026-10-30: CORE, CORE EXT, EXCEPTION, TOOLS, STRING, FILE, DOUBLE en FACILITY zijn compleet; mijlpaal M5 is bereikt.*
+*Bijgewerkt 2026-10-31: CORE, CORE EXT, EXCEPTION, TOOLS, STRING, FILE, DOUBLE, FACILITY en MEMORY zijn compleet; mijlpaal M5 is bereikt.*
 
 | Wordset       | Aanwezig  | Ontbreekt |
 |---------------|----------:|----------:|
@@ -23,6 +23,7 @@ Eerst de verplichte CORE-wordset, daarna CORE EXT en daarna de optionele wordset
 | DOUBLE EXT    | 3 / 3     | 0         |
 | FACILITY      | 3 / 3     | 0         |
 | FACILITY EXT  | 37 / 37   | 0         |
+| MEMORY        | 3 / 3     | 0         |
 
 Ontbrekend in TOOLS EXT: `;CODE ASSEMBLER CODE EDITOR` (er is geen assembler en geen
 editor), `FORGET` (verouderd; gebruik `MARKER`) en `NAME>COMPILE NAME>INTERPRET NAME>STRING
@@ -30,10 +31,11 @@ TRAVERSE-WORDLIST` (die hebben wordlists nodig en komen met SEARCH).
 
 Testsuite: in de volgorde van `runtests.fth` draaien `prelimtest.fth`, `tester.fr`, `core.fr`,
 `coreplustest.fth`, `utilities.fth`, `errorreport.fth`, `coreexttest.fth`, `doubletest.fth`,
-`exceptiontest.fth`, `facilitytest.fth`, `filetest.fth`, `stringtest.fth` en `toolstest.fth`
+`exceptiontest.fth`, `facilitytest.fth`, `filetest.fth`, `memorytest.fth`, `stringtest.fth` en
+`toolstest.fth`
 **foutloos**. `cargo test` draait ze allemaal vanuit `tests/suite.rs` (`suite_prelimtest`,
 `suite_core`, `suite_core_ext`, `suite_double`, `suite_exception`, `suite_facility`,
-`suite_file_access`, `suite_string`, `suite_tools`); een nieuwe wordset-test is één regel met de hulpfunctie `run_suite`, die ook
+`suite_file_access`, `suite_memory`, `suite_string`, `suite_tools`); een nieuwe wordset-test is één regel met de hulpfunctie `run_suite`, die ook
 meerdere bestanden neemt (`filetest.fth` heeft `coreexttest.fth` nodig). `toolstest.fth`
 slaat zijn `TRAVERSE-WORDLIST`-deel over zolang SEARCH ontbreekt.
 
@@ -68,10 +70,11 @@ her-exporteert de items van alle modules, zodat ze overal beschikbaar zijn. De m
 | `parse.rs` | parsen van de invoerbuffer, getallen, pictured numeric output |
 | `interpreter.rs` | buitenste interpreter, invoerbronnen (`Source`, `Origin`), lezen van de terminal |
 | `terminal.rs` | de trait `Input` en `Stdin` (standaardinvoer via een thread, voor `KEY?`) |
+| `heap.rs` | de heap van `ALLOCATE FREE RESIZE` (`Heap`), `data_end()` |
 | `files.rs` | file ids, `INCLUDED`/`REQUIRED`, hulpfuncties voor de FILE-woorden |
 | `run.rs` | binnenste interpreter: `Instr`, frames, loops, `CATCH` |
 | `compiler.rs` | `Ctrl`, hulpjes voor definities en control flow, `TO`/`IS` |
-| `words/*.rs` | de primitieven per groep (`stack`, `double`, `memory`, `console`, `define`, `control`, `string`, `tools`, `system`, `file`, `facility`) |
+| `words/*.rs` | de primitieven per groep (`stack`, `double`, `memory`, `console`, `define`, `control`, `string`, `tools`, `system`, `file`, `facility`, `heap`) |
 | `prelude.fs` | woorden die in Forth zelf geschreven zijn (`include_str!`) |
 | `tests.rs` | unit-tests (mogen bij de interne staat); de suites staan in `tests/suite.rs` |
 
@@ -80,8 +83,14 @@ Een nieuwe wordset krijgt zijn eigen `words/<naam>.rs` met een `install(f)`, aan
 
 ### Volgende sessie: hier verder
 
-- **Volgende stap:** fase 3, MEMORY (`memorytest.fth`): `ALLOCATE FREE RESIZE`, een heap in
-  het Forth-geheugen.
+- **Volgende stap:** fase 3, LOCALS (`localstest.fth`): `{: a b | c -- :}` en `(LOCAL)`,
+  met een frame voor locals in `Frame`.
+- **MEMORY:** de heap (`heap.rs`) groeit vanaf `DATA_END` omlaag naar `HERE`; data space
+  en heap delen dus de vrije ruimte. `Heap` houdt de blokken bij in een `BTreeMap`
+  (begin → grootte, hele cellen); `floor()` is het laagste blok en `data_end()` de grens
+  voor `reserve`, `ALLOT` en `UNUSED`. `ALLOCATE` neemt het eerste gat dat past, anders
+  zakt de heap verder. `RESIZE` groeit ter plekke als de ruimte erna vrij is, anders
+  verhuist het blok. Iors: `-59 -60 -61`. `MARKER` raakt de heap niet.
 - **FACILITY:** structuren, `EKEY EKEY? EMIT? EKEY>CHAR EKEY>FKEY` en de `K-…`-constanten
   staan in `prelude.fs`; `KEY? MS TIME&DATE AT-XY PAGE` in `words/facility.rs`. De terminal
   (`terminal.rs`) is nu een trait `Input` (een `BufRead` met `ready()`); standaardinvoer
@@ -283,7 +292,7 @@ Gegroepeerd van makkelijk naar lastig:
 | 4 ✅ | FILE      | `INCLUDED INCLUDE REQUIRE`, plus file-I/O (`OPEN-FILE READ-LINE WRITE-FILE …`) met echte file ids. Klaar 2026-10-30. |
 | 5 ✅ | DOUBLE    | `D+ D- D. D< DNEGATE 2CONSTANT 2VARIABLE M+ M*/ …`, en getallen met een punt (`123.`) als dubbele cel. Klaar 2026-10-30. |
 | 6 ✅ | FACILITY  | `KEY? PAGE AT-XY MS TIME&DATE`, plus `BEGIN-STRUCTURE`/`FIELD:`. Klaar 2026-10-30. |
-| 7 | MEMORY    | `ALLOCATE FREE RESIZE`: een eenvoudige heap in het bovenste deel van het geheugen. |
+| 7 ✅ | MEMORY    | `ALLOCATE FREE RESIZE`: een heap die vanaf de bovenkant van de data space omlaag groeit. Klaar 2026-10-31. |
 | 8 | LOCALS    | `{: a b | c -- :}`. Vergt een aparte locals-frame in `Frame`. |
 | 9 | SEARCH    | Wordlists: `WORDLIST GET-ORDER SET-ORDER DEFINITIONS …`. Vraagt een herbouw van `find()`. |
 | 10 | FLOATING | Aparte float-stack en `F+ F. F@ …` (groot, ongeveer 70 woorden). |
@@ -343,7 +352,7 @@ Core word set, the Core Extensions word set, the Exception word set, …"*.
 | M3 ✅ | Fase 1 | `core.fr` foutloos en alle CORE-woorden aanwezig → **CORE-compliant** (2026-10-30) |
 | M4 ✅ | Fase 2 | `coreexttest.fth` foutloos (2026-10-30) |
 | M5 ✅ | EXCEPTION + TOOLS + STRING | bijbehorende testfiles foutloos (2026-10-30) |
-| M6+ | overige wordsets naar behoefte (FILE, DOUBLE en FACILITY ✅ 2026-10-30) | idem |
+| M6+ | overige wordsets naar behoefte (FILE, DOUBLE en FACILITY ✅ 2026-10-30, MEMORY ✅ 2026-10-31) | idem |
 
 M2 is de grootste en riskantste stap. Die doe je het best in één keer, met de huidige
 unit-tests als vangnet, voordat er nieuwe woorden bovenop komen.

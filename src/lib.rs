@@ -9,6 +9,7 @@
 mod compiler;
 mod dictionary;
 mod files;
+mod heap;
 mod interpreter;
 mod memory;
 mod parse;
@@ -29,6 +30,7 @@ pub use throw::{Throw, QUIT};
 pub(crate) use compiler::*;
 pub(crate) use dictionary::*;
 pub(crate) use files::*;
+pub(crate) use heap::*;
 pub(crate) use interpreter::*;
 pub(crate) use memory::*;
 pub(crate) use parse::*;
@@ -63,6 +65,7 @@ pub struct Forth {
     frames: Vec<Frame>,
     mem: Vec<u8>,
     here: usize,
+    heap: Heap,
     dict: Vec<Word>,
     current: Option<usize>,
     code: Vec<Instr>,
@@ -97,6 +100,7 @@ impl Forth {
             frames: Vec::new(),
             mem: vec![0; MEM_SIZE],
             here: DICT_START,
+            heap: Heap::default(),
             dict: Vec::new(),
             current: None,
             code: Vec::new(),

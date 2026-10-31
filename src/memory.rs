@@ -3,7 +3,8 @@
 use crate::*;
 
 // Memory map: system variables at the bottom, then the data space that
-// HERE grows through, then transient buffers and the input buffers on top.
+// HERE grows through, the heap growing down from DATA_END to meet it (see
+// heap.rs), then transient buffers and the input buffers on top.
 pub(crate) const MEM_SIZE: usize = 1 << 20;
 pub(crate) const BASE_ADDR: usize = 0;
 pub(crate) const STATE_ADDR: usize = 8;
@@ -41,7 +42,7 @@ impl Forth {
 
     pub(crate) fn reserve(&mut self, n: usize) -> Res<usize> {
         let a = self.here;
-        if a + n > DATA_END {
+        if a + n > self.data_end() {
             return Err(Throw::new(-8));
         }
         self.here += n;

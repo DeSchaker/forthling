@@ -8,6 +8,7 @@ mod define;
 mod double;
 mod facility;
 mod file;
+mod heap;
 mod memory;
 mod stack;
 mod string;
@@ -30,4 +31,5 @@ pub(crate) fn install(f: &mut Forth) {
     system::install(f);
     file::install(f);
     facility::install(f);
+    heap::install(f);
 }

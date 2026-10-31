@@ -119,6 +119,12 @@ fn suite_facility() {
 }
 
 #[test]
+fn suite_memory() {
+    let Some(out) = run_suite(&["memorytest.fth"]) else { return };
+    assert!(out.contains("End of Memory-Allocation word tests"), "{out}");
+}
+
+#[test]
 fn suite_tester() {
     let Some(path) = suite_file("tester.fr") else { return };
     let mut f = Forth::new();

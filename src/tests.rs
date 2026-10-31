@@ -562,3 +562,14 @@ fn errors_are_throw_codes_and_reset_state() {
     f.interpret("1 2 + .").unwrap();
     assert_eq!(output(f), "3 ");
 }
+
+#[test]
+fn heap_shares_free_space_with_data_space() {
+    assert_eq!(run("UNUSED 100 ALLOCATE . DROP UNUSED - ."), "0 104 ");
+    assert_eq!(run("100 ALLOCATE DROP DUP FREE . FREE ."), "0 -60 ");
+    assert_eq!(run("1 ALLOCATE DROP 7 OVER ! 1000 RESIZE . @ ."), "0 7 ");
+    assert_eq!(run("-1 ALLOCATE . .  5 -1 RESIZE . ."), "-59 0 -61 5 ");
+    // a full data space leaves no room for the heap, and the other way round
+    assert_eq!(run("UNUSED ALLOT 8 ALLOCATE . DROP"), "-59 ");
+    assert_eq!(err("ALIGN UNUSED 8 - ALLOCATE 2DROP 16 ALLOT").code, -8);
+}
