@@ -81,7 +81,8 @@
 
   <footer>
     Words you define stay until you start over. Each run may take 10 million steps and print 1 MiB;
-    there is no file access. Try <code>WORDS</code>, <code>SEE SQUARE</code>, or <code>ALSO JSON</code> for the JSON words.
+    there is no file access. Try <code>WORDS</code>, <code>SEE SQUARE</code>, <code>ALSO JSON</code> for the JSON words, or
+    <code>ALSO DEBUG TRACE-ON</code> to see each word run (<code>TRACE-OFF</code> stops it).
   </footer>
 </main>
 
@@ -93,7 +94,8 @@ const examples = {
   "Project Euler 5": "\\ The smallest number divisible by 1 to 20\n: GCD ( a b -- g ) BEGIN DUP WHILE TUCK MOD REPEAT DROP ;\n: LCM ( a b -- l ) 2DUP GCD */ ;\n: EULER5 ( -- n ) 1 21 1 DO I LCM LOOP ;\nEULER5 .",
   "Floating point": "2E0 FSQRT F.  1E0 FEXP F.\n: HYPOT ( F: a b -- c ) FDUP F* FSWAP FDUP F* F+ FSQRT ;\n3E0 4E0 HYPOT F.",
   "JSON": "ALSO JSON\n: DOC  S\\\" {\\\"name\\\": \\\"Ada\\\", \\\"langs\\\": [\\\"en\\\", \\\"fr\\\"]}\" ;\nDOC S\" langs[1]\" JSON@ DROP TYPE CR\nJSON{ S\" sum\" JSON-KEY 1 2 + JSON-NUMBER S\" ok\" JSON-KEY -1 JSON-FLAG JSON}",
-  "The sandbox": "\\ An endless loop: the sandbox stops it\n: FOREVER BEGIN AGAIN ; FOREVER",
+  "Trace": "\\ Each word that runs, with the stack when it starts\nALSO DEBUG\n: SQUARE ( n -- n*n ) DUP * ;\n: SUM-SQUARES ( a b -- n ) SQUARE SWAP SQUARE + ;\nTRACE-ON 3 4 SUM-SQUARES . TRACE-OFF",
+  "The sandbox":"\\ An endless loop: the sandbox stops it\n: FOREVER BEGIN AGAIN ; FOREVER",
 };
 
 const $ = (id) => document.getElementById(id);
