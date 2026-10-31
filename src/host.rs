@@ -119,6 +119,17 @@ impl Forth {
         self.stack.len()
     }
 
+    /// The data stack, the top last.
+    pub fn stack(&self) -> &[Cell] {
+        &self.stack
+    }
+
+    /// The output produced since the last `flush` or `take_output`, which
+    /// the system then forgets; for hosts that show it themselves.
+    pub fn take_output(&mut self) -> Vec<u8> {
+        std::mem::take(&mut self.out)
+    }
+
     /// Pops a string ( c-addr u ) and returns a copy of it.
     pub fn pop_bytes(&mut self) -> Res<Vec<u8>> {
         let (i, n) = self.pop_str()?;

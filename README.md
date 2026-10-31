@@ -112,6 +112,19 @@ forth.interpret("ALSO MATHS 3 CUBE .")?;
 assert_eq!(forth.output(), b"27 ");
 ```
 
+### From Python
+
+`python/` holds a Python module, built with [PyO3](https://pyo3.rs/) and
+[maturin](https://www.maturin.rs/); see [python/README.md](python/README.md).
+
+```python
+import math, forthling
+
+f = forthling.Forth()
+f.add_word("HYPOT", math.hypot, inputs=2)   # a word written in Python
+print(f.interpret("3 4 HYPOT F."))         # 5.
+```
+
 ## Standard compliance
 
 [`ROADMAP.md`](ROADMAP.md) holds the roadmap to Forth-2012 and the
@@ -268,4 +281,5 @@ git -C tests/forth2012-test-suite checkout 4c87e56
 
 forthling needs Rust 1.74 or newer. CI (`.github/workflows/ci.yml`) checks formatting and
 clippy lints and runs all tests, the test suite included, on Rust 1.74 and on the latest
-stable Rust on Linux and Windows.
+stable Rust on Linux and Windows. It also builds the Python module and runs its tests
+(`python -m unittest discover -s python/tests`, after `pip install ./python`).

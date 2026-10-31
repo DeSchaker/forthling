@@ -265,7 +265,8 @@ messages when nothing catches them:
 | -37 | file I/O exception | -79 | `REPLACES` |
 
 forthling has one code of its own: -256, input nesting too deep (more than 15 files,
-`EVALUATE`d strings or `LOAD`ed blocks inside each other). A positive code, or one that is
+`EVALUATE`d strings or `LOAD`ed blocks inside each other). The Python module adds -257, a
+Python exception in a word written in Python (see Extensions). A positive code, or one that is
 not in the table, is shown as `exception`. How forthling acts on each ambiguous
 condition is described in this document, word set by word set.
 
@@ -515,4 +516,8 @@ standard words as they are:
   and then gives its version and true. `[DEFINED]` tests for a single word.
 - The words of an extension belong to the system: `FORGET` throws -15 for them.
 
-The forthling program itself installs no extensions.
+The forthling program itself installs no extensions. The Python module (`python/`) installs
+`FORTHLING-PYTHON` (version 1), without words of its own: the words that a Python program
+adds go into `FORTH-WORDLIST` or into a word list it names. A Python exception in such a
+word throws -257, which `CATCH` catches; uncaught, the Python program gets the exception
+itself back.

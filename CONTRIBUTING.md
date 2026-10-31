@@ -36,6 +36,10 @@ latest stable Rust, on Linux and Windows.
 - `src/prelude.fs`: the words that are defined in Forth itself.
 - `src/host.rs`: the public API for adding words from Rust (`Extension`, `add_word`);
   `tests/host.rs` uses it from the outside.
+- `python/`: the Python module, a crate of its own on top of the host API, with its own
+  `Cargo.lock`; the core has no dependencies and stays that way. Check it with
+  `cargo fmt` and `cargo clippy` with `--manifest-path python/Cargo.toml`, and test it with
+  `pip install ./python` and `python -m unittest discover -s python/tests`.
 - `src/tests.rs`: the unit tests; `tests/suite.rs` runs the files of the test suite.
 - `COMPLIANCE.md`: the system documentation that the standard asks for (section 4.1).
 

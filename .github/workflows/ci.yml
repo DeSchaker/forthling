@@ -47,3 +47,23 @@ jobs:
           git clone --quiet "$SUITE_REPO" tests/forth2012-test-suite
           git -C tests/forth2012-test-suite checkout --quiet "$SUITE_COMMIT"
       - run: cargo test
+
+  # The Python module in python/, a crate of its own with PyO3. Python 3.14
+  # is the newest version that the PyO3 in python/Cargo.toml knows.
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: python
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - run: cargo fmt --manifest-path python/Cargo.toml -- --check
+      - run: cargo clippy --manifest-path python/Cargo.toml --all-targets -- -D warnings
+      - run: pip install ./python
+      - run: python -m unittest discover -s python/tests -v

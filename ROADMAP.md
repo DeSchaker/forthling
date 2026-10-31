@@ -99,7 +99,7 @@ over the modules and are `pub(crate)`, except the public API in `lib.rs` and `ho
 | `terminal.rs` | the trait `Input` and `Stdin` (standard input through a thread, for `KEY?`) |
 | `blocks.rs` | the block file and the block buffers (`Blocks`), `LOAD` and `LIST` |
 | `heap.rs` | the heap of `ALLOCATE FREE RESIZE` (`Heap`), `data_end()` |
-| `host.rs` | the host API: `Extension`, `wordlist`, `add_word`, `state`, `pop_bytes`/`push_bytes`, `memory` (tested from outside in `tests/host.rs`) |
+| `host.rs` | the host API: `Extension`, `wordlist`, `add_word`, `state`, `pop_bytes`/`push_bytes`, `memory`, `stack`, `take_output` (tested from outside in `tests/host.rs`) |
 | `float.rs` | the float stack (`fpush`, `fpop`), `F@`/`F!` in memory, text to float (`to_float`) and float to text (`represent`, `fixed`, `scientific`) |
 | `xchar.rs` | UTF-8: encoding, decoding and column width of xchars, `XKEY` and `PARSE` with an xchar |
 | `files.rs` | file ids, `INCLUDED`/`REQUIRED`, helpers for the FILE words |
@@ -114,9 +114,27 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
 
 ### Next session: resume here
 
-- **Next step:** step 2 of "Later: extensions", the Python module, or the ideas under
+- **Next step:** step 3 of "Later: extensions", SQLite, or the ideas under
   "Later: assembler and editor". All word sets are there (except
-  `;CODE ASSEMBLER CODE EDITOR`), as are the statement of section 4.1 and the host API.
+  `;CODE ASSEMBLER CODE EDITOR`), as are the statement of section 4.1, the host API and
+  the Python module.
+- **Python module (2026-10-31):** step 2 of "Later: extensions" is done, in `python/`: a
+  crate `forthling-py` with an empty `[workspace]` of its own, so PyO3 does not end up in
+  the core's `Cargo.lock` and plain `cargo` commands in the root still see only the core
+  (a joint workspace can follow once there are more extension crates). PyO3 0.27, the
+  newest that builds on Rust 1.74 (0.30 needs 1.85) and that knows Python 3.14; maturin
+  as build backend (`pip install ./python`). The class `forthling.Forth(memory=None,
+  input="")` has `interpret`/`include` (they return the output, via the new core method
+  `take_output`), `push pop fpush fpop`, `stack` (new core method `Forth::stack`),
+  `finished` and `add_word(name, func, inputs=0, wordlist=None)`. Such a word pops
+  `inputs` cells as arguments and pushes the result: None nothing, a bool a flag, an int
+  a cell, a float on the float stack, a tuple or list each item. A Python exception in it
+  is THROW -257; uncaught, `interpret` raises the original exception again (kept in
+  `pending`). `ForthError` has `code` and `output`. The terminal input is a string
+  (empty by default), so `KEY` never waits on stdin inside Python. ENVIRONMENT? knows
+  `FORTHLING-PYTHON`. The tests are in `python/tests/test_forthling.py` (unittest, no
+  pytest needed); CI has a job `python` (Python 3.14). Locally `cargo` needs
+  `PYO3_PYTHON` set, since Python is not on the PATH; `pip install` does not.
 - **Host API (2026-10-31):** step 1 of "Later: extensions" is done, in `src/host.rs`. A
   word added from Rust is `Kind::Host(Rc<dyn Fn(&mut Forth) -> Res>)`: `Fn`, not `FnMut`,
   so a word may run itself again (through `interpret`) without a `RefCell` panicking;
@@ -568,7 +586,7 @@ uses the same API.
 
 1. ✅ **The host API.** Everything depends on it, and it is cleanup work in the core without
    dependencies.
-2. **The Python module.** Small, and it tests the host API from the outside right away.
+2. ✅ **The Python module.** Small, and it tests the host API from the outside right away.
 3. **SQLite.** A clear API in FILE style and easy to test.
 4. **Graphics.** The most design questions, mainly around the event loop.
 5. **FFI and Windows last,** because of `unsafe`.

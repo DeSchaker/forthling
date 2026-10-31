@@ -111,4 +111,8 @@ fn a_host_program_adds_words_directly() {
     assert_eq!(f.add_word(wid, "", |_| Ok(())).unwrap_err().code, -16);
     f.push(5);
     assert_eq!((f.depth(), f.pop().unwrap()), (1, 5));
+    run(&mut f, ": D .\" done\" ; 1 2 3 D");
+    assert_eq!(f.stack(), [1, 2, 3]);
+    assert!(f.take_output().ends_with(b"done"));
+    assert_eq!(f.output(), b"");
 }

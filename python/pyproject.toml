@@ -1,0 +1,18 @@
+[build-system]
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
+
+[project]
+name = "forthling"
+version = "0.1.0"
+description = "Python bindings for forthling, a Forth interpreter in Rust"
+license = "MIT"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Forth",
+]
+
+[tool.maturin]
+module-name = "forthling"

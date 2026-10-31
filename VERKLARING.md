@@ -268,7 +268,8 @@ als niets ze vangt (de meldingen zelf zijn Engels):
 | -37 | file I/O exception | -79 | `REPLACES` |
 
 forthling heeft één eigen code: -256, invoer te diep genest (meer dan 15 bestanden,
-`EVALUATE`-strings of ge-`LOAD`-e blocks in elkaar). Een positieve code, of een die niet
+`EVALUATE`-strings of ge-`LOAD`-e blocks in elkaar). De Python-module voegt -257 toe, een
+Python-exceptie in een woord dat in Python geschreven is (zie Extensies). Een positieve code, of een die niet
 in de tabel staat, verschijnt als `exception`. Wat forthling bij elke ambigue situatie
 doet, staat per wordset in dit document.
 
@@ -532,4 +533,8 @@ blijven daarbij zoals ze zijn:
   `FORTHLING-SQLITE`, en geeft dan haar versie en waar. `[DEFINED]` test op één woord.
 - De woorden van een extensie horen bij het systeem: `FORGET` gooit er -15 voor.
 
-Het programma forthling zelf installeert geen extensies.
+Het programma forthling zelf installeert geen extensies. De Python-module (`python/`)
+installeert `FORTHLING-PYTHON` (versie 1), zonder eigen woorden: de woorden die een
+Python-programma toevoegt, komen in `FORTH-WORDLIST` of in een woordenlijst die het noemt.
+Een Python-exceptie in zo'n woord gooit -257, wat `CATCH` vangt; ongevangen krijgt het
+Python-programma de exceptie zelf terug.
