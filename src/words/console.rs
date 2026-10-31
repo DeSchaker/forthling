@@ -37,14 +37,14 @@ pub(crate) fn install(f: &mut Forth) {
     });
     f.prim("EMIT", |f| {
         let c = f.pop()?;
-        f.out.push(c as u8);
+        f.emit_bytes(&[c as u8]);
         Ok(())
     });
     f.prim("TYPE", |f| {
         let (a, n) = f.pop2()?;
         if n > 0 {
             let i = f.check(a, n)?;
-            f.out.extend_from_slice(&f.mem[i..i + n as usize]);
+            f.emit_memory(i, n as usize);
         }
         Ok(())
     });

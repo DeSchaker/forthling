@@ -25,19 +25,22 @@ pub(crate) fn install(f: &mut Forth) {
     });
     f.prim("DELETE-FILE", |f| {
         let name = f.pop_name()?;
-        f.push(ior(fs::remove_file(name).ok(), DELETE_FILE_FAILED));
+        let removed = f.permits(Permission::Files).then(|| fs::remove_file(name).ok());
+        f.push(permitted_ior(removed, DELETE_FILE_FAILED));
         Ok(())
     });
     f.prim("RENAME-FILE", |f| {
         let to = f.pop_name()?;
         let from = f.pop_name()?;
-        f.push(ior(fs::rename(from, to).ok(), RENAME_FILE_FAILED));
+        let renamed = f.permits(Permission::Files).then(|| fs::rename(from, to).ok());
+        f.push(permitted_ior(renamed, RENAME_FILE_FAILED));
         Ok(())
     });
     f.prim("FILE-STATUS", |f| {
         let name = f.pop_name()?;
         f.push(0);
-        f.push(ior(fs::metadata(name).ok(), FILE_STATUS_FAILED));
+        let status = f.permits(Permission::Files).then(|| fs::metadata(name).ok());
+        f.push(permitted_ior(status, FILE_STATUS_FAILED));
         Ok(())
     });
     f.prim("FILE-POSITION", |f| {
@@ -113,4 +116,10 @@ pub(crate) fn install(f: &mut Forth) {
         f.push(ior(done, WRITE_LINE_FAILED));
         Ok(())
     });
+}
+
+/// The ior of a file operation that the sandbox may forbid: None when it
+/// was not permitted, else the result of the operation.
+fn permitted_ior<T>(result: Option<Option<T>>, code: Cell) -> Cell {
+    result.map_or(NOT_PERMITTED, |r| ior(r, code))
 }

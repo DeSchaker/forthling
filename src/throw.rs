@@ -61,6 +61,14 @@ pub(crate) const REPLACES_FAILED: Cell = -79;
 /// System THROW code: INCLUDEs nested deeper than MAX_SOURCES.
 pub(crate) const NESTING_TOO_DEEP: Cell = -256;
 
+/// THROW code of a limit of the sandbox that was reached (see `Limits`);
+/// the detail says which: `steps`, `time` or `output`.
+pub const LIMIT_EXCEEDED: Cell = -258;
+
+/// THROW code, or ior, of something the sandbox does not permit (see
+/// `Permission`).
+pub const NOT_PERMITTED: Cell = -259;
+
 /// THROW code of QUIT: back to the terminal, keeping the data stack.
 pub const QUIT: Cell = -56;
 
@@ -148,6 +156,8 @@ impl Throw {
             REPLACES_FAILED => "REPLACES",
             QUIT => "quit",
             NESTING_TOO_DEEP => "input nesting too deep",
+            LIMIT_EXCEEDED => "limit exceeded",
+            NOT_PERMITTED => "not permitted",
             _ => "exception",
         }
     }

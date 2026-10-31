@@ -27,8 +27,15 @@ Run a file: `cargo run --release -- examples/demo.fs`
 forthling [options] [file ...]
   -m, --memory SIZE  memory for data space and heap, such as 4M (default 1M)
   -b, --blocks FILE  the block file (default blocks.fb in the current directory)
+      --sandbox      no file access from Forth, and the limits below: 10000000
+                     steps, 5s and 1M of output per line of the REPL or per file
+      --max-steps N  at most N steps (instructions and words) per evaluation
+      --max-time T   at most T per evaluation, such as 5s or 500ms
+      --max-output SIZE  at most SIZE bytes of output per evaluation
   -h, --help         show this help
 ```
+
+A limit of `none` lifts it, also one of `--sandbox`. See [Sandbox](#sandbox).
 
 `SIZE` is a number of bytes with an optional `K`, `M` or `G` (binary units), from 64K up
 to 4G. A relative block file name is relative to the current directory.
@@ -66,6 +73,8 @@ block file with `Forth::set_block_file(path)`.
   `KEY?`, and `AT-XY`/`PAGE` for the screen
 - `SOURCE`, `>IN`, `STATE`, `WORD`, `PARSE`, `REFILL`, `SAVE-INPUT`, `FIND` and `EVALUATE`,
   working on input buffers in Forth memory
+- A sandbox for code you do not trust: limits on steps, time and output, and no file
+  access (see [Sandbox](#sandbox))
 - Errors as standard THROW codes, e.g. `demo.fs:3: error -13: undefined word: FOO`,
   which `CATCH` can catch
 - Strings: `COMPARE SEARCH /STRING -TRAILING BLANK CMOVE CMOVE> SLITERAL`, and text
@@ -111,6 +120,25 @@ forth.add_word(wid, "CUBE", |f| {
 forth.interpret("ALSO MATHS 3 CUBE .")?;
 assert_eq!(forth.output(), b"27 ");
 ```
+
+### Sandbox
+
+Code that is not trusted, from a user or an AI agent, runs in a sandbox:
+
+```rust
+let mut forth = forthling::Forth::sandboxed();
+let error = forth.interpret(": FOREVER BEGIN AGAIN ; FOREVER").unwrap_err();
+assert_eq!(error.to_string(), "error -258: limit exceeded: steps");
+```
+
+`Forth::sandboxed()` permits no files (the FILE words give the ior -259, `INCLUDE` and the
+block words throw -259), has no terminal input, and limits each evaluation (each call of
+`interpret` or `include`) to 10 million steps, 5 seconds and 1 MiB of output.
+`set_limits(Limits { … })` and `permit(Permission::Files, …)` set them one by one. A limit
+that is reached throws -258, and every step after it throws again, so `CATCH` cannot go
+on. The memory is bounded anyway, by its size. The sandbox restricts the Forth program,
+not the host: `include` called by the host still reads its file. Extensions follow the
+permissions too; SQLite then only opens `:memory:`.
 
 ### From Python
 

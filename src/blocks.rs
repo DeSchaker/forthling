@@ -140,6 +140,7 @@ impl Forth {
     /// The block file, opened (and created if need be) on first use.
     fn block_file(&mut self) -> Res<&mut File> {
         if self.blocks.file.is_none() {
+            self.need(Permission::Files, || format!("block file {}", self.blocks.path.display()))?;
             let path = &self.blocks.path;
             let file =
                 OpenOptions::new().read(true).write(true).create(true).truncate(false).open(path);

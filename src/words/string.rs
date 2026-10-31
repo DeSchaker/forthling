@@ -26,7 +26,7 @@ pub(crate) fn install(f: &mut Forth) {
     });
     f.imm(".(", |f| {
         let (a, n) = f.parse(b')');
-        f.out.extend_from_slice(&f.mem[a..a + n]);
+        f.emit_memory(a, n);
         Ok(())
     });
     f.imm(".\"", |f| {
@@ -34,7 +34,7 @@ pub(crate) fn install(f: &mut Forth) {
         if f.compiling() {
             f.code.push(Instr::Print(Rc::from(&f.mem[a..a + n])));
         } else {
-            f.out.extend_from_slice(&f.mem[a..a + n]);
+            f.emit_memory(a, n);
         }
         Ok(())
     });

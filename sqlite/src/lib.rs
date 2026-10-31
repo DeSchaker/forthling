@@ -18,7 +18,8 @@
 //! A statement runs at its first DB-STEP, which reads all its rows; the
 //! next DB-STEPs hand them out one by one.
 
-use forthling::{Cell, Extension, Forth, Res, Throw};
+use forthling::{Cell, Extension, Forth, NOT_PERMITTED, Permission, Res, Throw};
+use rusqlite::limits::Limit;
 use rusqlite::types::Value;
 use rusqlite::{Connection, params_from_iter};
 use std::collections::{HashMap, VecDeque};
@@ -77,8 +78,16 @@ impl State {
         self.stmts.get_mut(&stmt).ok_or_else(|| invalid(stmt))
     }
 
-    fn open(&mut self, path: &str) -> Result<Cell, Failure> {
+    /// Opens a database; without `files`, only one in memory, which cannot
+    /// reach files through SQL either (ATTACH and VACUUM INTO).
+    fn open(&mut self, path: &str, files: bool) -> Result<Cell, Failure> {
+        if !files && path != ":memory:" {
+            return Err(Failure(NOT_PERMITTED, format!("DB-OPEN {path}: no file access")));
+        }
         let conn = Connection::open(path)?;
+        if !files {
+            conn.set_limit(Limit::SQLITE_LIMIT_ATTACHED, 0)?;
+        }
         let db = self.handle();
         self.dbs.insert(db, conn);
         Ok(db)
@@ -222,10 +231,12 @@ impl Extension for Sqlite {
 
     fn install(&self, f: &mut Forth) {
         // DB-OPEN ( c-addr u -- db ior ): opens or creates a database file;
-        // :memory: is a database in memory.
+        // :memory: is a database in memory, the only kind without
+        // Permission::Files.
         word(f, "DB-OPEN", |f| {
             let path = pop_text(f)?;
-            let result = f.state::<State>().open(&path);
+            let files = f.permits(Permission::Files);
+            let result = f.state::<State>().open(&path, files);
             push_value_ior(f, result);
             Ok(())
         });

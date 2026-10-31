@@ -2,7 +2,6 @@
 //! prelude.fs.
 
 use crate::*;
-use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 pub(crate) fn install(f: &mut Forth) {
@@ -19,8 +18,7 @@ pub(crate) fn install(f: &mut Forth) {
         if f.interactive {
             f.flush();
         }
-        thread::sleep(Duration::from_millis(ms.max(0) as u64));
-        Ok(())
+        f.sleep(Duration::from_millis(ms.max(0) as u64))
     });
     f.prim("TIME&DATE", |f| {
         let secs = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs()) as i64;

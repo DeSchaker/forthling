@@ -267,8 +267,10 @@ als niets ze vangt (de meldingen zelf zijn Engels):
 | -35 | invalid block number | -78 | `SUBSTITUTE` |
 | -37 | file I/O exception | -79 | `REPLACES` |
 
-forthling heeft één eigen code: -256, invoer te diep genest (meer dan 15 bestanden,
-`EVALUATE`-strings of ge-`LOAD`-e blocks in elkaar). De Python-module voegt -257 toe, een
+forthling heeft drie eigen codes: -256, invoer te diep genest (meer dan 15 bestanden,
+`EVALUATE`-strings of ge-`LOAD`-e blocks in elkaar); -258, een limiet van de zandbak
+bereikt (de melding noemt welke: `steps`, `time` of `output`); en -259, iets wat de
+zandbak niet toestaat (zie Zandbak). De Python-module voegt -257 toe, een
 Python-exceptie in een woord dat in Python geschreven is, en de SQLite-woorden -260, een
 fout die SQLite meldt, en -261, een ongeldige handle van een database of statement (zie
 Extensies). Een positieve code, of een die niet
@@ -522,6 +524,24 @@ Ambigue situaties:
   (`XEMIT`, `XC!+`, `XC,`, `XHOLD`) schrijft U+FFFD, het vervangteken.
 - **`XHOLD` buiten `<#` en `#>`**: zoals bij `HOLD` (zie Core).
 
+## Zandbak
+
+Een host kan beperken wat een Forth-programma mag (`Forth::sandboxed()`, `set_limits`,
+`permit`; in het programma `--sandbox` en `--max-steps`, `--max-time`, `--max-output`).
+Standaard zijn er geen limieten en is alles toegestaan, zoals de rest van dit document
+beschrijft. In de zandbak:
+
+- **Limieten** gelden per evaluatie, een aanroep van `interpret` of `include` door de host
+  (in de REPL elke regel). Een stap is een instructie van gecompileerde code of een woord
+  dat de tekstinterpreter uitvoert; getallen die hij op de stack zet, zijn geen stap. Een
+  bereikte limiet gooit -258; elke stap daarna gooit opnieuw, zodat een `CATCH` het wel
+  ziet maar niet verder kan. Uitvoer voorbij de limiet vervalt. `MS` dat de tijdlimiet
+  zou passeren, gooit meteen. In WebAssembly bestaat de tijdlimiet niet.
+- **Zonder `Permission::Files`** geven de FILE-woorden die een bestand noemen
+  (`OPEN-FILE`, `CREATE-FILE`, `DELETE-FILE`, `RENAME-FILE`, `FILE-STATUS`) de ior -259;
+  `INCLUDE`, `INCLUDED`, `REQUIRE`, `REQUIRED` en de BLOCK-woorden, die geen ior hebben,
+  gooien -259. Een bestand dat de host zelf inleest, wordt nog wel gelezen.
+
 ## Extensies
 
 Een Rust-programma dat forthling inbouwt, kan eigen woorden toevoegen via de host-API
@@ -547,4 +567,6 @@ databases en statements zijn handles, fouten zijn een ior (-260 voor een fout va
 met de melding via `DB-ERROR`; -261 voor een ongeldige handle), en de strings die ze
 teruggeven zijn ge-`ALLOCATE`d, zodat het programma ze met `FREE` vrijgeeft. De woorden
 zonder ior (`DB-COLUMN` en dergelijke, `DB-CHANGES`, `DB-LAST-ROWID`) gooien -261 bij een
-ongeldige handle en -24 bij een ontbrekende rij of kolom.
+ongeldige handle en -24 bij een ontbrekende rij of kolom. Zonder `Permission::Files` opent
+`DB-OPEN` alleen `:memory:` (anders de ior -259), en kan SQL geen databasebestand
+koppelen, zodat `ATTACH` en `VACUUM INTO` mislukken met -260.

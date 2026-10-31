@@ -27,7 +27,7 @@ pub(crate) enum Origin {
 impl Forth {
     /// Interprets text line by line, as if typed at the terminal.
     pub fn interpret(&mut self, src: &str) -> Res {
-        let result = self.interpret_lines(src);
+        let result = self.evaluation(|f| f.interpret_lines(src));
         if let Err(e) = &result {
             // QUIT leaves the data stack alone; every other error empties it.
             self.reset(e.code != QUIT);

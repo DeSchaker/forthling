@@ -60,7 +60,7 @@ pub(crate) fn install(f: &mut Forth) {
     });
     f.prim("XEMIT", |f| {
         let bytes = encode(f.pop()?);
-        f.out.extend_from_slice(&bytes);
+        f.emit_bytes(&bytes);
         Ok(())
     });
     f.prim("XKEY", |f| {

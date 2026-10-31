@@ -158,7 +158,7 @@ impl Forth {
     }
 
     pub(crate) fn emit_str(&mut self, s: &str) {
-        self.out.extend_from_slice(s.as_bytes());
+        self.emit_bytes(s.as_bytes());
     }
 
     pub(crate) fn compiling(&self) -> bool {

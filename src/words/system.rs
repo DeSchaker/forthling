@@ -10,10 +10,12 @@ pub(crate) fn install(f: &mut Forth) {
     f.prim("SEE", |f| f.see());
     f.prim("INCLUDE", |f| {
         let path = f.name()?;
+        f.need(Permission::Files, || format!("INCLUDE {path}"))?;
         f.include(&path)
     });
     f.prim("INCLUDED", |f| {
         let path = f.pop_name()?;
+        f.need(Permission::Files, || format!("INCLUDED {path}"))?;
         f.include(&path)
     });
     f.prim("INCLUDE-FILE", |f| {
@@ -22,10 +24,12 @@ pub(crate) fn install(f: &mut Forth) {
     });
     f.prim("REQUIRE", |f| {
         let path = f.name()?;
+        f.need(Permission::Files, || format!("REQUIRE {path}"))?;
         f.require(&path)
     });
     f.prim("REQUIRED", |f| {
         let path = f.pop_name()?;
+        f.need(Permission::Files, || format!("REQUIRED {path}"))?;
         f.require(&path)
     });
     f.prim("ACCEPT", |f| {

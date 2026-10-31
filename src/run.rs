@@ -92,6 +92,7 @@ impl Forth {
     }
 
     pub(crate) fn execute(&mut self, xt: usize) -> Res {
+        self.step()?;
         let base = self.frames.len();
         self.invoke(xt)?;
         self.run(base)
@@ -179,6 +180,7 @@ impl Forth {
 
     pub(crate) fn run(&mut self, base: usize) -> Res {
         while self.frames.len() > base {
+            self.step()?;
             self.check_stack()?;
             let frame = self.frames.last_mut().unwrap();
             let Some(instr) = frame.code.get(frame.pc).cloned() else {
@@ -226,7 +228,7 @@ impl Forth {
                     let lf = self.loops.pop().ok_or(Throw::new(NO_LOOP))?;
                     self.jump(lf.exit);
                 }
-                Instr::Print(s) => self.out.extend_from_slice(&s),
+                Instr::Print(s) => self.emit_bytes(&s),
                 Instr::Abort(s) => self.abort_if(&s)?,
                 Instr::Compile(xt) => {
                     self.need_def()?;

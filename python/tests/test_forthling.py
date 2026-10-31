@@ -52,6 +52,36 @@ class InterpretTest(unittest.TestCase):
         self.assertEqual(f.interpret('S" FORTHLING-PYTHON" ENVIRONMENT? . .'), "-1 1 ")
 
 
+class SandboxTest(unittest.TestCase):
+    def test_limits(self):
+        f = forthling.Forth(max_steps=10_000)
+        with self.assertRaises(forthling.ForthError) as cm:
+            f.interpret(": FOREVER BEGIN AGAIN ; FOREVER")
+        self.assertEqual(cm.exception.code, -258)
+        self.assertIn("steps", str(cm.exception))
+        f = forthling.Forth(max_time=0.05)
+        with self.assertRaises(forthling.ForthError) as cm:
+            f.interpret(": FOREVER BEGIN AGAIN ; FOREVER")
+        self.assertIn("time", str(cm.exception))
+        f = forthling.Forth(max_output=5)
+        with self.assertRaises(forthling.ForthError) as cm:
+            f.interpret(": STARS 10 0 DO 42 EMIT LOOP ; STARS")
+        self.assertEqual(cm.exception.output, "*****")
+        with self.assertRaises(ValueError):
+            forthling.Forth(max_time=-1)
+
+    def test_sandbox(self):
+        f = forthling.Forth(sandbox=True)
+        self.assertEqual(f.interpret('S" x.txt" R/O OPEN-FILE . .'), "-259 0 ")
+        with self.assertRaises(forthling.ForthError) as cm:
+            f.interpret("INCLUDE x.fs")
+        self.assertEqual(cm.exception.code, -259)
+        with self.assertRaises(forthling.ForthError) as cm:
+            f.interpret(": FOREVER BEGIN AGAIN ; FOREVER")
+        self.assertEqual(cm.exception.code, -258)
+        self.assertEqual(f.interpret("6 7 * ."), "42 ")
+
+
 class AddWordTest(unittest.TestCase):
     def test_arguments_and_results(self):
         f = forthling.Forth()

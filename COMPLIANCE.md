@@ -264,8 +264,10 @@ messages when nothing catches them:
 | -35 | invalid block number | -78 | `SUBSTITUTE` |
 | -37 | file I/O exception | -79 | `REPLACES` |
 
-forthling has one code of its own: -256, input nesting too deep (more than 15 files,
-`EVALUATE`d strings or `LOAD`ed blocks inside each other). The Python module adds -257, a
+forthling has three codes of its own: -256, input nesting too deep (more than 15 files,
+`EVALUATE`d strings or `LOAD`ed blocks inside each other); -258, a limit of the sandbox
+reached (the message names it: `steps`, `time` or `output`); and -259, something the
+sandbox does not permit (see Sandbox). The Python module adds -257, a
 Python exception in a word written in Python, and the SQLite words -260, an error that
 SQLite reports, and -261, an invalid database or statement handle (see Extensions). A positive code, or one that is
 not in the table, is shown as `exception`. How forthling acts on each ambiguous
@@ -504,6 +506,24 @@ Ambiguous conditions:
   `XC!+`, `XC,`, `XHOLD`) writes U+FFFD, the replacement character.
 - **`XHOLD` outside `<#` and `#>`**: as for `HOLD` (see Core).
 
+## Sandbox
+
+A host can limit what a Forth program may do (`Forth::sandboxed()`, `set_limits`,
+`permit`; in the program `--sandbox` and `--max-steps`, `--max-time`, `--max-output`). By
+default there are no limits and everything is permitted, as described in the rest of this
+document. In the sandbox:
+
+- **Limits** apply to each evaluation, a call of `interpret` or `include` by the host (in
+  the REPL each line). A step is an instruction of compiled code or a word that the text
+  interpreter executes; numbers that it pushes are no step. Reaching a limit throws -258;
+  every step after it throws again, so a `CATCH` can see it but cannot go on. Output past
+  the limit is dropped. `MS` that would pass the time limit throws at once. The time limit
+  does not exist in WebAssembly.
+- **Without `Permission::Files`** the FILE words that name a file (`OPEN-FILE`,
+  `CREATE-FILE`, `DELETE-FILE`, `RENAME-FILE`, `FILE-STATUS`) give the ior -259;
+  `INCLUDE`, `INCLUDED`, `REQUIRE`, `REQUIRED` and the block words, which have no ior,
+  throw -259. A file that the host itself includes is still read.
+
 ## Extensions
 
 A Rust program that embeds forthling can add words of its own through the host API
@@ -529,4 +549,6 @@ statements are handles, errors are an ior (-260 for an error of SQLite, with its
 from `DB-ERROR`; -261 for an invalid handle), and the strings they return are
 `ALLOCATE`d, for the program to `FREE`. The words without an ior (`DB-COLUMN` and the
 like, `DB-CHANGES`, `DB-LAST-ROWID`) throw -261 for an invalid handle and -24 for a
-missing row or column.
+missing row or column. Without `Permission::Files`, `DB-OPEN` opens only `:memory:` (else
+the ior -259), and SQL cannot attach a database file, so `ATTACH` and `VACUUM INTO`
+fail with -260.

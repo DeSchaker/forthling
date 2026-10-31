@@ -4,6 +4,7 @@
 
 use crate::*;
 use std::path::PathBuf;
+use std::time::Duration;
 use std::{env, fs};
 
 /// The extensions a program installs in every Forth it starts.
@@ -17,9 +18,15 @@ Runs the files in order, or else starts a REPL.
 options:
   -m, --memory SIZE  memory for data space and heap, such as 4M (default 1M)
   -b, --blocks FILE  the block file (default blocks.fb in the current directory)
+      --sandbox      no file access from Forth, and the limits below: 10000000
+                     steps, 5s and 1M of output per line of the REPL or per file
+      --max-steps N  at most N steps (instructions and words) per evaluation
+      --max-time T   at most T per evaluation, such as 5s or 500ms
+      --max-output SIZE  at most SIZE bytes of output per evaluation
   -h, --help         show this help
 
-SIZE is a number of bytes with an optional K, M or G (binary units).
+SIZE is a number of bytes with an optional K, M or G (binary units). A limit
+of `none` lifts it, also one of --sandbox.
 A config file can set both, with lines such as `memory = 4M` and
 `blocks = /home/me/forth/blocks.fb`:
 ";
@@ -36,6 +43,8 @@ struct Settings {
 struct Run {
     memory: usize,
     blocks: Option<String>, // None: the default block file
+    sandbox: bool,          // no file access from Forth
+    limits: Limits,
     files: Vec<String>,
 }
 
@@ -43,6 +52,10 @@ struct Run {
 #[derive(Debug, Default, PartialEq)]
 struct Args {
     settings: Settings,
+    sandbox: bool,
+    max_steps: Option<String>,
+    max_time: Option<String>,
+    max_output: Option<String>,
     files: Vec<String>,
     help: bool,
 }
@@ -89,22 +102,55 @@ fn options() -> Result<Option<Run>, String> {
         None => DEFAULT_MEMORY,
     };
     let blocks = args.settings.blocks.or(config.blocks);
-    Ok(Some(Run { memory, blocks, files: args.files }))
+    let mut limits = if args.sandbox { Limits::SANDBOX } else { Limits::default() };
+    if let Some(n) = &args.max_steps {
+        limits.steps = limit(n, |n| n.parse().map_err(|_| format!("invalid number of steps {n}")))?;
+    }
+    if let Some(t) = &args.max_time {
+        limits.time = limit(t, parse_duration)?;
+    }
+    if let Some(size) = &args.max_output {
+        limits.output = limit(size, parse_bytes)?;
+    }
+    Ok(Some(Run { memory, blocks, sandbox: args.sandbox, limits, files: args.files }))
+}
+
+/// A limit: `none`, or what `parse` makes of it.
+fn limit<T>(s: &str, parse: impl Fn(&str) -> Result<T, String>) -> Result<Option<T>, String> {
+    if s.eq_ignore_ascii_case("none") { Ok(None) } else { parse(s.trim()).map(Some) }
+}
+
+/// A time such as 5s, 500ms or 2m; a plain number is seconds.
+fn parse_duration(s: &str) -> Result<Duration, String> {
+    let invalid = || format!("invalid time {s}");
+    let digits = s.find(|c: char| !c.is_ascii_digit()).unwrap_or(s.len());
+    let n: u64 = s[..digits].parse().map_err(|_| invalid())?;
+    match s[digits..].to_ascii_lowercase().as_str() {
+        "" | "s" => Ok(Duration::from_secs(n)),
+        "ms" => Ok(Duration::from_millis(n)),
+        "m" | "min" => Ok(Duration::from_secs(n.checked_mul(60).ok_or_else(invalid)?)),
+        _ => Err(invalid()),
+    }
 }
 
 fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
     let mut parsed = Args::default();
     while let Some(arg) = args.next() {
-        let mut value = |name: &str| args.next().ok_or(format!("{arg} needs {name}"));
-        match arg.as_str() {
+        // --name=value is the same as --name value.
+        let (name, inline) = match arg.split_once('=') {
+            Some((name, value)) if name.starts_with("--") => (name, Some(value.to_string())),
+            _ => (arg.as_str(), None),
+        };
+        let mut value = |what: &str| {
+            inline.clone().or_else(|| args.next()).ok_or(format!("{name} needs {what}"))
+        };
+        match name {
             "-m" | "--memory" => parsed.settings.memory = Some(value("a size")?),
             "-b" | "--blocks" => parsed.settings.blocks = Some(value("a file name")?),
-            a if a.starts_with("--memory=") => {
-                parsed.settings.memory = Some(a["--memory=".len()..].to_string());
-            }
-            a if a.starts_with("--blocks=") => {
-                parsed.settings.blocks = Some(a["--blocks=".len()..].to_string());
-            }
+            "--sandbox" => parsed.sandbox = true,
+            "--max-steps" => parsed.max_steps = Some(value("a number")?),
+            "--max-time" => parsed.max_time = Some(value("a time")?),
+            "--max-output" => parsed.max_output = Some(value("a size")?),
             "-h" | "--help" => parsed.help = true,
             "--" => parsed.files.extend(args.by_ref()),
             a if a.starts_with('-') && a.len() > 1 => {
@@ -157,7 +203,19 @@ fn parse_config(text: &str) -> Result<Settings, String> {
 
 /// A memory size such as 65536, 512K, 4M or 1G.
 fn parse_size(s: &str) -> Result<usize, String> {
-    let invalid = || format!("invalid memory size {s}");
+    let size = parse_bytes(s).map_err(|_| format!("invalid memory size {s}"))?;
+    if !(MIN_MEMORY..=MAX_MEMORY).contains(&size) {
+        return Err(format!("memory size {s} is not between 64K and 4G"));
+    }
+    if size % 8 != 0 {
+        return Err(format!("memory size {s} is not a multiple of 8 bytes"));
+    }
+    Ok(size)
+}
+
+/// A number of bytes such as 65536, 512K, 4M or 1G.
+fn parse_bytes(s: &str) -> Result<usize, String> {
+    let invalid = || format!("invalid size {s}");
     let s = s.trim();
     let digits = s.find(|c: char| !c.is_ascii_digit()).unwrap_or(s.len());
     let shift = match s[digits..].to_ascii_uppercase().as_str() {
@@ -168,14 +226,7 @@ fn parse_size(s: &str) -> Result<usize, String> {
         _ => return Err(invalid()),
     };
     let n: usize = s[..digits].parse().map_err(|_| invalid())?;
-    let size = n.checked_mul(1 << shift).ok_or_else(invalid)?;
-    if !(MIN_MEMORY..=MAX_MEMORY).contains(&size) {
-        return Err(format!("memory size {s} is not between 64K and 4G"));
-    }
-    if size % 8 != 0 {
-        return Err(format!("memory size {s} is not a multiple of 8 bytes"));
-    }
-    Ok(size)
+    n.checked_mul(1 << shift).ok_or_else(invalid)
 }
 
 /// Runs the files, or else the REPL; returns the exit code.
@@ -187,6 +238,10 @@ fn run_forth(run: Run, extensions: Extensions) -> i32 {
     if let Some(path) = run.blocks {
         forth.set_block_file(path).expect("no block buffers in use yet");
     }
+    // The files on the command line are the user's own; Forth code that the
+    // sandbox runs cannot open others.
+    forth.permit(Permission::Files, !run.sandbox);
+    forth.set_limits(run.limits);
     forth.set_interactive(true);
     if !run.files.is_empty() {
         for path in &run.files {
@@ -262,6 +317,28 @@ mod tests {
         assert_eq!(args("--memory 2M -- -x.fs").unwrap().files, files(&["-x.fs"]));
         assert!(args("--help").unwrap().help);
         assert!(args("-m").is_err() && args("-b").is_err() && args("-x").is_err());
+        let parsed =
+            args("--sandbox --max-steps 1000 --max-time=2s --max-output none x.fs").unwrap();
+        assert!(parsed.sandbox);
+        assert_eq!(parsed.max_steps.as_deref(), Some("1000"));
+        assert_eq!(parsed.max_time.as_deref(), Some("2s"));
+        assert_eq!(parsed.max_output.as_deref(), Some("none"));
+        assert_eq!(parsed.files, files(&["x.fs"]));
+        assert!(args("--max-time").is_err());
+    }
+
+    #[test]
+    fn limits() {
+        assert_eq!(parse_duration("5s"), Ok(Duration::from_secs(5)));
+        assert_eq!(parse_duration("7"), Ok(Duration::from_secs(7)));
+        assert_eq!(parse_duration("250ms"), Ok(Duration::from_millis(250)));
+        assert_eq!(parse_duration("2m"), Ok(Duration::from_secs(120)));
+        assert!(parse_duration("5h").is_err() && parse_duration("s").is_err());
+        assert_eq!(parse_bytes("1M"), Ok(1 << 20));
+        assert_eq!(parse_bytes("10"), Ok(10));
+        assert_eq!(limit("NONE", parse_bytes), Ok(None));
+        assert_eq!(limit("2K", parse_bytes), Ok(Some(2048)));
+        assert!(limit("x", parse_bytes).is_err());
     }
 
     #[test]

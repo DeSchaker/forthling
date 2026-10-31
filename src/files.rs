@@ -51,6 +51,10 @@ pub(crate) fn read_line_from(file: &mut fs::File, max: usize) -> io::Result<Opti
 impl Forth {
     /// INCLUDED: opens a file, remembers it for REQUIRED and interprets it.
     pub fn include(&mut self, path: &str) -> Res {
+        self.evaluation(|f| f.include_path(path))
+    }
+
+    fn include_path(&mut self, path: &str) -> Res {
         let path = self.resolve(path);
         let file =
             fs::File::open(&path).map_err(|e| Throw::with(NO_SUCH_FILE, format!("{path}: {e}")))?;
@@ -177,6 +181,11 @@ impl Forth {
 
     /// Opens a file for OPEN-FILE and CREATE-FILE and pushes ( fileid ior ).
     pub(crate) fn open_with(&mut self, name: &str, fam: Cell, create: bool, code: Cell) {
+        if !self.permits(Permission::Files) {
+            self.push(0);
+            self.push(NOT_PERMITTED);
+            return;
+        }
         let mut options = fs::OpenOptions::new();
         let access = fam & 3;
         options.read(access != W_O).write(access != R_O || create);

@@ -49,6 +49,10 @@ handle that is no open database or statement. The words without an ior throw -26
 such a handle and -24 for a row or column that is not there. Binding a parameter starts
 the statement again from the top, as `DB-RESET` does.
 
+In the sandbox (without `Permission::Files`) `DB-OPEN` opens only `:memory:`, and gives
+the ior -259 for a file; SQL cannot attach a database file either (`ATTACH` and
+`VACUUM INTO` fail with -260).
+
 A statement runs at its first `DB-STEP`, which reads all its rows; the next `DB-STEP`s
 hand them out one by one.
 

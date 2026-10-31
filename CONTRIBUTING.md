@@ -55,6 +55,10 @@ latest stable Rust, on Linux and Windows.
 - A word that may only be used inside a definition is registered with `compile_imm` or
   `compile_prim`; the interpreter then throws -14 when it runs outside one.
 - `pop_str()` pops and checks a string ( c-addr u ).
+- Output goes through `emit_bytes`, `emit_memory` or `emit_str`, never straight into the
+  output buffer, so the output limit of the sandbox holds. Code that reaches a file checks
+  `Permission::Files` first (`need`, or `permits` for a word with an ior), and so does
+  an extension. See `src/sandbox.rs`.
 - Keep a change small and give it tests. If it changes how forthling behaves, update
   `COMPLIANCE.md` and the README where they describe that behaviour. `VERKLARING.md` is
   its Dutch translation; the maintainer keeps it in step, so you need not.

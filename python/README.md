@@ -35,8 +35,13 @@ except forthling.ForthError as e:
     print(e.code, e)                                # -13 error -13: undefined word: NOSUCHWORD
 ```
 
-- `Forth(memory=None, input="")`: `memory` is the size in bytes (1 MiB by default);
-  `input` is what `KEY`, `ACCEPT` and `REFILL` read from the terminal.
+- `Forth(memory=None, input="", sandbox=False, max_steps=None, max_time=None,
+  max_output=None)`: `memory` is the size in bytes (1 MiB by default); `input` is what
+  `KEY`, `ACCEPT` and `REFILL` read from the terminal. `sandbox=True` is for code you do
+  not trust: no file access, and each `interpret` is limited to 10 million steps, 5
+  seconds and 1 MiB of output. `max_steps`, `max_time` (seconds) and `max_output` (bytes)
+  set a limit of their own, with or without the sandbox. A limit that is reached raises
+  `ForthError` with code -258, something forbidden -259.
 - `interpret(text)` and `include(path)` return what was printed. An uncaught `THROW`
   raises `ForthError`, with `code` (the THROW code) and `output` (what was printed
   before it); the stacks are then empty.

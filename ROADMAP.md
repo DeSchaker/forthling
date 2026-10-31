@@ -101,6 +101,7 @@ over the modules and are `pub(crate)`, except the public API in `lib.rs` and `ho
 | `terminal.rs` | the trait `Input` and `Stdin` (standard input through a thread, for `KEY?`) |
 | `blocks.rs` | the block file and the block buffers (`Blocks`), `LOAD` and `LIST` |
 | `heap.rs` | the heap of `ALLOCATE FREE RESIZE` (`Heap`), `data_end()` |
+| `sandbox.rs` | `Limits`, `Permission`, the budget of an evaluation (`evaluation`, `step`), `emit_bytes`/`emit_memory`, `sleep` |
 | `host.rs` | the host API: `Extension`, `wordlist`, `add_word`, `state`, `pop_bytes`/`push_bytes`, `memory`, `stack`, `take_output` (tested from outside in `tests/host.rs`) |
 | `float.rs` | the float stack (`fpush`, `fpop`), `F@`/`F!` in memory, text to float (`to_float`) and float to text (`represent`, `fixed`, `scientific`) |
 | `xchar.rs` | UTF-8: encoding, decoding and column width of xchars, `XKEY` and `PARSE` with an xchar |
@@ -116,10 +117,31 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
 
 ### Next session: resume here
 
-- **Next step:** step 4 of "Later: extensions", the sandbox and limits in the core (see
-  "Revised order"). All word sets are there (except `;CODE ASSEMBLER CODE EDITOR`), as
-  are the statement of section 4.1, the host API, the Python module and the SQLite words.
-  The order of the extensions was revised on 2026-10-31: graphics moved to the back.
+- **Next step:** step 5 of the revised order, the JSON words (or step 7, WebAssembly,
+  if the website comes first). All word sets are there (except
+  `;CODE ASSEMBLER CODE EDITOR`), as are the statement of section 4.1, the host API, the
+  Python module, the SQLite words and the sandbox.
+- **Sandbox (2026-10-31):** step 4 of the revised order is done, in `src/sandbox.rs`.
+  `Limits { steps, time, output }` per evaluation (a call of `interpret`/`include` by the
+  host; `evaluation` fills the `Budget` only at depth 0, so a host word that calls
+  `interpret` shares it). `step()` is counted in the loop of `run` and in `execute`; its
+  fast path is one test (`steps % 4096`), the rest is in the cold `step_slowly` (clock,
+  limit reached). A reached limit sets `steps` to 0, so it stays reached: CATCH cannot go
+  on. About 2% slower in the benchmark (a DO loop of 30 million and `27 FIB`). Output goes
+  only through `emit_bytes`/`emit_memory` (the six places that wrote `out` directly were
+  changed). `MS` goes through `sleep`, which throws at once if it would pass the time
+  limit. `Permission::Files` (a set `denied`): the FILE words with a name give the ior
+  -259; `INCLUDE INCLUDED REQUIRE REQUIRED` and the block file throw -259. The host's own
+  `include` is not checked: the sandbox restricts the program, not the host. Codes:
+  `LIMIT_EXCEEDED` -258 (detail `steps`, `time` or `output`), `NOT_PERMITTED` -259, both
+  public. `Forth::sandboxed()`: `Limits::SANDBOX` (10M steps, 5 s, 1 MiB), no files,
+  empty terminal input. Program: `--sandbox --max-steps --max-time --max-output`
+  (`none` lifts a limit; every long option now also takes `--name=value`); the files on
+  the command line are still read. Python: `sandbox=`, `max_steps=`, `max_time=`,
+  `max_output=`. SQLite: without files only `:memory:`, and `SQLITE_LIMIT_ATTACHED` 0
+  so that `ATTACH` and `VACUUM INTO` cannot write a file (rusqlite feature `limits`).
+  Tests: `tests/sandbox.rs`, `sandbox` tests in `python/tests` and
+  `the_sandbox_keeps_sql_away_from_files`.
 - **SQLite (2026-10-31):** step 3 of "Later: extensions" is done, in `sqlite/`: a crate
   `forthling-sqlite` (own `[workspace]`, like `python/`) with rusqlite 0.40 `bundled`
   (0.41 needs Rust 1.89). The library has `Sqlite: Extension`; the binary
@@ -637,7 +659,7 @@ to run code that cannot harm the machine or run forever, and a full Python sandb
 heavy and hard to close off. LLMs are weak at tracking the stack in their head; an
 environment that returns the stack after every line makes up for that.
 
-4. **Sandbox and limits, in the core** (no dependencies). The basis for everything below.
+4. ✅ **Sandbox and limits, in the core** (no dependencies). The basis for everything below.
    - A budget of instructions, so that `BEGIN AGAIN` stops with a THROW instead of
      hanging; a time limit; a limit on the output.
    - Capabilities to switch on or off: files, blocks, `BYE`, reading the terminal.

@@ -121,3 +121,21 @@ fn the_example_runs() {
     let out = String::from_utf8_lossy(f.output()).into_owned();
     assert_eq!(out, "Born after 1900:\n1906 Grace Hopper\n1912 Alan Turing\n");
 }
+
+#[test]
+fn the_sandbox_keeps_sql_away_from_files() {
+    let path =
+        std::env::temp_dir().join(format!("forthling-sqlite-sandbox-{}.db", std::process::id()));
+    let name = path.to_string_lossy().into_owned();
+    let mut f = Forth::sandboxed();
+    f.install(&Sqlite);
+    let open = format!("ALSO SQLITE S\" {name}\" DB-OPEN . . DB-ERROR TYPE");
+    assert_eq!(run(&mut f, &open), format!("-259 0 DB-OPEN {name}: no file access"));
+    run(&mut f, "S\" :memory:\" DB-OPEN THROW VALUE DB");
+    let attach = format!("S\" ATTACH '{name}' AS other\" DB DB-EXEC .");
+    assert_eq!(run(&mut f, &attach), "-260 ");
+    run(&mut f, "S\" CREATE TABLE t (x)\" DB DB-EXEC THROW");
+    let vacuum = format!("S\" VACUUM INTO '{name}'\" DB DB-EXEC .");
+    assert_eq!(run(&mut f, &vacuum), "-260 ");
+    assert!(!path.exists(), "SQL wrote {name}");
+}

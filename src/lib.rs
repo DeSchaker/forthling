@@ -18,6 +18,7 @@ mod interpreter;
 mod memory;
 mod parse;
 mod run;
+mod sandbox;
 mod stack;
 mod terminal;
 mod throw;
@@ -29,8 +30,9 @@ mod tests;
 
 pub use host::Extension;
 pub use memory::{DEFAULT_MEMORY, MAX_MEMORY, MIN_MEMORY};
+pub use sandbox::{Limits, Permission};
 pub use terminal::Input;
-pub use throw::{QUIT, Throw};
+pub use throw::{LIMIT_EXCEEDED, NOT_PERMITTED, QUIT, Throw};
 
 // Every module starts with `use crate::*;`, so these make the items of all
 // modules, and the std items most of them need, available everywhere.
@@ -45,6 +47,7 @@ pub(crate) use interpreter::*;
 pub(crate) use memory::*;
 pub(crate) use parse::*;
 pub(crate) use run::*;
+pub(crate) use sandbox::*;
 pub(crate) use stack::*;
 pub(crate) use std::collections::{HashMap, HashSet};
 pub(crate) use std::io::{self, BufRead};
@@ -106,6 +109,9 @@ pub struct Forth {
     host_state: HashMap<std::any::TypeId, Box<dyn std::any::Any>>, // see Forth::state
     out: Vec<u8>,
     bye: bool,
+    limits: Limits,              // see sandbox.rs
+    budget: Budget,              // what is left of them in this evaluation
+    denied: HashSet<Permission>, // what the program may not do
 }
 
 pub(crate) fn flag(b: bool) -> Cell {
@@ -170,6 +176,9 @@ impl Forth {
             host_state: HashMap::new(),
             out: Vec::new(),
             bye: false,
+            limits: Limits::default(),
+            budget: Budget::default(),
+            denied: HashSet::new(),
         };
         f.set(BASE_ADDR, 10);
         words::install(&mut f);
