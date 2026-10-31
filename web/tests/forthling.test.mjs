@@ -32,11 +32,13 @@ test("errors come back as data", async () => {
   const r = forth.eval(".\" before\" 1 2 NOSUCH");
   assert.equal(r.output, "before");
   assert.deepEqual(r.error, {
-    code: -13, message: "undefined word", detail: "NOSUCH",
+    code: -13, message: "undefined word", detail: "NOSUCH", hint: null,
     text: "error -13: undefined word: NOSUCH",
     stack: [1, 2], fstack: [], words: [], source: "input", line: 1, column: 16, token: "NOSUCH",
   });
   assert.deepEqual(r.stack, []);
+  // A word in a word list outside the search order gets a hint.
+  assert.equal(forth.eval("TRACE-ON").error.hint, "it is in the word list DEBUG; ALSO DEBUG finds it");
   forth.eval(": STEP 0 / ;\n: MAIN 1 2 STEP ;");
   const e = forth.eval("5\n  MAIN").error;
   assert.deepEqual([e.words, e.stack, e.line, e.column], [["MAIN", "STEP", "/"], [5, 1], 2, 3]);

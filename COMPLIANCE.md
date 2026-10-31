@@ -118,7 +118,9 @@ Extended-Character word set, so forthling has its own:
 
 General conditions:
 
-- **A name that is neither a word nor a number**: throws -13.
+- **A name that is neither a word nor a number**: throws -13. When a word list with a
+  name outside the search order has the word, the message says which and how to search
+  it (`ALSO JSON finds it`).
 - **A definition name that is too long**: cannot occur below the length of an input line.
 - **Addressing a region not listed in 3.3.3**: any address inside Forth memory can be
   read and written, including the system's own buffers and variables; an address

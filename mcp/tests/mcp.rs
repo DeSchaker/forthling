@@ -109,8 +109,14 @@ fn forth_errors_are_results() {
         "before\nerror -13: undefined word: NOSUCH\nat input, line 1, column 19: NOSUCH\n\
          stack at the error: 1 2\nstack: empty"
     );
+    assert_eq!(error["hint"], Value::Null);
     let r = eval(&mut s, "IF");
     assert_eq!(r["structuredContent"]["error"]["code"], -14);
+    // A word in a word list outside the search order gets a hint.
+    let r = eval(&mut s, "JSON@");
+    let hint = "it is in the word list JSON; ALSO JSON finds it";
+    assert_eq!(r["structuredContent"]["error"]["hint"], hint);
+    assert!(text(&r).starts_with(&format!("error -13: undefined word: JSON@ ({hint})")));
 }
 
 #[test]

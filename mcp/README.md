@@ -69,7 +69,9 @@ stack: empty
 and as JSON: `"error": {"code": -10, "message": "division by zero", "stack": [5, 1],
 "fstack": [], "words": ["MAIN", "STEP", "/"], "source": "input", "line": 2, "column": 3,
 "token": "MAIN", …}`, with `isError` true. A word that took its arguments before it
-failed, such as `/` here, has taken them.
+failed, such as `/` here, has taken them. An undefined word that is in a word list
+outside the search order gets a `hint`, which the text adds after the word:
+`error -13: undefined word: JSON@ (it is in the word list JSON; ALSO JSON finds it)`.
 
 With `"trace": true`, `forth_eval` also returns a trace: each word that ran, with how deep
 it was nested and the data stack when it started (at most its top 8 cells), at most 1000

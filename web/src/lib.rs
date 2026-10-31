@@ -124,10 +124,11 @@ pub fn state(f: &Forth, output: &str, error: Option<Throw>) -> String {
                 )
             });
             format!(
-                "{{\"code\":{},\"message\":{},\"detail\":{},\"text\":{}{context}}}",
+                "{{\"code\":{},\"message\":{},\"detail\":{},\"hint\":{},\"text\":{}{context}}}",
                 e.code,
                 quoted(e.message()),
                 e.detail().map_or("null".into(), quoted),
+                e.hint().map_or("null".into(), quoted),
                 quoted(&e.to_string()),
             )
         }

@@ -728,6 +728,26 @@ fn word_lists() {
 }
 
 #[test]
+fn an_undefined_word_hints_at_its_word_list() {
+    let hint = |src: &str| err(src).hint().map(str::to_string);
+    let mut f = Forth::new();
+    f.install(&Json);
+    let e = f.interpret("JSON-LENGTH").unwrap_err();
+    assert_eq!((e.code, e.detail()), (-13, Some("JSON-LENGTH")));
+    let text = "it is in the word list JSON; ALSO JSON finds it";
+    assert_eq!(e.hint(), Some(text));
+    assert_eq!(e.to_string(), format!("error -13: undefined word: JSON-LENGTH ({text})"));
+    // also for ', and in lower case
+    assert_eq!(f.interpret("' json@").unwrap_err().hint(), Some(text));
+    // no hint for a word that is nowhere, or in a word list without a name
+    assert_eq!(hint("NOSUCHWORD"), None);
+    assert_eq!(hint("WORDLIST SET-CURRENT : Z ; FORTH-WORDLIST SET-CURRENT Z"), None);
+    // with an empty search order, ALSO cannot help
+    let only = "it is in the word list FORTH; ONLY FORTH finds it";
+    assert_eq!(hint("0 SET-ORDER DUP").as_deref(), Some(only));
+}
+
+#[test]
 fn name_tokens() {
     let src = "WORDLIST CONSTANT W  W SET-CURRENT : A 1 ; : B 2 ; IMMEDIATE \
                FORTH-WORDLIST SET-CURRENT : SHOW NAME>STRING TYPE SPACE TRUE ;";

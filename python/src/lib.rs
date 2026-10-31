@@ -87,6 +87,7 @@ impl PyForth {
         let value = err.value(py);
         value.setattr("code", e.code).ok();
         value.setattr("output", output).ok();
+        value.setattr("hint", e.hint()).ok();
         // Where it happened and the stacks then; None for an error that did
         // not come through interpret or include, such as pop() on an empty stack.
         let c = e.context();

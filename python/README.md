@@ -48,7 +48,8 @@ except forthling.ForthError as e:
   before it); the stacks are then empty. It also tells where it happened and what the
   stacks held then: `stack` and `fstack` at the error, `words` (the words that were
   running, such as `["MAIN", "STEP", "/"]`), `source`, `line`, `column` and `token`;
-  these are None for an error that did not come from `interpret` or `include`.
+  these are None for an error that did not come from `interpret` or `include`. `hint`
+  says how to put it right, such as `ALSO JSON` for a JSON word, or is None.
 - `push(n)`, `pop()`, `fpush(r)`, `fpop()`, and `stack` (a list, the top last).
 - `add_word(name, func, inputs=0, wordlist=None)` adds a word that calls `func` with
   `inputs` cells from the stack, the deepest first. Its result is pushed: `None`

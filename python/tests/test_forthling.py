@@ -34,7 +34,14 @@ class InterpretTest(unittest.TestCase):
         self.assertEqual(f.stack, [])
         self.assertEqual(cm.exception.stack, [1, 2])
         self.assertEqual(cm.exception.token, "NOSUCHWORD")
+        self.assertIsNone(cm.exception.hint)
         self.assertEqual((cm.exception.line, cm.exception.column), (1, 16))
+        # A word in a word list outside the search order gets a hint.
+        with self.assertRaises(forthling.ForthError) as cm:
+            f.interpret('JSON@')
+        hint = "it is in the word list JSON; ALSO JSON finds it"
+        self.assertEqual(cm.exception.hint, hint)
+        self.assertIn(hint, str(cm.exception))
         f.interpret(": STEP 0 / ;\n: MAIN 1 2 STEP ;")
         with self.assertRaises(forthling.ForthError) as cm:
             f.interpret("5 MAIN")

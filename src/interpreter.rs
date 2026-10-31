@@ -105,7 +105,7 @@ impl Forth {
                 self.fpush(r)
             }
         } else {
-            Err(Throw::with(UNDEFINED_WORD, w))
+            Err(self.undefined(w))
         }
     }
 

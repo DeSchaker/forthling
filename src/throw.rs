@@ -80,12 +80,19 @@ pub struct Throw {
     pub(crate) detail: Option<String>,
     pub(crate) location: Option<String>,
     pub(crate) context: Option<Box<ErrorContext>>,
+    pub(crate) hint: Option<String>,
 }
 
 impl Throw {
     /// An exception with a THROW code, such as -24 (invalid numeric argument).
     pub fn new(code: Cell) -> Self {
-        Throw { code, detail: None, location: None, context: None }
+        Throw { code, detail: None, location: None, context: None, hint: None }
+    }
+
+    /// A hint on how to put the error right, such as the `ALSO` that makes
+    /// an undefined word visible; the message ends with it.
+    pub fn hint(&self) -> Option<&str> {
+        self.hint.as_deref()
     }
 
     /// An exception with a THROW code and a detail for the message.
@@ -190,6 +197,9 @@ impl fmt::Display for Throw {
         write!(f, "error {}: {}", self.code, self.message())?;
         if let Some(detail) = &self.detail {
             write!(f, ": {detail}")?;
+        }
+        if let Some(hint) = &self.hint {
+            write!(f, " ({hint})")?;
         }
         Ok(())
     }

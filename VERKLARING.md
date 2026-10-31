@@ -118,7 +118,9 @@ tests voor de Extended-Character-wordset, dus forthling heeft eigen tests:
 
 Algemene situaties:
 
-- **Een naam die geen woord en geen getal is**: gooit -13.
+- **Een naam die geen woord en geen getal is**: gooit -13. Als een woordenlijst met een
+  naam buiten de zoekvolgorde het woord heeft, zegt de melding welke en hoe die te
+  doorzoeken is (`ALSO JSON finds it`).
 - **Een te lange naam voor een definitie**: kan niet voorkomen zolang hij op een
   invoerregel past.
 - **Een adres buiten de gebieden van 3.3.3**: elk adres binnen het Forth-geheugen kan

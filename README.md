@@ -260,8 +260,12 @@ of a file or `block n`), `line`, `column` (in characters) and `token`, the last 
 A word that takes its arguments before it fails has taken them; a stack underflow takes
 nothing. `steps_used()` and `max_depth()` tell how many steps the last evaluation took and
 how deep the data stack went, the words of the system it ran (such as `.`, written in
-Forth) included. The MCP server, the playground and the Python module pass
-all of this on.
+Forth) included.
+
+An undefined word that is in a word list outside the search order gets a hint, which
+`Throw::hint()` gives and the message ends with:
+`error -13: undefined word: JSON@ (it is in the word list JSON; ALSO JSON finds it)`. The
+MCP server, the playground and the Python module pass all of this on.
 
 ### Tracing
 

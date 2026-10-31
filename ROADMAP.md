@@ -125,6 +125,14 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
   hook in `invoke` that tracing now uses (step 12 was done first, at the maintainer's
   choice). The website (robbertwesterink.nl, private repo
   `DeSchaker/website`) links to the playground since 2026-10-31.
+- **Hints for undefined words (2026-10-31):** outside the order, after the maintainer
+  got -13 for `TRACE-ON` without `ALSO DEBUG` in the playground. `Throw` has a field
+  `hint` (public `hint()`, appended to the message in parentheses); `undefined(name)` in
+  `dictionary.rs` (used by the outer interpreter and `find_or_err`, so also `'` and
+  `POSTPONE`) sets it when a word list with a name outside the search order has the
+  word: `it is in the word list JSON; ALSO JSON finds it`, or `ONLY FORTH …` when the
+  search order is empty. `detail` stays the name. MCP, web and Python pass `hint` on.
+  The playground got an example "Trace" and names `ALSO DEBUG TRACE-ON` in its help.
 - **Typed words (2026-10-31):** step 12 is done, in `src/typed.rs`. `forth_word!(forth,
   wid, "NAME", (a: T, b: U) -> R { body })` (`macro_rules!`, exported at the crate root)
   expands to `add_word` with a `move` closure: it takes the arguments as one tuple

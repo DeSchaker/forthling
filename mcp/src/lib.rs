@@ -320,6 +320,7 @@ fn state(f: &Forth, output: &str, error: Option<Throw>) -> Value {
             "message": e.message(),
             "detail": e.detail(),
             "location": e.location(),
+            "hint": e.hint(),
         });
         if let Some(c) = e.context() {
             error["stack"] = json!(c.stack);
@@ -386,6 +387,7 @@ fn state_schema() -> Value {
                     "message": { "type": "string" },
                     "detail": { "type": ["string", "null"] },
                     "location": { "type": ["string", "null"] },
+                    "hint": { "type": ["string", "null"], "description": "how to put the error right, such as the ALSO that finds an undefined word" },
                     "stack": { "type": "array", "items": { "type": "integer" }, "description": "the data stack at the error, before it was emptied; a word that took its arguments before it failed has taken them" },
                     "fstack": { "type": "array", "items": { "type": ["number", "null"] }, "description": "the float stack at the error" },
                     "words": { "type": "array", "items": { "type": "string" }, "description": "the words that were running, outermost first, such as MAIN, STEP, /" },

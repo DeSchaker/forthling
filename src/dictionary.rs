@@ -134,7 +134,29 @@ impl Forth {
     }
 
     pub(crate) fn find_or_err(&self, name: &str) -> Res<usize> {
-        self.find(name).ok_or_else(|| Throw::with(UNDEFINED_WORD, name))
+        self.find(name).ok_or_else(|| self.undefined(name))
+    }
+
+    /// -13 for a name that is not in the search order; when a word list
+    /// with a name has it, the hint says which, and how to search it.
+    pub(crate) fn undefined(&self, name: &str) -> Throw {
+        let mut e = Throw::with(UNDEFINED_WORD, name);
+        let upper = name.to_ascii_uppercase();
+        let named = |wid: usize| self.wordlists.get(wid.checked_sub(1)?)?.as_deref();
+        let elsewhere = self.dict.iter().rev().find_map(|w| {
+            let other = w.hidden || w.name != upper || self.order.contains(&w.wid);
+            if other { None } else { named(w.wid) }
+        });
+        if let Some(list) = elsewhere {
+            // ALSO needs a word list in the search order to copy.
+            let fix = match (self.order.is_empty(), list) {
+                (true, "FORTH") => "ONLY FORTH".to_string(),
+                (true, _) => format!("ONLY FORTH ALSO {list}"),
+                (false, _) => format!("ALSO {list}"),
+            };
+            e.hint = Some(format!("it is in the word list {list}; {fix} finds it"));
+        }
+        e
     }
 
     pub(crate) fn show(&self, instr: &Instr) -> String {

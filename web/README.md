@@ -44,10 +44,11 @@ forth.words();   // ["SQUARE"]
 forth.reset();
 ```
 
-An error comes back as `error: { code, message, detail, text, stack, fstack, words, source,
-line, column, token }`: besides what went wrong, the stacks as they were at the error
-(which then empties them), where in the code it happened, and the words that were running,
-such as `["MAIN", "STEP", "/"]`. `steps` and `max_depth` tell what the run took. One module is one
+An error comes back as `error: { code, message, detail, hint, text, stack, fstack, words,
+source, line, column, token }`: besides what went wrong, the stacks as they were at the
+error (which then empties them), where in the code it happened, and the words that were
+running, such as `["MAIN", "STEP", "/"]`. `hint` says how to put it right, such as the
+`ALSO DEBUG` that `TRACE-ON` needs, or is null. `steps` and `max_depth` tell what the run took. One module is one
 session; the words stay until `reset()`.
 
 ## In WebAssembly
