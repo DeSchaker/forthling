@@ -118,8 +118,15 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
 
 ### Next session: resume here
 
-- **Next step:** put the playground on the website (the private repo `DeSchaker/website`,
-  plain static HTML and CSS); then step 8 of the revised order, debugging and tracing.
+- **Next step:** link to the playground from the website (the private repo
+  `DeSchaker/website`, plain static HTML and CSS); then step 8 of the revised order,
+  debugging and tracing.
+- **GitHub Pages (2026-10-31):** the playground is published at
+  https://deschaker.github.io/forthling/ by `.github/workflows/pages.yml`: on a push to
+  `main` that touches `web/`, `src/` or `Cargo.toml` (or by hand), it builds
+  `forthling.wasm` on stable, runs the Node tests, and deploys `web/www/` through the
+  `github-pages` environment. The `.wasm` stays out of the repo. Pages is per repository,
+  without a custom domain, so nothing else changes.
 - **WebAssembly (2026-10-31):** step 7 of the revised order is done in this repo, in
   `web/`: a crate `forthling-web` (own `[workspace]`, `cdylib`, no dependencies, no
   wasm-bindgen or wasm-pack). Plain exports `fl_input fl_eval fl_state fl_reset fl_words

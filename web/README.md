@@ -4,6 +4,10 @@ forthling compiled to WebAssembly, with a playground page: Forth-2012 in the bro
 without installing anything. It runs on the visitor's own computer, in forthling's
 sandbox; the server only serves static files.
 
+Try it at **https://deschaker.github.io/forthling/**. The workflow
+`.github/workflows/pages.yml` builds and publishes it on every push to `main` that
+changes forthling.
+
 ## Building
 
 With Rust and its WebAssembly target (`rustup target add wasm32-unknown-unknown`):

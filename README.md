@@ -191,7 +191,8 @@ then only opens `:memory:`.
 
 `web/` compiles forthling to WebAssembly (about 420 KB, no dependencies, no wasm-bindgen)
 and has a playground page: Forth in the browser, on the visitor's own computer, in the
-sandbox. See [web/README.md](web/README.md).
+sandbox. Try it at **https://deschaker.github.io/forthling/**; see
+[web/README.md](web/README.md).
 
 ### For AI agents (MCP)
 
