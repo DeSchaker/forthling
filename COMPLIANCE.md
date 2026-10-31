@@ -566,6 +566,11 @@ option for files. It reads no terminal input: `KEY` and `ACCEPT` see the end of 
 It adds the word `DATA ( -- c-addr u )` to `FORTH-WORDLIST` (`FORTHLING-MCP`): the
 `data` of the latest call that sent some, `ALLOCATE`d.
 
+In WebAssembly (`web/`, the playground in the browser) forthling runs in the sandbox with
+the JSON words. There `MS` does nothing, since WebAssembly cannot sleep, and there is no
+time limit, since it has no clock; `TIME&DATE` has the time the page gives
+(`Forth::set_clock`), and the memory can be at most 1 GiB.
+
 The SQLite words (`sqlite/`, in the program `forthling-sqlite`) install `FORTHLING-SQLITE`
 (version 1) and the word list `SQLITE`. They follow the FILE word set: databases and
 statements are handles, errors are an ior (-260 for an error of SQLite, with its message

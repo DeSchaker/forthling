@@ -114,3 +114,29 @@ jobs:
       - run: cargo clippy --manifest-path mcp/Cargo.toml --all-targets -- -D warnings
       - run: cargo test --manifest-path mcp/Cargo.toml
       - run: cargo test --manifest-path mcp/Cargo.toml --no-default-features
+
+  # forthling in the browser: web/ builds a WebAssembly module (no
+  # dependencies, no wasm-bindgen), which Node tests through www/forthling.js.
+  web:
+    strategy:
+      matrix:
+        rust: ["1.85", stable]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: web
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: cargo fmt --manifest-path web/Cargo.toml -- --check
+      - run: cargo clippy --manifest-path web/Cargo.toml --target wasm32-unknown-unknown -- -D warnings
+      - run: cargo clippy --lib --target wasm32-unknown-unknown -- -D warnings
+      - run: cargo build --release --manifest-path web/Cargo.toml --target wasm32-unknown-unknown
+      - run: node --test web/tests/forthling.test.mjs

@@ -2,7 +2,7 @@
 //! prelude.fs.
 
 use crate::*;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 pub(crate) fn install(f: &mut Forth) {
     f.prim("KEY?", |f| {
@@ -21,7 +21,7 @@ pub(crate) fn install(f: &mut Forth) {
         f.sleep(Duration::from_millis(ms.max(0) as u64))
     });
     f.prim("TIME&DATE", |f| {
-        let secs = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs()) as i64;
+        let secs = f.now() as i64;
         let (year, month, day) = civil_from_days(secs.div_euclid(86_400));
         let time = secs.rem_euclid(86_400);
         for v in [time % 60, time / 60 % 60, time / 3600, day, month, year] {

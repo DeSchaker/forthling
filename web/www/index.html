@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>forthling playground</title>
+<meta name="description" content="Forth-2012 in your browser: forthling, a small Forth interpreter in Rust, compiled to WebAssembly.">
+<style>
+  :root {
+    --bg: #fbfaf7; --fg: #1d1d1f; --muted: #6b6b70; --panel: #ffffff;
+    --line: #e2e0da; --accent: #2f6f4f; --error: #b3261e; --code: #f3f1ec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151517; --fg: #e8e6e1; --muted: #9a9890; --panel: #1d1d20;
+      --line: #33333a; --accent: #7cc39c; --error: #ff8a80; --code: #232327;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  h1 span { color: var(--accent); }
+  p.lead { color: var(--muted); margin: 0 0 20px; }
+  a { color: var(--accent); }
+  .mono { font-family: ui-monospace, "Cascadia Code", Consolas, Menlo, monospace; font-size: 14px; }
+  #transcript {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px 14px; height: 320px; overflow-y: auto; white-space: pre-wrap;
+    word-break: break-word; margin: 0;
+  }
+  #transcript .in { color: var(--muted); }
+  #transcript .ok { color: var(--accent); }
+  #transcript .err { color: var(--error); }
+  #stack {
+    margin: 8px 0 16px; padding: 6px 10px; background: var(--code); border-radius: 6px;
+    overflow-x: auto; white-space: nowrap;
+  }
+  #stack b { font-weight: 600; color: var(--muted); }
+  textarea {
+    width: 100%; min-height: 140px; resize: vertical; padding: 10px 12px;
+    background: var(--panel); color: var(--fg); border: 1px solid var(--line);
+    border-radius: 8px; tab-size: 2;
+  }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+  button, select {
+    font: inherit; font-size: 15px; padding: 7px 14px; border-radius: 6px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer;
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  .hint { color: var(--muted); font-size: 14px; margin-left: auto; }
+  footer { margin-top: 28px; color: var(--muted); font-size: 14px; }
+  footer code { background: var(--code); padding: 1px 4px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<main>
+  <h1><span>forthling</span> playground</h1>
+  <p class="lead">Forth-2012 in your browser: <a href="https://github.com/DeSchaker/forthling">forthling</a>,
+    a small Forth interpreter in Rust, compiled to WebAssembly. It runs on your own computer, in a sandbox.</p>
+
+  <pre id="transcript" class="mono" aria-live="polite"></pre>
+  <div id="stack" class="mono"><b>stack</b> <span id="cells">starting…</span></div>
+
+  <label for="code" class="hint" style="margin:0">Forth code</label>
+  <textarea id="code" class="mono" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+  <div class="bar">
+    <button id="run" class="primary" disabled>Run</button>
+    <select id="examples" aria-label="Examples">
+      <option value="">Examples…</option>
+    </select>
+    <button id="words" disabled>My words</button>
+    <button id="reset" disabled>Start over</button>
+    <span class="hint">Ctrl+Enter runs</span>
+  </div>
+
+  <footer>
+    Words you define stay until you start over. Each run may take 10 million steps and print 1 MiB;
+    there is no file access. Try <code>WORDS</code>, <code>SEE SQUARE</code>, or <code>ALSO JSON</code> for the JSON words.
+  </footer>
+</main>
+
+<script type="module">
+const examples = {
+  "Square": ": SQUARE ( n -- n*n ) DUP * ;\n7 SQUARE .",
+  "Fibonacci": ": FIB ( n -- f ) DUP 2 < IF EXIT THEN DUP 1- RECURSE SWAP 2 - RECURSE + ;\n25 FIB .",
+  "FizzBuzz": ": FIZZBUZZ ( n -- )\n  1+ 1 DO\n    I 15 MOD 0= IF .\" FizzBuzz \" ELSE\n    I 3 MOD 0= IF .\" Fizz \" ELSE\n    I 5 MOD 0= IF .\" Buzz \" ELSE I . THEN THEN THEN\n  LOOP ;\n20 FIZZBUZZ",
+  "Project Euler 5": "\\ The smallest number divisible by 1 to 20\n: GCD ( a b -- g ) BEGIN DUP WHILE TUCK MOD REPEAT DROP ;\n: LCM ( a b -- l ) 2DUP GCD */ ;\n: EULER5 ( -- n ) 1 21 1 DO I LCM LOOP ;\nEULER5 .",
+  "Floating point": "2E0 FSQRT F.  1E0 FEXP F.\n: HYPOT ( F: a b -- c ) FDUP F* FSWAP FDUP F* F+ FSQRT ;\n3E0 4E0 HYPOT F.",
+  "JSON": "ALSO JSON\n: DOC  S\\\" {\\\"name\\\": \\\"Ada\\\", \\\"langs\\\": [\\\"en\\\", \\\"fr\\\"]}\" ;\nDOC S\" langs[1]\" JSON@ DROP TYPE CR\nJSON{ S\" sum\" JSON-KEY 1 2 + JSON-NUMBER S\" ok\" JSON-KEY -1 JSON-FLAG JSON}",
+  "The sandbox": "\\ An endless loop: the sandbox stops it\n: FOREVER BEGIN AGAIN ; FOREVER",
+};
+
+const $ = (id) => document.getElementById(id);
+const transcript = $("transcript"), code = $("code"), cells = $("cells");
+const buttons = [$("run"), $("words"), $("reset")];
+for (const name of Object.keys(examples)) $("examples").add(new Option(name, name));
+
+let worker, waiting = null, watchdog, nextId = 0;
+
+function show(text, kind) {
+  const span = document.createElement("span");
+  if (kind) span.className = kind;
+  span.textContent = text;
+  transcript.append(span);
+  transcript.scrollTop = transcript.scrollHeight;
+}
+
+function showStack(answer) {
+  const stack = answer.stack.join(" ") || "empty";
+  const floats = answer.fstack.map((r) => (r === null ? "NaN" : r)).join(" ");
+  cells.textContent = floats ? `${stack}   floats: ${floats}` : stack;
+}
+
+function busy(on) {
+  for (const b of buttons) b.disabled = on;
+}
+
+function start() {
+  worker?.terminate();
+  busy(true);
+  worker = new Worker(new URL("worker.js", import.meta.url), { type: "module" });
+  worker.onmessage = ({ data }) => {
+    if (data.ready) {
+      busy(false);
+      cells.textContent = "empty";
+      return;
+    }
+    if (!waiting || data.id !== waiting.id) return;
+    clearTimeout(watchdog);
+    const done = waiting.done;
+    waiting = null;
+    busy(false);
+    if (data.answer.crashed) {
+      show(`forthling stopped unexpectedly (${data.answer.crashed}); starting over.\n`, "err");
+      start();
+      return;
+    }
+    done(data.answer);
+  };
+  worker.onerror = (e) => {
+    show(`Could not start forthling: ${e.message || "is forthling.wasm there?"}\n`, "err");
+  };
+}
+
+function ask(action, code, done) {
+  waiting = { id: ++nextId, done };
+  busy(true);
+  worker.postMessage({ id: waiting.id, action, code });
+  // The sandbox counts steps; this is a last resort if something still runs on.
+  watchdog = setTimeout(() => {
+    waiting = null;
+    show("Stopped after 15 seconds; starting over.\n", "err");
+    start();
+  }, 15000);
+}
+
+function run() {
+  const text = code.value;
+  if (!text.trim() || waiting) return;
+  show(text.replace(/\n?$/, "\n"), "in");
+  ask("eval", text, (answer) => {
+    if (answer.output) show(answer.output);
+    if (answer.error) show((answer.output && !answer.output.endsWith("\n") ? "\n" : "") + answer.error.text + "\n", "err");
+    else show(answer.compiling ? " compiled\n" : " ok\n", "ok");
+    showStack(answer);
+  });
+}
+
+$("run").onclick = run;
+code.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    run();
+  }
+});
+$("examples").onchange = (e) => {
+  if (e.target.value) code.value = examples[e.target.value];
+  e.target.value = "";
+  code.focus();
+};
+$("words").onclick = () => ask("words", "", (words) => {
+  show(words.length ? `Your words: ${words.join(" ")}\n` : "You have not defined any words yet.\n", "ok");
+});
+$("reset").onclick = () => ask("reset", "", (answer) => {
+  transcript.textContent = "";
+  show("Started over.\n", "ok");
+  showStack(answer);
+});
+
+code.value = examples["Square"];
+show("Welcome to forthling. Write Forth below and press Run.\n", "ok");
+start();
+</script>
+</body>
+</html>

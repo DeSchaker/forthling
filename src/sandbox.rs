@@ -280,7 +280,11 @@ impl Forth {
                 return Err(limit_reached("time"));
             }
         }
+        // WebAssembly cannot sleep: there MS does nothing.
+        #[cfg(not(target_arch = "wasm32"))]
         std::thread::sleep(time);
+        #[cfg(target_arch = "wasm32")]
+        let _ = time;
         Ok(())
     }
 

@@ -125,6 +125,27 @@ impl Forth {
         self.host_state.remove(&TypeId::of::<T>());
     }
 
+    /// Sets the clock that TIME&DATE reads: seconds since 1970-01-01 UTC.
+    /// By default it is the system clock; WebAssembly has none, so there a
+    /// host that wants the time sets it, as the browser page does.
+    pub fn set_clock(&mut self, now: impl Fn() -> u64 + 'static) {
+        self.clock = Some(Box::new(now));
+    }
+
+    /// The time of the clock, in seconds since 1970-01-01 UTC.
+    pub(crate) fn now(&self) -> u64 {
+        if let Some(clock) = &self.clock {
+            return clock();
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            use std::time::{SystemTime, UNIX_EPOCH};
+            SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs())
+        }
+        #[cfg(target_arch = "wasm32")]
+        0
+    }
+
     /// The number of cells on the data stack.
     pub fn depth(&self) -> usize {
         self.stack.len()

@@ -48,6 +48,10 @@ latest stable Rust, on Linux and Windows.
   is in `src/lib.rs` (`Server::handle`, one message at a time), stdio in `src/main.rs`.
   Test it with `--manifest-path mcp/Cargo.toml`, also with `--no-default-features`. Keep
   its tools free of arguments that could change the sandbox.
+- `web/`: WebAssembly and the playground (`www/`); plain exports in `src/lib.rs`, the
+  JavaScript in `www/forthling.js`, tests in `tests/forthling.test.mjs` (Node 22). The
+  core builds for `wasm32-unknown-unknown`: code that needs a thread, the clock or sleep
+  has a `#[cfg(target_arch = "wasm32")]` alternative (see `sleep`, `now`, `deadline`).
 - `src/cli.rs`: the forthling program (options, config file, REPL), in the library so
   that a program with extensions calls `forthling::cli::main(&[&Extension])`.
 - `src/tests.rs`: the unit tests; `tests/suite.rs` runs the files of the test suite.

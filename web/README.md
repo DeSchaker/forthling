@@ -1,0 +1,63 @@
+# forthling in the browser
+
+forthling compiled to WebAssembly, with a playground page: Forth-2012 in the browser,
+without installing anything. It runs on the visitor's own computer, in forthling's
+sandbox; the server only serves static files.
+
+## Building
+
+With Rust and its WebAssembly target (`rustup target add wasm32-unknown-unknown`):
+
+```
+cargo build --release --manifest-path web/Cargo.toml --target wasm32-unknown-unknown
+cp web/target/wasm32-unknown-unknown/release/forthling_web.wasm web/www/forthling.wasm
+```
+
+`web/www/` then holds the whole site: `index.html` (the playground), `worker.js`,
+`forthling.js` and `forthling.wasm` (some 420 KB). Serve it with any web server, for
+example `python -m http.server` in `web/www`, and open http://localhost:8000/. Opening
+`index.html` as a file does not work: the browser loads the module and the worker only
+over http(s). The server must give `.wasm` the type `application/wasm`; most do.
+
+There is no JavaScript build step and no dependency: the module exports a few plain
+functions, and `forthling.js` wraps them.
+
+## The playground
+
+`index.html` has a transcript, the stack, an editor (Ctrl+Enter runs), examples, the
+words defined so far and "Start over". forthling runs in a Web Worker, so the page never
+freezes; should a run still not end, the page stops the worker after 15 seconds and
+starts a new one.
+
+## Using it from JavaScript
+
+```js
+import { load } from "./forthling.js";
+const forth = await load("forthling.wasm");
+forth.eval(": SQUARE DUP * ; 7 SQUARE .");
+// { output: "49 ", stack: [], fstack: [], compiling: false, error: null }
+forth.words();   // ["SQUARE"]
+forth.reset();
+```
+
+An error comes back as `error: { code, message, detail, text }`. One module is one
+session; the words stay until `reset()`.
+
+## In WebAssembly
+
+- The sandbox: no file access, no terminal input, at most 10 million steps and 1 MiB of
+  output per run and 4 MiB of definitions and the like in all. WebAssembly has no clock
+  for a time limit, so the steps are the limit there.
+- `MS` does nothing (WebAssembly cannot sleep); `TIME&DATE` has the time of the page
+  (`Forth::set_clock`).
+- The memory is 1 MiB, as natively; the most it can be is 1 GiB (`MAX_MEMORY` on a
+  32-bit target).
+- The JSON words are installed (`ALSO JSON`); SQLite is not.
+
+## Testing
+
+```
+node --test web/tests/forthling.test.mjs
+```
+
+after building; the tests load the module from `web/target` with Node 22.

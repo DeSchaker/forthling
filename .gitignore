@@ -2,6 +2,9 @@
 /python/target/
 /sqlite/target/
 /mcp/target/
+/web/target/
+# built from web/, see web/README.md
+/web/www/forthling.wasm
 __pycache__/
 # Forth-2012 test suite, cloned separately (see ROADMAP.md)
 /tests/forth2012-test-suite/

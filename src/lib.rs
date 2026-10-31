@@ -111,11 +111,12 @@ pub struct Forth {
     host_state: HashMap<std::any::TypeId, Box<dyn std::any::Any>>, // see Forth::state
     out: Vec<u8>,
     bye: bool,
-    limits: Limits,              // see sandbox.rs
-    budget: Budget,              // what is left of them in this evaluation
-    denied: HashSet<Permission>, // what the program may not do
-    space: usize,                // the dictionary and the REPLACES texts outside Forth memory
-    system_space: usize,         // the part of the space that is the system's own
+    limits: Limits,                      // see sandbox.rs
+    budget: Budget,                      // what is left of them in this evaluation
+    denied: HashSet<Permission>,         // what the program may not do
+    clock: Option<Box<dyn Fn() -> u64>>, // seconds since 1970 for TIME&DATE (set_clock)
+    space: usize,        // the dictionary and the REPLACES texts outside Forth memory
+    system_space: usize, // the part of the space that is the system's own
 }
 
 pub(crate) fn flag(b: bool) -> Cell {
@@ -183,6 +184,7 @@ impl Forth {
             limits: Limits::default(),
             budget: Budget::default(),
             denied: HashSet::new(),
+            clock: None,
             space: 0,
             system_space: 0,
         };

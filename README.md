@@ -9,8 +9,8 @@
 
 A small Forth interpreter in Rust, working towards the
 [Forth-2012 standard](https://forth-standard.org/). The core has no dependencies and no
-`unsafe`; extensions (Python, SQLite, an MCP server for AI agents) live in crates of
-their own.
+`unsafe`; extensions (Python, SQLite, an MCP server for AI agents, WebAssembly for the
+browser) live in crates of their own.
 
 ```
 $ cargo run --release
@@ -186,6 +186,12 @@ one. A limit that is reached throws -258, and every step after it throws again, 
 `CATCH` cannot go on. The sandbox restricts the Forth program, not the host: `include`
 called by the host still reads its file. Extensions follow the permissions too; SQLite
 then only opens `:memory:`.
+
+### In the browser
+
+`web/` compiles forthling to WebAssembly (about 420 KB, no dependencies, no wasm-bindgen)
+and has a playground page: Forth in the browser, on the visitor's own computer, in the
+sandbox. See [web/README.md](web/README.md).
 
 ### For AI agents (MCP)
 
@@ -386,4 +392,6 @@ clippy lints and runs all tests, the test suite included, on Rust 1.85 and on th
 stable Rust on Linux and Windows. It also builds the Python module and runs its tests
 (`python -m unittest discover -s python/tests`, after `pip install ./python`) and checks
 and tests the SQLite words (`cargo test --manifest-path sqlite/Cargo.toml`) and the MCP
-server (`cargo test --manifest-path mcp/Cargo.toml`, also with `--no-default-features`).
+server (`cargo test --manifest-path mcp/Cargo.toml`, also with `--no-default-features`),
+and builds the WebAssembly module and tests it with Node (`node --test
+web/tests/forthling.test.mjs`).

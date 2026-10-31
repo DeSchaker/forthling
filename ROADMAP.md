@@ -118,32 +118,24 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
 
 ### Next session: resume here
 
-- **Next step:** step 7 of the revised order, WebAssembly and a playground in the
-  browser (for robbertwesterink.nl). All word sets are there (except
-  `;CODE ASSEMBLER CODE EDITOR`), as are the statement of section 4.1, the host API, the
-  Python module, the SQLite words, the sandbox, the JSON words and the MCP server.
-- **MCP server (2026-10-31):** step 6 of the revised order is done, in `mcp/`: a crate
-  `forthling-mcp` (own `[workspace]`), built by hand on `serde_json` without `rmcp`, so
-  without tokio, at the maintainer's request; synchronous, one session per process, with
-  SQLite (feature `sqlite`, default on). `Server::handle(line) -> Option<String>` in
-  `src/lib.rs` answers one JSON-RPC message (`initialize`, `ping`, `tools/list`,
-  `tools/call`; notifications and answers from the client get none; -32700, -32600,
-  -32601, -32602 for the rest); `main.rs` reads stdin line by line in a thread with a
-  64 MiB stack. Protocol versions: the client's when known (`PROTOCOL_VERSIONS`), else
-  `LATEST` 2025-06-18. Tools `forth_eval {code}`, `forth_stack`, `forth_words`,
-  `forth_reset`, each with an `outputSchema`; results as REPL text plus
-  `structuredContent` (`output stack fstack compiling error{code message detail
-  location}`), a Forth error as `isError: true`. `instructions` tell the model the basics
-  and the limits. The sandbox at the maintainer's request is not to be got around:
-  always on, never files, no `none`; the options can only set limits up to ceilings
-  (`MAX_MEMORY` 64M, `MAX_STEPS` 10^9, `MAX_TIME` 60 s, `MAX_OUTPUT` 16M, `MAX_SPACE`
-  64M); tools refuse unknown arguments; the terminal input is empty, so `KEY` cannot read
-  the protocol. The core gained `Forth::fstack`, `Forth::program_words`, public
-  `Throw::message/detail/location` and public `cli::parse_size/parse_bytes/parse_duration`.
-  mcp/README.md explains what enforces the sandbox: the server, not the model; an agent
-  with a shell can go around it, which only the agent's permissions (Claude Code
-  settings) or a container stop. Tests: `mcp/tests/mcp.rs` (also over real stdio); CI job
-  `mcp` (1.85 and stable on Linux, stable on Windows, with and without SQLite).
+- **Next step:** put the playground on the website (the private repo `DeSchaker/website`,
+  plain static HTML and CSS); then step 8 of the revised order, debugging and tracing.
+- **WebAssembly (2026-10-31):** step 7 of the revised order is done in this repo, in
+  `web/`: a crate `forthling-web` (own `[workspace]`, `cdylib`, no dependencies, no
+  wasm-bindgen or wasm-pack). Plain exports `fl_input fl_eval fl_state fl_reset fl_words
+  fl_answer` (with `#[unsafe(no_mangle)]`, no `unsafe` blocks): the page writes the code
+  into the input buffer, calls `fl_eval(now)`, and reads a JSON answer (the same shape as
+  the MCP server's). `www/forthling.js` wraps them, `www/worker.js` runs them in a Web
+  Worker, `www/index.html` is the playground (transcript, stack, editor, examples, words,
+  start over; a watchdog of 15 s restarts the worker). `build.rs` sets a stack of 16 MiB
+  (`-zstack-size`), for 900 and more nested CATCHes. Release profile `opt-level = "s"`,
+  LTO, `panic = "abort"`: about 420 KB. The core needed: `MS` does nothing on wasm32, the
+  new `Forth::set_clock` for `TIME&DATE` (the page passes `Date.now()`), and a real bug
+  found by clippy for wasm32: `MAX_MEMORY` (`4 << 30`) overflowed a 32-bit `usize` to 0,
+  so `Forth::new` would always have panicked; now 1 GiB on 32-bit targets. Tested with
+  Node (`web/tests/forthling.test.mjs`) and in headless Chrome over the DevTools protocol
+  (every example, the sandbox, words, the stack). CI job `web` (1.85 and stable). The
+  built `forthling.wasm` is not in the repo (`.gitignore`).
 - **MCP data and SQL bounds (2026-10-31):** tried with Claude Code (Project Euler 5, 15
   and 67 through `claude -p`, all right; in 67 the session hit the line limit of 1024
   with a 15 KB JSON document and worked around it with a buffer). So the instructions now
@@ -742,7 +734,7 @@ environment that returns the stack after every line makes up for that.
    directly. Together with 4 and 5, a safe, persistent calculator and scripting language
    for agents. With it, machine-readable output: errors, the stack and `SEE` as structured
    data, so an agent need not parse text.
-7. **WebAssembly and a playground in the browser** (`forthling-web`, wasm-bindgen, built
+7. ✅ **WebAssembly and a playground in the browser** (`forthling-web`, wasm-bindgen, built
    with wasm-pack). Forth without installing anything, and the best showcase of the
    project; it can run on a website such as robbertwesterink.nl as static files (an HTML
    page, some JavaScript and a `.wasm` of a few hundred KB), in the visitor's browser, with

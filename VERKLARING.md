@@ -586,6 +586,11 @@ het einde van de invoer. Hij voegt het woord `DATA ( -- c-addr u )` toe aan
 `FORTH-WORDLIST` (`FORTHLING-MCP`): de `data` van de laatste aanroep die die meestuurde,
 ge-`ALLOCATE`d.
 
+In WebAssembly (`web/`, de speelomgeving in de browser) draait forthling in de zandbak met
+de JSON-woorden. Daar doet `MS` niets, omdat WebAssembly niet kan slapen, en is er geen
+tijdlimiet, omdat het geen klok heeft; `TIME&DATE` heeft de tijd die de pagina geeft
+(`Forth::set_clock`), en het geheugen kan hooguit 1 GiB zijn.
+
 De SQLite-woorden (`sqlite/`, in het programma `forthling-sqlite`) installeren
 `FORTHLING-SQLITE` (versie 1) en de woordenlijst `SQLITE`. Ze volgen de FILE-wordset:
 databases en statements zijn handles, fouten zijn een ior (-260 voor een fout van SQLite,

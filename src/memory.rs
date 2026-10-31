@@ -26,7 +26,9 @@ pub(crate) const DICT_START: usize = BLOCK_BUFS + BLOCK_BUFFERS * BLOCK_SIZE;
 /// The default size of Forth memory, and the sizes `Forth::with_memory` accepts.
 pub const DEFAULT_MEMORY: usize = 1 << 20;
 pub const MIN_MEMORY: usize = 64 << 10;
-pub const MAX_MEMORY: usize = 4 << 30;
+/// 4 GiB; 1 GiB on a 32-bit target such as WebAssembly, where 4 GiB does not
+/// fit in a usize.
+pub const MAX_MEMORY: usize = if usize::BITS >= 64 { (4u64 << 30) as usize } else { 1 << 30 };
 
 impl Forth {
     /// Reads a cell at an address the system itself controls.
