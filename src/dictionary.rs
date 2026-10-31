@@ -38,6 +38,10 @@ pub(crate) struct Word {
     pub(crate) name_addr: Option<usize>, // its name on the heap, once NAME>STRING asked
 }
 
+/// The words an empty search order still finds.
+pub(crate) const ROOT_WORDS: [&str; 6] =
+    ["FORTH", "FORTH-WORDLIST", "GET-ORDER", "ONLY", "ORDER", "SET-ORDER"];
+
 impl Forth {
     pub(crate) fn define(&mut self, name: &str, kind: Kind) -> usize {
         self.dict.push(Word {
@@ -88,7 +92,12 @@ impl Forth {
     }
 
     /// Looks a word up in the word lists of the search order, in turn.
+    /// Looks a word up in the search order. An empty search order still
+    /// finds the words of ROOT_WORDS, so the system stays usable.
     pub(crate) fn find(&self, name: &str) -> Option<usize> {
+        if self.order.is_empty() && ROOT_WORDS.contains(&name.to_ascii_uppercase().as_str()) {
+            return self.find_in(name, FORTH_WID);
+        }
         self.order.iter().find_map(|&wid| self.find_in(name, wid))
     }
 

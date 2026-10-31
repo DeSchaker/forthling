@@ -32,6 +32,8 @@ fn arithmetic() {
     assert_eq!(run("1000000 3000000 1000 */ ."), "3000000000 ");
     assert_eq!(run("-7 2 1 */MOD . ."), "-14 0 ");
     assert_eq!(run("-8 2/ ."), "-4 ");
+    // a shift by a cell or more shifts every bit out
+    assert_eq!(run("1 63 LSHIFT 0< . 1 64 LSHIFT . -1 64 RSHIFT . -1 63 RSHIFT ."), "-1 0 0 1 ");
 }
 
 #[test]
@@ -351,6 +353,11 @@ fn string_words() {
         "a%%b-78 0 "
     );
     assert_eq!(err(r#"S" x" S" a%b" REPLACES"#).code, -79);
+    // UNESCAPE stops at the end of its buffer: PAD, an ALLOCATEd block
+    assert_eq!(err(r#"S" %%" PAD 253 + UNESCAPE"#).code, -9);
+    assert_eq!(run(r#"S" %%" PAD 252 + UNESCAPE . DROP"#), "4 ");
+    assert_eq!(err(r#"8 ALLOCATE DROP S" %%%%%" ROT UNESCAPE"#).code, -9);
+    assert_eq!(run(r#"S" a%" HERE UNESCAPE TYPE"#), "a%%");
     assert_eq!(run("1 2 2CONSTANT C 2VARIABLE V C V 2! V 2@ . ."), "2 1 ");
 }
 
@@ -660,8 +667,10 @@ fn word_lists() {
     assert_eq!(err(": P PREVIOUS PREVIOUS ; ONLY P").code, -50);
     assert_eq!(err("17 SET-ORDER").code, -49);
     assert_eq!(err("99 SET-CURRENT").code, -24);
-    // with an empty search order nothing is found, not even ONLY
-    assert_eq!(err("0 SET-ORDER ONLY").code, -13);
+    // an empty search order finds only the words that set a new one
+    assert_eq!(err("0 SET-ORDER DUP").code, -13);
+    assert_eq!(run("0 SET-ORDER ONLY 1 2 + ."), "3 ");
+    assert_eq!(run("0 SET-ORDER FORTH-WORDLIST 1 SET-ORDER GET-ORDER . ."), "1 1 ");
     // a marker puts the search order and the compilation word list back
     let src = "MARKER M  WORDLIST DUP SET-CURRENT GET-ORDER 1+ SET-ORDER  : Y ;  M";
     assert_eq!(run(&format!("{src} GET-ORDER . . GET-CURRENT .")), "1 1 1 ");

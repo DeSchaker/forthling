@@ -103,6 +103,19 @@ impl Forth {
         Ok((self.check(a, n)?, n as usize))
     }
 
+    /// The end of the buffer that address a lies in: one of the system's
+    /// fixed buffers, the data space (up to the heap) or an ALLOCATEd block.
+    pub(crate) fn buffer_end(&self, a: usize) -> usize {
+        let mut ends = vec![SOURCE_AREA];
+        ends.extend((1..=MAX_SOURCES + 2).map(|k| SOURCE_AREA + k * LINE_MAX));
+        ends.extend([HOLD_START, HOLD_END, BLOCK_BUFS]);
+        ends.extend((1..=BLOCK_BUFFERS).map(|k| BLOCK_BUFS + k * BLOCK_SIZE));
+        match ends.into_iter().find(|&end| a < end) {
+            Some(end) => end,
+            None => self.heap.region_end(a),
+        }
+    }
+
     pub(crate) fn bytes(&self, a: Cell, n: Cell) -> Res<Vec<u8>> {
         let n = n.max(0);
         let i = self.check(a, n)?;

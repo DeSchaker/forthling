@@ -166,8 +166,8 @@ Specific conditions:
 - **`POSTPONE`, `[COMPILE]`, `'` or `[']` applied to `TO`**: works; the word compiled
   then acts as `TO` where it runs.
 - **`WORD` with a string longer than a counted string**: throws -18.
-- **A shift of a cell or more** (`LSHIFT`, `RSHIFT`): the shift count is taken modulo
-  64, so `1 64 LSHIFT` gives 1.
+- **A shift of a cell or more** (`LSHIFT`, `RSHIFT`): every bit is shifted out, so
+  `1 64 LSHIFT` gives 0. A negative shift count does the same.
 - **A word not defined by `CREATE`** (`>BODY`, `DOES>`): `>BODY` throws -31 and `DOES>`
   throws -21.
 - **`#`, `#S`, `HOLD`, `HOLDS` or `SIGN` outside `<#` and `#>`**: they work on the
@@ -458,8 +458,9 @@ Ambiguous conditions:
 
 - **Changing the compilation word list during a definition**: the definition goes into
   the word list that was the compilation word list when it started.
-- **An empty search order**: no word can be found then (-13), not even `ONLY`. `PREVIOUS`
-  with an empty search order throws -50.
+- **An empty search order**: only the words that set a new search order are found:
+  `FORTH`, `FORTH-WORDLIST`, `GET-ORDER`, `ONLY`, `ORDER` and `SET-ORDER`. Any other word
+  is undefined (-13). `PREVIOUS` with an empty search order throws -50.
 - **Too many word lists in the search order** (`ALSO`): throws -49.
 
 ## String-Handling (17.4.1)
@@ -470,8 +471,10 @@ Ambiguous conditions:
   Forth memory, so only the computer's own memory limits them.
 - **A substitution name with a `%` in it** (`REPLACES`): throws -79.
 - **A result too large for the buffer** (`SUBSTITUTE`, `UNESCAPE`): `SUBSTITUTE` leaves
-  the buffer alone and returns 0 characters and -78. `UNESCAPE` writes the whole
-  result, also past the end of the buffer (throwing -9 only beyond the end of memory).
+  the buffer alone and returns 0 characters and -78. `UNESCAPE` has no buffer
+  length, so it uses the end of the buffer the destination lies in: one of the system's
+  buffers (such as `PAD`, 256 bytes), the data space up to the heap, or an `ALLOCATE`d
+  block. A result that runs past it throws -9 and writes nothing.
 - **The same buffer as source and destination** (`SUBSTITUTE`): works, since the
   whole result is made before it is copied.
 

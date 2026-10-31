@@ -168,8 +168,8 @@ Situaties bij bepaalde woorden:
 - **`POSTPONE`, `[COMPILE]`, `'` of `[']` op `TO`**: werkt; het gecompileerde woord
   gedraagt zich dan als `TO` op de plek waar het draait.
 - **`WORD` met een string langer dan een counted string**: gooit -18.
-- **Een schuif van een cel of meer** (`LSHIFT`, `RSHIFT`): het aantal wordt modulo 64
-  genomen, dus `1 64 LSHIFT` geeft 1.
+- **Een schuif van een cel of meer** (`LSHIFT`, `RSHIFT`): alle bits schuiven eruit, dus
+  `1 64 LSHIFT` geeft 0. Een negatief aantal doet hetzelfde.
 - **Een woord dat niet met `CREATE` gemaakt is** (`>BODY`, `DOES>`): `>BODY` gooit -31 en
   `DOES>` gooit -21.
 - **`#`, `#S`, `HOLD`, `HOLDS` of `SIGN` buiten `<#` en `#>`**: ze werken op de buffer
@@ -473,8 +473,10 @@ Ambigue situaties:
 
 - **De compilatiewoordenlijst veranderen tijdens een definitie**: de definitie komt in de
   woordenlijst die de compilatiewoordenlijst was toen ze begon.
-- **Een lege zoekvolgorde**: dan is geen enkel woord te vinden (-13), ook `ONLY` niet.
-  `PREVIOUS` met een lege zoekvolgorde gooit -50.
+- **Een lege zoekvolgorde**: dan zijn alleen de woorden te vinden die een nieuwe
+  zoekvolgorde instellen: `FORTH`, `FORTH-WORDLIST`, `GET-ORDER`, `ONLY`, `ORDER` en
+  `SET-ORDER`. Elk ander woord is onbekend (-13). `PREVIOUS` met een lege zoekvolgorde
+  gooit -50.
 - **Te veel woordenlijsten in de zoekvolgorde** (`ALSO`): gooit -49.
 
 ## String-Handling (17.4.1)
@@ -485,9 +487,10 @@ Ambigue situaties:
   het Forth-geheugen bewaard, dus alleen het geheugen van de computer zelf begrenst ze.
 - **Een substitutienaam met een `%` erin** (`REPLACES`): gooit -79.
 - **Een resultaat te groot voor de buffer** (`SUBSTITUTE`, `UNESCAPE`): `SUBSTITUTE` laat
-  de buffer met rust en geeft 0 tekens en -78. `UNESCAPE` schrijft het hele resultaat,
-  ook voorbij het eind van de buffer (en gooit alleen -9 voorbij het eind van het
-  geheugen).
+  de buffer met rust en geeft 0 tekens en -78. `UNESCAPE` krijgt geen lengte van de
+  buffer mee en neemt daarom het eind van de buffer waar de bestemming in ligt: een van de
+  buffers van het systeem (zoals `PAD`, 256 bytes), de data space tot aan de heap, of een
+  blok van `ALLOCATE`. Een resultaat dat daar voorbij loopt, gooit -9 en schrijft niets.
 - **Dezelfde buffer als bron en bestemming** (`SUBSTITUTE`): werkt, want het hele resultaat
   wordt gemaakt voordat het gekopieerd wordt.
 

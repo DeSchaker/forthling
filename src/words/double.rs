@@ -127,10 +127,15 @@ pub(crate) fn install(f: &mut Forth) {
         f.push(!a);
         Ok(())
     });
-    f.prim("LSHIFT", |f| f.binop(|a, b| ((a as u64) << (b & 63)) as Cell));
-    f.prim("RSHIFT", |f| f.binop(|a, b| ((a as u64) >> (b & 63)) as Cell));
+    // A shift by a cell or more (or a negative count) shifts every bit out.
+    f.prim("LSHIFT", |f| f.binop(|a, b| shift(a, b, u64::checked_shl)));
+    f.prim("RSHIFT", |f| f.binop(|a, b| shift(a, b, u64::checked_shr)));
     f.prim("=", |f| f.binop(|a, b| flag(a == b)));
     f.prim("<", |f| f.binop(|a, b| flag(a < b)));
     f.prim(">", |f| f.binop(|a, b| flag(a > b)));
     f.prim("U<", |f| f.binop(|a, b| flag((a as u64) < (b as u64))));
+}
+
+fn shift(a: Cell, n: Cell, op: fn(u64, u32) -> Option<u64>) -> Cell {
+    u32::try_from(n).ok().and_then(|n| op(a as u64, n)).unwrap_or(0) as Cell
 }

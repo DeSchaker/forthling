@@ -145,6 +145,7 @@ pub(crate) fn install(f: &mut Forth) {
         Ok(())
     });
     // UNESCAPE doubles every %, so SUBSTITUTE gives the text back unchanged.
+    // A result that runs past the end of its buffer throws -9.
     f.prim("UNESCAPE", |f| {
         let a2 = f.pop()?;
         let (a1, n1) = f.pop2()?;
@@ -153,6 +154,9 @@ pub(crate) fn install(f: &mut Forth) {
             out.extend_from_slice(if c == b'%' { b"%%" } else { std::slice::from_ref(&c) });
         }
         let d = f.check(a2, out.len() as Cell)?;
+        if d + out.len() > f.buffer_end(d) {
+            return Err(Throw::with(INVALID_ADDRESS, "the result of UNESCAPE does not fit"));
+        }
         f.mem[d..d + out.len()].copy_from_slice(&out);
         f.push(a2);
         f.push(out.len() as Cell);

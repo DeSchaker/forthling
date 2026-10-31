@@ -64,6 +64,15 @@ impl Heap {
         self.blocks.get(&a).copied()
     }
 
+    /// The end of the block that a lies in; outside the blocks, the start
+    /// of the next block or the end of memory.
+    pub(crate) fn region_end(&self, a: usize) -> usize {
+        match self.blocks.range(..=a).next_back() {
+            Some((&start, &len)) if a < start + len => start + len,
+            _ => self.blocks.range(a + 1..).next().map_or(self.top, |(&s, _)| s),
+        }
+    }
+
     /// Grows or shrinks the block at a to n bytes where it is, if the space
     /// after it allows; false otherwise.
     pub(crate) fn resize_in_place(&mut self, a: usize, n: usize) -> bool {
