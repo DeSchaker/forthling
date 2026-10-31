@@ -37,6 +37,7 @@ pub(crate) struct Word {
     pub(crate) wid: usize,               // the word list it is in
     pub(crate) here: usize,              // HERE when it was defined, for FORGET
     pub(crate) name_addr: Option<usize>, // its name on the heap, once NAME>STRING asked
+    pub(crate) size: usize,              // what it takes outside Forth memory (Limits::space)
 }
 
 /// The words an empty search order still finds.
@@ -45,6 +46,8 @@ pub(crate) const ROOT_WORDS: [&str; 6] =
 
 impl Forth {
     pub(crate) fn define(&mut self, name: &str, kind: Kind) -> usize {
+        let size = WORD_SPACE + name.len();
+        self.space += size;
         self.dict.push(Word {
             name: name.to_ascii_uppercase(),
             kind,
@@ -54,8 +57,29 @@ impl Forth {
             wid: self.current_wid,
             here: self.here,
             name_addr: None,
+            size,
         });
         self.dict.len() - 1
+    }
+
+    /// Defines a word of the program: as `define`, but within the space
+    /// limit of the sandbox.
+    pub(crate) fn new_word(&mut self, name: &str, kind: Kind) -> Res<usize> {
+        let xt = self.define(name, kind);
+        if let Err(e) = self.check_space() {
+            self.forget_from(xt);
+            return Err(e);
+        }
+        Ok(xt)
+    }
+
+    /// Adds the code of a colon definition to its size, within the space
+    /// limit.
+    pub(crate) fn count_code(&mut self, xt: usize, instructions: usize) -> Res {
+        let size = instructions * INSTR_SPACE;
+        self.dict[xt].size += size;
+        self.space += size;
+        self.check_space()
     }
 
     pub(crate) fn prim(&mut self, name: &str, f: Prim) {
@@ -86,6 +110,7 @@ impl Forth {
     /// Deletes the words from index `len` on, for MARKER and FORGET.
     pub(crate) fn forget_from(&mut self, len: usize) {
         for w in self.dict.drain(len..) {
+            self.space -= w.size;
             if let Some(a) = w.name_addr {
                 self.heap.free(a);
             }

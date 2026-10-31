@@ -61,6 +61,7 @@ impl Forth {
         extension.install(self);
         self.extensions.insert(extension.name().to_ascii_uppercase(), extension.version());
         self.fence = self.dict.len();
+        self.system_space += self.space_used();
     }
 
     /// The word list with this name, made if there is none yet; FORTH gives
@@ -112,6 +113,16 @@ impl Forth {
             .or_insert_with(|| Box::<T>::default())
             .downcast_mut()
             .expect("each state is stored under its own type")
+    }
+
+    /// The state of type `T`, if there is one, without making it.
+    pub(crate) fn peek_state<T: Any>(&self) -> Option<&T> {
+        self.host_state.get(&TypeId::of::<T>())?.downcast_ref()
+    }
+
+    /// Forgets the state of type `T`.
+    pub(crate) fn forget_state<T: Any>(&mut self) {
+        self.host_state.remove(&TypeId::of::<T>());
     }
 
     /// The number of cells on the data stack.

@@ -18,6 +18,7 @@ pub(crate) fn install(f: &mut Forth) {
         if !f.ctrl.is_empty() {
             return Err(Throw::new(CONTROL_MISMATCH));
         }
+        f.count_code(xt, f.code.len())?;
         f.dict[xt].kind = Kind::Colon(Rc::new(std::mem::take(&mut f.code)));
         // A :NONAME definition is only reachable through its xt.
         f.dict[xt].hidden = f.dict[xt].name.is_empty();
@@ -34,7 +35,7 @@ pub(crate) fn install(f: &mut Forth) {
         let name = f.name()?;
         f.align_here();
         let addr = f.here as Cell;
-        f.define(&name, Kind::Created { addr, does: None });
+        f.new_word(&name, Kind::Created { addr, does: None })?;
         Ok(())
     });
     f.compile_imm("DOES>", |f| {
@@ -47,7 +48,7 @@ pub(crate) fn install(f: &mut Forth) {
     f.prim("CONSTANT", |f| {
         let name = f.name()?;
         let v = f.pop()?;
-        f.define(&name, Kind::Constant(v));
+        f.new_word(&name, Kind::Constant(v))?;
         Ok(())
     });
     f.prim("VALUE", |f| {
@@ -56,7 +57,7 @@ pub(crate) fn install(f: &mut Forth) {
         f.align_here();
         let addr = f.reserve(CELL)?;
         f.set(addr, v);
-        f.define(&name, Kind::Value(addr));
+        f.new_word(&name, Kind::Value(addr))?;
         Ok(())
     });
     f.prim("2VALUE", |f| {
@@ -66,7 +67,7 @@ pub(crate) fn install(f: &mut Forth) {
         let addr = f.reserve(2 * CELL)?;
         f.set(addr, x2);
         f.set(addr + CELL, x1);
-        f.define(&name, Kind::TwoValue(addr));
+        f.new_word(&name, Kind::TwoValue(addr))?;
         Ok(())
     });
     f.prim("DEFER", |f| {
@@ -74,14 +75,14 @@ pub(crate) fn install(f: &mut Forth) {
         f.align_here();
         let addr = f.reserve(CELL)?;
         f.set(addr, -1); // no action yet
-        f.define(&name, Kind::Defer(addr));
+        f.new_word(&name, Kind::Defer(addr))?;
         Ok(())
     });
     f.prim("MARKER", |f| {
         let name = f.name()?;
         let (dict_len, here, wordlists) = (f.dict.len(), f.here, f.wordlists.len());
         let (order, current_wid) = (f.order.clone(), f.current_wid);
-        f.define(&name, Kind::Marker { dict_len, here, wordlists, order, current_wid });
+        f.new_word(&name, Kind::Marker { dict_len, here, wordlists, order, current_wid })?;
         Ok(())
     });
     // FORGET name: deletes the word and everything defined after it. It

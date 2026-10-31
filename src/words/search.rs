@@ -13,6 +13,10 @@ pub(crate) fn install(f: &mut Forth) {
     });
     f.prim("WORDLIST", |f| {
         f.wordlists.push(None);
+        if let Err(e) = f.check_space() {
+            f.wordlists.pop();
+            return Err(e);
+        }
         f.push(f.wordlists.len() as Cell);
         Ok(())
     });

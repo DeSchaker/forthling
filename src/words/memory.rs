@@ -63,6 +63,7 @@ pub(crate) fn install(f: &mut Forth) {
         let (a, n) = f.pop2()?;
         if n > 0 {
             let i = f.check(a, n)?;
+            f.charge(n as usize)?;
             f.mem[i..i + n as usize].fill(c as u8);
         }
         Ok(())
@@ -73,6 +74,7 @@ pub(crate) fn install(f: &mut Forth) {
         if n > 0 {
             let s = f.check(src, n)?;
             let d = f.check(dst, n)?;
+            f.charge(n as usize)?;
             // copy_within handles overlapping ranges in either direction
             f.mem.copy_within(s..s + n as usize, d);
         }

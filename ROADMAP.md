@@ -101,6 +101,7 @@ over the modules and are `pub(crate)`, except the public API in `lib.rs` and `ho
 | `terminal.rs` | the trait `Input` and `Stdin` (standard input through a thread, for `KEY?`) |
 | `blocks.rs` | the block file and the block buffers (`Blocks`), `LOAD` and `LIST` |
 | `heap.rs` | the heap of `ALLOCATE FREE RESIZE` (`Heap`), `data_end()` |
+| `json.rs` | the JSON words (`Json: Extension`): reading in place (`whole`, `entries`, `follow`, `unescape`), writing (`Writers`, `<JSON JSON>`) |
 | `sandbox.rs` | `Limits`, `Permission`, the budget of an evaluation (`evaluation`, `step`), `emit_bytes`/`emit_memory`, `sleep` |
 | `host.rs` | the host API: `Extension`, `wordlist`, `add_word`, `state`, `pop_bytes`/`push_bytes`, `memory`, `stack`, `take_output` (tested from outside in `tests/host.rs`) |
 | `float.rs` | the float stack (`fpush`, `fpop`), `F@`/`F!` in memory, text to float (`to_float`) and float to text (`represent`, `fixed`, `scientific`) |
@@ -117,10 +118,25 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
 
 ### Next session: resume here
 
-- **Next step:** step 5 of the revised order, the JSON words (or step 7, WebAssembly,
-  if the website comes first). All word sets are there (except
-  `;CODE ASSEMBLER CODE EDITOR`), as are the statement of section 4.1, the host API, the
-  Python module, the SQLite words and the sandbox.
+- **Next step:** step 6 of the revised order, the MCP server. All word sets are there
+  (except `;CODE ASSEMBLER CODE EDITOR`), as are the statement of section 4.1, the host
+  API, the Python module, the SQLite words, the sandbox and the JSON words.
+- **JSON (2026-10-31):** step 5 of the revised order is done, in `src/json.rs`, in the
+  core at the maintainer's request (no dependency is needed), as the extension
+  `forthling::Json` (word list `JSON`, `FORTHLING-JSON`). `Forth::new()` stays plain
+  standard; the program (`main.rs`, also `forthling-sqlite`) and the Python module install
+  it. Reading works on the text in place: a JSON value is `( c-addr u )` and the words
+  return pieces of it (no handles, no `FREE`, no memory outside Forth); each lookup reads
+  the text again (`whole` validates, `entries` lists an array or object), nesting up to
+  `MAX_DEPTH` 512 so the Rust stack is safe. A missing key or wrong kind gives flag 0, no
+  THROW; a key that occurs twice gives the last. `JSON>STRING` and `JSON-NAME` unescape
+  into `ALLOCATE`d memory (surrogate pairs joined, a lone one becomes U+FFFD). Writing
+  goes to the output (through `emit_bytes`, so the output limit holds) or, between
+  `<JSON` and `JSON>` (like `<# #>`, nestable, at the maintainer's request), to a string
+  that `JSON>` gives `ALLOCATE`d; that string may not grow past the memory size (-59).
+  The writer tracks the open arrays and objects (`Writers` in `Forth::state`) and puts
+  the commas; a structure that does not fit throws -22, and `reset` forgets the writers
+  after an error (`forget_state`). Tests: `tests/json.rs`, `test_json` in python.
 - **Sandbox (2026-10-31):** step 4 of the revised order is done, in `src/sandbox.rs`.
   `Limits { steps, time, output }` per evaluation (a call of `interpret`/`include` by the
   host; `evaluation` fills the `Budget` only at depth 0, so a host word that calls
@@ -142,6 +158,24 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
   so that `ATTACH` and `VACUUM INTO` cannot write a file (rusqlite feature `limits`).
   Tests: `tests/sandbox.rs`, `sandbox` tests in `python/tests` and
   `the_sandbox_keeps_sql_away_from_files`.
+- **Sandbox, second round (2026-10-31, with JSON):** reviewing how the sandbox treats
+  JSON showed three gaps, now closed. (1) A step could be much work, and the clock is read
+  only every 4096 steps: `charge(bytes)` counts one step per 64 bytes (`BYTES_PER_STEP`)
+  and reads the clock when it passes a multiple of 4096; called by `MOVE CMOVE CMOVE> FILL
+  COMPARE SEARCH TYPE DUMP EVALUATE REPLACES SUBSTITUTE UNESCAPE X-WIDTH`, by
+  `ALLOCATE`/`RESIZE` (16 bytes per heap block, for first fit) and by the JSON words (the
+  text length, times the path segments for `JSON@`). `SEARCH` was naive O(n·m) and is now
+  Knuth-Morris-Pratt (`find` in `words/string.rs`). (2) Nested `<JSON` strings counted
+  each on its own: now all together at most the memory size, and `<JSON` and `JSON[ JSON{`
+  nest at most 512 deep. Validation no longer collects entries (`entries(…, collect)`).
+  (3) Definitions, code, word lists and `REPLACES` texts live in Rust, outside Forth
+  memory, and could grow without bound over many evaluations: `Limits::space` (4 MiB in
+  the sandbox, `--max-space`, `max_space=`) counts them (`Word::size`, `Forth::space`,
+  `system_space` for the system and extensions; `new_word` instead of `define` for the
+  program's words, `count_code` at `;`, `check_space` in `WORDLIST`, `REPLACES`, the JSON
+  writers and every 4096 steps for code being compiled; `forget_from` gives it back, also
+  in `reset` and `catch`). The core tests of the suite take about 100 KiB. The benchmark
+  stays within about 2%.
 - **SQLite (2026-10-31):** step 3 of "Later: extensions" is done, in `sqlite/`: a crate
   `forthling-sqlite` (own `[workspace]`, like `python/`) with rusqlite 0.40 `bundled`
   (0.41 needs Rust 1.89). The library has `Sqlite: Extension`; the binary
@@ -665,7 +699,7 @@ environment that returns the stack after every line makes up for that.
    - Capabilities to switch on or off: files, blocks, `BYE`, reading the terminal.
      Extensions (SQLite, HTTP) fall under them too.
    - Through the host API, and as options of the program.
-5. **JSON words.** The language agents and tools speak: parse JSON into Forth data, and
+5. ✅ **JSON words.** The language agents and tools speak: parse JSON into Forth data, and
    give the stack and values back as JSON.
 6. **An MCP server** (`forthling-mcp`): tools such as `forth_eval` (a session that keeps its
    state between calls), `forth_stack` and `forth_reset`, so any agent can use forthling

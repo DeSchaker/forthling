@@ -34,6 +34,8 @@ latest stable Rust, on Linux and Windows.
 - `src/words/*.rs`: the primitives, one file per word set. Each file has an `install`
   function, called from `src/words/mod.rs`.
 - `src/prelude.fs`: the words that are defined in Forth itself.
+- `src/json.rs`: the JSON words, an extension that is part of the core (`forthling::Json`);
+  `tests/json.rs` tests them.
 - `src/host.rs`: the public API for adding words from Rust (`Extension`, `add_word`);
   `tests/host.rs` uses it from the outside.
 - `python/`: the Python module, a crate of its own on top of the host API, with its own
@@ -58,7 +60,10 @@ latest stable Rust, on Linux and Windows.
 - Output goes through `emit_bytes`, `emit_memory` or `emit_str`, never straight into the
   output buffer, so the output limit of the sandbox holds. Code that reaches a file checks
   `Permission::Files` first (`need`, or `permits` for a word with an ior), and so does
-  an extension. See `src/sandbox.rs`.
+  an extension. A word that handles much data at once calls `charge(bytes)` before the
+  work, so the time limit holds. A word of the program is made with `new_word`, not
+  `define`, and whatever else grows outside Forth memory is counted in `space_used` and
+  checked with `check_space`. See `src/sandbox.rs`.
 - Keep a change small and give it tests. If it changes how forthling behaves, update
   `COMPLIANCE.md` and the README where they describe that behaviour. `VERKLARING.md` is
   its Dutch translation; the maintainer keeps it in step, so you need not.

@@ -18,6 +18,11 @@ impl Heap {
         Heap { blocks: BTreeMap::new(), top }
     }
 
+    /// The number of allocated blocks.
+    pub(crate) fn blocks(&self) -> usize {
+        self.blocks.len()
+    }
+
     /// The lowest address in use by the heap; data space ends here.
     pub(crate) fn floor(&self) -> usize {
         self.blocks.keys().next().copied().unwrap_or(self.top)

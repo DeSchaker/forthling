@@ -59,6 +59,7 @@ pub(crate) fn install(f: &mut Forth) {
     });
     f.prim("EVALUATE", |f| {
         let (i, n) = f.pop_str()?;
+        f.charge(n)?;
         f.evaluate(i, n)
     });
     f.prim("ABORT", |_| Err(Throw::new(ABORT)));

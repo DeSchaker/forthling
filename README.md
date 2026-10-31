@@ -28,10 +28,13 @@ forthling [options] [file ...]
   -m, --memory SIZE  memory for data space and heap, such as 4M (default 1M)
   -b, --blocks FILE  the block file (default blocks.fb in the current directory)
       --sandbox      no file access from Forth, and the limits below: 10000000
-                     steps, 5s and 1M of output per line of the REPL or per file
+                     steps, 5s and 1M of output per line of the REPL or per file,
+                     and 4M of space for definitions and the like in all
       --max-steps N  at most N steps (instructions and words) per evaluation
       --max-time T   at most T per evaluation, such as 5s or 500ms
       --max-output SIZE  at most SIZE bytes of output per evaluation
+      --max-space SIZE   at most SIZE bytes outside Forth memory for definitions,
+                     code, word lists and the like
   -h, --help         show this help
 ```
 
@@ -73,6 +76,8 @@ block file with `Forth::set_block_file(path)`.
   `KEY?`, and `AT-XY`/`PAGE` for the screen
 - `SOURCE`, `>IN`, `STATE`, `WORD`, `PARSE`, `REFILL`, `SAVE-INPUT`, `FIND` and `EVALUATE`,
   working on input buffers in Forth memory
+- JSON: read it in place (`JSON@` with a path such as `users[0].name`) and write it to the
+  output or to a string (see [JSON](#json))
 - A sandbox for code you do not trust: limits on steps, time and output, and no file
   access (see [Sandbox](#sandbox))
 - Errors as standard THROW codes, e.g. `demo.fs:3: error -13: undefined word: FOO`,
@@ -121,6 +126,42 @@ forth.interpret("ALSO MATHS 3 CUBE .")?;
 assert_eq!(forth.output(), b"27 ");
 ```
 
+### JSON
+
+The word list `JSON` (`ALSO JSON`) is built in; the forthling program and the Python
+module install it, a Rust program with `forth.install(&forthling::Json)`. A JSON value is
+its text, a string `( c-addr u )`: the reading words give back pieces of it, so nothing is
+copied. A missing key or a value of the wrong kind gives the flag 0.
+
+```forth
+ALSO JSON
+: DOC  S\" {\"users\": [{\"name\": \"Ada\", \"born\": 1815}]}" ;
+DOC S" users[0].name" JSON@ DROP JSON>STRING DROP TYPE   \ Ada (ALLOCATEd: FREE it)
+DOC S" users[0].born" JSON@ DROP JSON>NUMBER DROP .      \ 1815
+JSON{ S" sum" JSON-KEY 6 JSON-NUMBER S" ok" JSON-KEY -1 JSON-FLAG JSON}
+\ {"sum":6,"ok":true}
+```
+
+| Reading | Stack |
+|---|---|
+| `JSON-VALID?` | `( json -- flag )` |
+| `JSON-TYPE` | `( json -- n )`: 0 null, 1 boolean, 2 number, 3 string, 4 array, 5 object, -1 no JSON |
+| `JSON-GET` | `( json c-addr u -- json' flag )`: the value of a key |
+| `JSON-NTH` | `( json n -- json' flag )`: element n (from 0) of an array or object |
+| `JSON-NAME` | `( json n -- c-addr u flag )`: key n of an object, `ALLOCATE`d |
+| `JSON-LENGTH` | `( json -- n )`: elements of an array or object, else -1 |
+| `JSON@` | `( json c-addr u -- json' flag )`: a path, such as `a.b[2]` or `["a.b"]` |
+| `JSON>NUMBER` | `( json -- n flag )`: an integer that fits in a cell |
+| `JSON>FLOAT` | `( json -- flag ) ( F: -- r )` |
+| `JSON>FLAG` | `( json -- flag ok )` |
+| `JSON>STRING` | `( json -- c-addr u flag )`: without its escapes, `ALLOCATE`d |
+
+Writing goes to the output, or between `<JSON` and `JSON>` (which gives `( c-addr u )`,
+`ALLOCATE`d) to a string; the commas come by themselves. `JSON{ JSON} JSON[ JSON]`,
+`JSON-KEY ( c-addr u -- )`, `JSON-STRING ( c-addr u -- )`, `JSON-NUMBER ( n -- )`,
+`JSON-FLOAT ( F: r -- )`, `JSON-FLAG ( flag -- )`, `JSON-NULL` and `JSON-RAW ( json -- )`.
+A structure that does not fit, such as a value in an object without its key, throws -22.
+
 ### Sandbox
 
 Code that is not trusted, from a user or an AI agent, runs in a sandbox:
@@ -133,12 +174,16 @@ assert_eq!(error.to_string(), "error -258: limit exceeded: steps");
 
 `Forth::sandboxed()` permits no files (the FILE words give the ior -259, `INCLUDE` and the
 block words throw -259), has no terminal input, and limits each evaluation (each call of
-`interpret` or `include`) to 10 million steps, 5 seconds and 1 MiB of output.
-`set_limits(Limits { … })` and `permit(Permission::Files, …)` set them one by one. A limit
-that is reached throws -258, and every step after it throws again, so `CATCH` cannot go
-on. The memory is bounded anyway, by its size. The sandbox restricts the Forth program,
-not the host: `include` called by the host still reads its file. Extensions follow the
-permissions too; SQLite then only opens `:memory:`.
+`interpret` or `include`) to 10 million steps, 5 seconds and 1 MiB of output. A step is an
+instruction or a word, and words that handle much data at once (`MOVE`, `SEARCH`, the JSON
+words and the like) count one step per 64 bytes, so the time limit holds for them too.
+Forth memory has its fixed size; what a program makes outside it (definitions and their
+code, word lists, `REPLACES` texts, JSON strings) is limited to 4 MiB in all, its
+`space`. `set_limits(Limits { … })` and `permit(Permission::Files, …)` set them one by
+one. A limit that is reached throws -258, and every step after it throws again, so
+`CATCH` cannot go on. The sandbox restricts the Forth program, not the host: `include`
+called by the host still reads its file. Extensions follow the permissions too; SQLite
+then only opens `:memory:`.
 
 ### From Python
 

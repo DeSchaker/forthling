@@ -221,10 +221,11 @@ impl Forth {
         self.sources.truncate(1);
         self.sync_blk();
         if let Some(xt) = self.current.take() {
-            self.dict.truncate(xt);
+            self.forget_from(xt);
         }
         self.set_state(false);
         self.code.clear();
+        self.reset_json();
     }
 
     pub fn flush(&mut self) {

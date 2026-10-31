@@ -2,5 +2,5 @@
 //! cli.rs in the library).
 
 fn main() {
-    forthling::cli::main(&[]);
+    forthling::cli::main(&[&forthling::Json]);
 }

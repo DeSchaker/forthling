@@ -134,3 +134,68 @@ fn a_sandboxed_system() {
     assert_eq!(output(&f), "144 ");
     assert_eq!(Forth::new().limits(), Limits::default());
 }
+
+#[test]
+fn big_words_cost_steps_in_proportion() {
+    // A MOVE of 64 KiB costs 1024 steps, so ten of them pass 10000.
+    let mut f = Forth::with_memory(1 << 20);
+    f.set_limits(steps(10_000));
+    let moves = "CREATE BUF 131072 ALLOT : M 10 0 DO BUF BUF 65536 + 65536 MOVE LOOP ; M";
+    assert_eq!(fails(&mut f, moves).code, LIMIT_EXCEEDED);
+    // The time limit holds for them too, not only after 4096 of them.
+    let mut f = Forth::with_memory(4 << 20);
+    f.set_limits(Limits { time: Some(Duration::from_millis(200)), ..Limits::default() });
+    let start = Instant::now();
+    let copies = "CREATE BUF 2097152 ALLOT : C BEGIN BUF BUF 1048576 + 1048576 MOVE AGAIN ; C";
+    assert_eq!(fails(&mut f, copies).to_string(), "error -258: limit exceeded: time");
+    assert!(start.elapsed() < Duration::from_secs(2), "{:?}", start.elapsed());
+}
+
+#[test]
+fn search_takes_linear_time() {
+    // aaaa…a in aaaa…a: a naive search would compare some 10^10 bytes.
+    let mut f = Forth::with_memory(4 << 20);
+    let start = Instant::now();
+    let search = ": A ( n -- c-addr n ) HERE OVER ALLOT SWAP 2DUP [CHAR] a FILL ; \
+                  1000000 A 200000 A 2DUP + 1- CHAR b SWAP C! SEARCH . 2DROP";
+    f.interpret(search).unwrap();
+    assert_eq!(output(&f), "0 ");
+    assert!(start.elapsed() < Duration::from_secs(2), "{:?}", start.elapsed());
+    let mut f = Forth::new();
+    f.interpret(r#"S" hello world" S" o w" SEARCH . TYPE  S" abc" S" " SEARCH . TYPE"#).unwrap();
+    assert_eq!(output(&f), "-1 o world-1 abc");
+}
+
+#[test]
+fn the_space_limit() {
+    let mut f = limited(Limits { space: Some(20_000), ..Limits::default() });
+    assert_eq!(f.space(), 0);
+    f.interpret(": DEF S\" : X 1 2 3 ;\" EVALUATE ;").unwrap();
+    let used = f.space();
+    assert!(used > 0 && used < 1000, "{used}");
+    let e = fails(&mut f, ": MANY 10000 0 DO DEF LOOP ; MANY");
+    assert_eq!(e.to_string(), "error -258: limit exceeded: space");
+    assert!(f.space() <= 20_000);
+    // MARKER gives the space back.
+    let mut f = limited(Limits { space: Some(20_000), ..Limits::default() });
+    f.interpret(": DEF S\" : X 1 2 3 ;\" EVALUATE ;").unwrap();
+    let before = f.space();
+    f.interpret("MARKER GONE : MORE 50 0 DO DEF LOOP ; MORE").unwrap();
+    assert!(f.space() > before);
+    f.interpret("GONE").unwrap();
+    assert_eq!(f.space(), before);
+    // So do the words of a definition that went wrong, and code being compiled
+    // counts while it grows.
+    f.interpret(": GEN 0 DO POSTPONE DUP LOOP ; IMMEDIATE").unwrap();
+    let before = f.space();
+    assert_eq!(fails(&mut f, ": BIG [ 1000000 ] GEN ;").code, LIMIT_EXCEEDED);
+    assert_eq!(f.space(), before);
+    assert_eq!(
+        fails(&mut f, ": LISTS 100000 0 DO WORDLIST DROP LOOP ; LISTS").code,
+        LIMIT_EXCEEDED
+    );
+    // Replacing a REPLACES text takes no more space.
+    let mut f = limited(Limits { space: Some(20_000), ..Limits::default() });
+    f.interpret(r#": R 1000 0 DO S" some text" S" name" REPLACES LOOP ; R"#).unwrap();
+    assert!(f.space() < 20_000);
+}

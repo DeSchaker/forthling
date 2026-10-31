@@ -36,11 +36,12 @@ except forthling.ForthError as e:
 ```
 
 - `Forth(memory=None, input="", sandbox=False, max_steps=None, max_time=None,
-  max_output=None)`: `memory` is the size in bytes (1 MiB by default); `input` is what
+  max_output=None, max_space=None)`: `memory` is the size in bytes (1 MiB by default); `input` is what
   `KEY`, `ACCEPT` and `REFILL` read from the terminal. `sandbox=True` is for code you do
-  not trust: no file access, and each `interpret` is limited to 10 million steps, 5
-  seconds and 1 MiB of output. `max_steps`, `max_time` (seconds) and `max_output` (bytes)
-  set a limit of their own, with or without the sandbox. A limit that is reached raises
+  not trust: no file access, each `interpret` is limited to 10 million steps, 5 seconds
+  and 1 MiB of output, and definitions and the like to 4 MiB in all. `max_steps`,
+  `max_time` (seconds), `max_output` and `max_space` (bytes) set a limit of their own,
+  with or without the sandbox. A limit that is reached raises
   `ForthError` with code -258, something forbidden -259.
 - `interpret(text)` and `include(path)` return what was printed. An uncaught `THROW`
   raises `ForthError`, with `code` (the THROW code) and `output` (what was printed
@@ -54,6 +55,9 @@ except forthling.ForthError as e:
   `THROW -257` in Forth; if nothing catches it, `interpret` raises the exception itself.
 - `finished` tells whether `BYE` was executed.
 - `S" FORTHLING-PYTHON" ENVIRONMENT?` gives `1 true` in Forth.
+- The JSON words are installed (`ALSO JSON`; see the
+  [README](https://github.com/DeSchaker/forthling#json)), so Forth can read JSON that
+  Python passes in and write JSON that Python reads with `json.loads`.
 
 ## Testing
 

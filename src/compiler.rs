@@ -20,7 +20,7 @@ impl Forth {
         if self.current.is_some() {
             return Err(Throw::new(COMPILER_NESTING));
         }
-        let xt = self.define(name, Kind::Colon(Rc::new(Vec::new())));
+        let xt = self.new_word(name, Kind::Colon(Rc::new(Vec::new())))?;
         self.dict[xt].hidden = true;
         self.current = Some(xt);
         self.set_state(true);

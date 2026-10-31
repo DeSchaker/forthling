@@ -269,7 +269,7 @@ als niets ze vangt (de meldingen zelf zijn Engels):
 
 forthling heeft drie eigen codes: -256, invoer te diep genest (meer dan 15 bestanden,
 `EVALUATE`-strings of ge-`LOAD`-e blocks in elkaar); -258, een limiet van de zandbak
-bereikt (de melding noemt welke: `steps`, `time` of `output`); en -259, iets wat de
+bereikt (de melding noemt welke: `steps`, `time`, `output` of `space`); en -259, iets wat de
 zandbak niet toestaat (zie Zandbak). De Python-module voegt -257 toe, een
 Python-exceptie in een woord dat in Python geschreven is, en de SQLite-woorden -260, een
 fout die SQLite meldt, en -261, een ongeldige handle van een database of statement (zie
@@ -533,8 +533,16 @@ beschrijft. In de zandbak:
 
 - **Limieten** gelden per evaluatie, een aanroep van `interpret` of `include` door de host
   (in de REPL elke regel). Een stap is een instructie van gecompileerde code of een woord
-  dat de tekstinterpreter uitvoert; getallen die hij op de stack zet, zijn geen stap. Een
-  bereikte limiet gooit -258; elke stap daarna gooit opnieuw, zodat een `CATCH` het wel
+  dat de tekstinterpreter uitvoert; getallen die hij op de stack zet, zijn geen stap.
+  Woorden die veel data in één keer verwerken (`MOVE`, `CMOVE`, `CMOVE>`, `FILL`,
+  `COMPARE`, `SEARCH`, `TYPE`, `DUMP`, `EVALUATE`, `REPLACES`, `SUBSTITUTE`, `UNESCAPE`,
+  `X-WIDTH`, `ALLOCATE`, `RESIZE` en de JSON-woorden) tellen één stap extra per 64 bytes,
+  zodat de tijdlimiet ook voor hen geldt. `SEARCH` kost tijd lineair in de lengtes. De
+  limiet op **space** geldt niet per evaluatie maar in totaal: wat de eigen definities
+  van het programma, hun code, woordenlijsten, `REPLACES`-teksten en JSON-strings buiten
+  het Forth-geheugen innemen, min wat `MARKER` en `FORGET` weghalen (in de zandbak 4 MiB;
+  een programma als de core-tests van de testsuite neemt zo'n 100 KiB). Een definitie die
+  erover zou gaan, vervalt. Een bereikte limiet gooit -258; elke stap daarna gooit opnieuw, zodat een `CATCH` het wel
   ziet maar niet verder kan. Uitvoer voorbij de limiet vervalt. `MS` dat de tijdlimiet
   zou passeren, gooit meteen. In WebAssembly bestaat de tijdlimiet niet.
 - **Zonder `Permission::Files`** geven de FILE-woorden die een bestand noemen
@@ -555,7 +563,17 @@ blijven daarbij zoals ze zijn:
   `FORTHLING-SQLITE`, en geeft dan haar versie en waar. `[DEFINED]` test op één woord.
 - De woorden van een extensie horen bij het systeem: `FORGET` gooit er -15 voor.
 
-Het programma forthling zelf installeert geen extensies. De Python-module (`python/`)
+Het programma forthling installeert één extensie die bij forthling zelf hoort: de
+JSON-woorden (`FORTHLING-JSON`, versie 1, woordenlijst `JSON`; zie de README). Een
+JSON-waarde is haar tekst in het geheugen; de leeswoorden geven stukken daarvan terug, de
+strings van `JSON>STRING` en `JSON-NAME` zijn ge-`ALLOCATE`d. Ze lezen arrays en objecten
+tot 512 diep genest; dieper is voor hen geen geldige JSON. Schrijven gooit -22 bij een
+structuur die niet klopt of dieper dan 512 nest, ook met `<JSON` (en na een fout is wat
+half geschreven was vergeten), en -59 als de strings tussen `<JSON` en `JSON>`, alle
+geneste samen, groter zouden worden dan het geheugen. `JSON-NUMBER`
+schrijft decimaal, wat `BASE` ook is, `JSON-FLOAT` schrijft `null` voor oneindig of NaN,
+en tekst die geen UTF-8 is, wordt geschreven met U+FFFD. `Forth::new()` installeert niets.
+De Python-module (`python/`)
 installeert `FORTHLING-PYTHON` (versie 1), zonder eigen woorden: de woorden die een
 Python-programma toevoegt, komen in `FORTH-WORDLIST` of in een woordenlijst die het noemt.
 Een Python-exceptie in zo'n woord gooit -257, wat `CATCH` vangt; ongevangen krijgt het

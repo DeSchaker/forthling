@@ -5,9 +5,11 @@ write and delete files. Running untrusted Forth code that way is therefore unsaf
 not a vulnerability.
 
 For code you do not trust there is the sandbox (`Forth::sandboxed()`, `--sandbox`, or
-`sandbox=True` in Python): no file access from Forth, and limits on the steps, the time
-and the output of each evaluation. Getting around it is a vulnerability: reaching a file,
-or running on after a limit was reached. Words that a host program adds in Rust or Python
+`sandbox=True` in Python): no file access from Forth, limits on the steps, the time and
+the output of each evaluation, and a limit on the space a program takes outside its Forth
+memory. Getting around it is a vulnerability: reaching a file, running on after a limit
+was reached, one step that takes far longer than the time limit, or memory of the host
+growing past the limits. Words that a host program adds in Rust or Python
 run with the rights of that program; the sandbox cannot restrict them, so a host that
 offers them to untrusted code should check `Forth::permits` as the SQLite words do.
 

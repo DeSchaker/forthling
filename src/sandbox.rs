@@ -20,15 +20,21 @@ pub struct Limits {
     pub time: Option<Duration>,
     /// Bytes of output.
     pub output: Option<usize>,
+    /// Bytes outside Forth memory that the program's own definitions, code,
+    /// word lists, REPLACES texts and JSON strings take. Unlike the other
+    /// limits, this one counts everything since the system was made, less
+    /// what MARKER and FORGET remove.
+    pub space: Option<usize>,
 }
 
 impl Limits {
-    /// The limits of `Forth::sandboxed`: 10 million steps, 5 seconds and
-    /// 1 MiB of output.
+    /// The limits of `Forth::sandboxed`: 10 million steps, 5 seconds, 1 MiB
+    /// of output and 4 MiB of space.
     pub const SANDBOX: Limits = Limits {
         steps: Some(10_000_000),
         time: Some(Duration::from_secs(5)),
         output: Some(1 << 20),
+        space: Some(4 << 20),
     };
 }
 
@@ -66,11 +72,22 @@ impl Default for Budget {
 
 impl Budget {
     /// Marks a limit as reached; every step after it throws.
-    fn spend(&mut self, what: &'static str) {
+    pub(crate) fn spend(&mut self, what: &'static str) {
         self.spent.get_or_insert(what);
         self.steps = 0;
     }
 }
+
+/// Bytes of work that count as one step, for the words that handle much
+/// data at once (MOVE, SEARCH, the JSON words and the like).
+const BYTES_PER_STEP: usize = 64;
+
+/// What the dictionary, a word list and a REPLACES text take outside Forth
+/// memory, as counted for `Limits::space`.
+pub(crate) const WORD_SPACE: usize = std::mem::size_of::<Word>();
+pub(crate) const INSTR_SPACE: usize = std::mem::size_of::<Instr>();
+pub(crate) const WORDLIST_SPACE: usize = 32;
+pub(crate) const REPLACES_SPACE: usize = 64;
 
 /// How often the clock is read, in steps.
 const CLOCK_EVERY: u64 = 4096;
@@ -96,6 +113,14 @@ impl Forth {
     /// and every step after that throws again, so CATCH cannot go on.
     pub fn set_limits(&mut self, limits: Limits) {
         self.limits = limits;
+    }
+
+    /// The space outside Forth memory that the program's definitions, code,
+    /// word lists, REPLACES texts and JSON strings take now, in bytes (see
+    /// `Limits::space`); the words of the system and of extensions are not
+    /// counted.
+    pub fn space(&self) -> usize {
+        self.space_used()
     }
 
     /// The limits of each evaluation.
@@ -167,7 +192,52 @@ impl Forth {
             return Err(limit_reached(what));
         }
         b.steps -= 1;
-        self.check_clock()
+        self.check_clock()?;
+        // Code being compiled grows outside Forth memory too.
+        self.check_space()
+    }
+
+    /// Counts work of `bytes` bytes as steps, one per BYTES_PER_STEP, and
+    /// reads the clock when that passes a multiple of CLOCK_EVERY. Words that
+    /// handle much data call it before they do the work.
+    pub(crate) fn charge(&mut self, bytes: usize) -> Res {
+        let cost = (bytes / BYTES_PER_STEP) as u64;
+        if cost == 0 {
+            return Ok(());
+        }
+        let b = &mut self.budget;
+        if b.steps < cost {
+            let what = *b.spent.get_or_insert("steps");
+            b.steps = 0;
+            return Err(limit_reached(what));
+        }
+        let before = b.steps;
+        b.steps -= cost;
+        if before / CLOCK_EVERY != b.steps / CLOCK_EVERY {
+            self.check_clock()?;
+        }
+        Ok(())
+    }
+
+    /// The space outside Forth memory that the program takes now (see
+    /// `Limits::space`).
+    pub(crate) fn space_used(&self) -> usize {
+        let total = self.space
+            + self.code.len() * INSTR_SPACE
+            + self.wordlists.len() * WORDLIST_SPACE
+            + self.json_space();
+        total.saturating_sub(self.system_space)
+    }
+
+    /// Throws -258 with `space` when the program takes more than its limit.
+    pub(crate) fn check_space(&mut self) -> Res {
+        match self.limits.space {
+            Some(limit) if self.space_used() > limit => {
+                self.budget.spend("space");
+                Err(limit_reached("space"))
+            }
+            _ => Ok(()),
+        }
     }
 
     #[cfg(not(target_arch = "wasm32"))]

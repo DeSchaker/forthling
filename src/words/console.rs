@@ -44,6 +44,7 @@ pub(crate) fn install(f: &mut Forth) {
         let (a, n) = f.pop2()?;
         if n > 0 {
             let i = f.check(a, n)?;
+            f.charge(n as usize)?;
             f.emit_memory(i, n as usize);
         }
         Ok(())

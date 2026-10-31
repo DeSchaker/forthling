@@ -15,6 +15,7 @@ mod float;
 mod heap;
 mod host;
 mod interpreter;
+mod json;
 mod memory;
 mod parse;
 mod run;
@@ -29,6 +30,7 @@ mod xchar;
 mod tests;
 
 pub use host::Extension;
+pub use json::Json;
 pub use memory::{DEFAULT_MEMORY, MAX_MEMORY, MIN_MEMORY};
 pub use sandbox::{Limits, Permission};
 pub use terminal::Input;
@@ -112,6 +114,8 @@ pub struct Forth {
     limits: Limits,              // see sandbox.rs
     budget: Budget,              // what is left of them in this evaluation
     denied: HashSet<Permission>, // what the program may not do
+    space: usize,                // the dictionary and the REPLACES texts outside Forth memory
+    system_space: usize,         // the part of the space that is the system's own
 }
 
 pub(crate) fn flag(b: bool) -> Cell {
@@ -179,11 +183,14 @@ impl Forth {
             limits: Limits::default(),
             budget: Budget::default(),
             denied: HashSet::new(),
+            space: 0,
+            system_space: 0,
         };
         f.set(BASE_ADDR, 10);
         words::install(&mut f);
         f.interpret(include_str!("prelude.fs")).expect("prelude must compile");
         f.fence = f.dict.len();
+        f.system_space = f.space_used();
         f
     }
 }

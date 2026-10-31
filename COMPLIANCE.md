@@ -266,7 +266,7 @@ messages when nothing catches them:
 
 forthling has three codes of its own: -256, input nesting too deep (more than 15 files,
 `EVALUATE`d strings or `LOAD`ed blocks inside each other); -258, a limit of the sandbox
-reached (the message names it: `steps`, `time` or `output`); and -259, something the
+reached (the message names it: `steps`, `time`, `output` or `space`); and -259, something the
 sandbox does not permit (see Sandbox). The Python module adds -257, a
 Python exception in a word written in Python, and the SQLite words -260, an error that
 SQLite reports, and -261, an invalid database or statement handle (see Extensions). A positive code, or one that is
@@ -515,7 +515,15 @@ document. In the sandbox:
 
 - **Limits** apply to each evaluation, a call of `interpret` or `include` by the host (in
   the REPL each line). A step is an instruction of compiled code or a word that the text
-  interpreter executes; numbers that it pushes are no step. Reaching a limit throws -258;
+  interpreter executes; numbers that it pushes are no step. Words that handle much data
+  at once (`MOVE`, `CMOVE`, `CMOVE>`, `FILL`, `COMPARE`, `SEARCH`, `TYPE`, `DUMP`,
+  `EVALUATE`, `REPLACES`, `SUBSTITUTE`, `UNESCAPE`, `X-WIDTH`, `ALLOCATE`, `RESIZE` and the
+  JSON words) count one step more per 64 bytes, so that the time limit holds for them too.
+  `SEARCH` takes time linear in the lengths. The **space** limit is not per evaluation but
+  in all: what the program's own definitions, their code, word lists, `REPLACES` texts and
+  JSON strings take outside Forth memory, less what `MARKER` and `FORGET` remove (in the
+  sandbox 4 MiB; a program like the core tests of the test suite takes some 100 KiB).
+  A definition that would pass it is dropped. Reaching a limit throws -258;
   every step after it throws again, so a `CATCH` can see it but cannot go on. Output past
   the limit is dropped. `MS` that would pass the time limit throws at once. The time limit
   does not exist in WebAssembly.
@@ -537,7 +545,16 @@ standard words as they are:
   and then gives its version and true. `[DEFINED]` tests for a single word.
 - The words of an extension belong to the system: `FORGET` throws -15 for them.
 
-The forthling program itself installs no extensions. The Python module (`python/`) installs
+The forthling program installs one extension that is part of forthling itself: the JSON
+words (`FORTHLING-JSON`, version 1, word list `JSON`; see the README). A JSON value is
+its text in memory; the reading words return pieces of it, the strings of `JSON>STRING`
+and `JSON-NAME` are `ALLOCATE`d. They read arrays and objects nested up to 512 deep;
+deeper is no valid JSON for them. Writing throws -22 for a structure that does not fit or
+that nests deeper than 512, also with `<JSON` (and after an error, what was half written
+is forgotten), and -59 when the strings written between `<JSON` and `JSON>`, all nested
+ones together, would be larger than the memory. `JSON-NUMBER` writes in
+decimal whatever `BASE` is, `JSON-FLOAT` writes `null` for an infinity or a NaN, and text
+that is no UTF-8 is written with U+FFFD. `Forth::new()` installs nothing. The Python module (`python/`) installs
 `FORTHLING-PYTHON` (version 1), without words of its own: the words that a Python program
 adds go into `FORTH-WORDLIST` or into a word list it names. A Python exception in such a
 word throws -257, which `CATCH` catches; uncaught, the Python program gets the exception

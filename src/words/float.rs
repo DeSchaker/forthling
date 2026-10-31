@@ -108,7 +108,7 @@ pub(crate) fn install(f: &mut Forth) {
         f.align_here();
         let addr = f.reserve(FLOAT)?;
         f.fset(addr, r);
-        f.define(&name, Kind::FValue(addr));
+        f.new_word(&name, Kind::FValue(addr))?;
         Ok(())
     });
 

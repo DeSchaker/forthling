@@ -1,5 +1,6 @@
 """Tests of the Python module; run with `python -m unittest discover python/tests`."""
 
+import json
 import math
 import unittest
 
@@ -51,6 +52,13 @@ class InterpretTest(unittest.TestCase):
         f = forthling.Forth()
         self.assertEqual(f.interpret('S" FORTHLING-PYTHON" ENVIRONMENT? . .'), "-1 1 ")
 
+    def test_json(self):
+        f = forthling.Forth()
+        f.interpret("ALSO JSON")
+        self.assertEqual(f.interpret('S" [1, 2, 3]" JSON-LENGTH .'), "3 ")
+        out = f.interpret('JSON{ S" sum" JSON-KEY 6 JSON-NUMBER JSON}')
+        self.assertEqual(json.loads(out), {"sum": 6})
+
 
 class SandboxTest(unittest.TestCase):
     def test_limits(self):
@@ -69,6 +77,10 @@ class SandboxTest(unittest.TestCase):
         self.assertEqual(cm.exception.output, "*****")
         with self.assertRaises(ValueError):
             forthling.Forth(max_time=-1)
+        f = forthling.Forth(max_space=10_000)
+        with self.assertRaises(forthling.ForthError) as cm:
+            f.interpret(': D S" : X ;" EVALUATE ; : M 10000 0 DO D LOOP ; M')
+        self.assertIn("space", str(cm.exception))
 
     def test_sandbox(self):
         f = forthling.Forth(sandbox=True)

@@ -111,12 +111,13 @@ impl PyForth {
     /// A new system with `memory` bytes of memory (1 MiB by default).
     /// `input` is what KEY, ACCEPT and REFILL read; there is none by default.
     /// `sandbox=True` forbids files and limits each evaluation to 10 million
-    /// steps, 5 seconds and 1 MiB of output; `max_steps`, `max_time` (in
-    /// seconds) and `max_output` (in bytes) set a limit of their own.
+    /// steps, 5 seconds and 1 MiB of output, and the space of definitions and
+    /// the like to 4 MiB; `max_steps`, `max_time` (in seconds), `max_output`
+    /// and `max_space` (in bytes) set a limit of their own.
     #[new]
     #[pyo3(signature = (
         memory = None, input = "", sandbox = false,
-        max_steps = None, max_time = None, max_output = None
+        max_steps = None, max_time = None, max_output = None, max_space = None
     ))]
     fn new(
         memory: Option<usize>,
@@ -125,6 +126,7 @@ impl PyForth {
         max_steps: Option<u64>,
         max_time: Option<f64>,
         max_output: Option<usize>,
+        max_space: Option<usize>,
     ) -> PyResult<Self> {
         let mut forth = match memory {
             None => Forth::new(),
@@ -141,6 +143,7 @@ impl PyForth {
         let mut limits = if sandbox { Limits::SANDBOX } else { Limits::default() };
         limits.steps = max_steps.or(limits.steps);
         limits.output = max_output.or(limits.output);
+        limits.space = max_space.or(limits.space);
         if let Some(t) = max_time {
             let time = Duration::try_from_secs_f64(t)
                 .map_err(|_| PyValueError::new_err(format!("max_time must be seconds, not {t}")))?;
@@ -148,6 +151,7 @@ impl PyForth {
         }
         forth.set_limits(limits);
         forth.permit(Permission::Files, !sandbox);
+        forth.install(&forthling::Json);
         forth.install(&PythonHost);
         Ok(PyForth { forth, pending: Rc::default() })
     }

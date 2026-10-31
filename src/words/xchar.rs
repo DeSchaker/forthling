@@ -101,6 +101,7 @@ pub(crate) fn install(f: &mut Forth) {
     });
     f.prim("X-WIDTH", |f| {
         let (i, n) = f.pop_str()?;
+        f.charge(n)?;
         let mut bytes = &f.mem[i..i + n];
         let mut columns = 0;
         while !bytes.is_empty() {

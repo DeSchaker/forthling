@@ -46,12 +46,13 @@ pub(crate) fn install(f: &mut Forth) {
         let old = f.name()?;
         let xt = f.find_or_err(&old)?;
         let (kind, immediate) = (f.dict[xt].kind.clone(), f.dict[xt].immediate);
-        let new = f.define(&name, kind);
+        let new = f.new_word(&name, kind)?;
         f.dict[new].immediate = immediate;
         Ok(())
     });
     f.prim("DUMP", |f| {
         let (i, n) = f.pop_str()?;
+        f.charge(4 * n)?;
         let mut text = String::new();
         for (row, bytes) in f.mem[i..i + n].chunks(16).enumerate() {
             text += &format!("{:08X} ", i + 16 * row);

@@ -81,7 +81,7 @@ impl Forth {
         if current.is_none() {
             // Drop a definition that was started inside the CATCH.
             if let Some(xt) = self.current.take() {
-                self.dict.truncate(xt);
+                self.forget_from(xt);
                 self.code.clear();
                 self.end_local_scope();
             }

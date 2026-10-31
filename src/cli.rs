@@ -19,10 +19,13 @@ options:
   -m, --memory SIZE  memory for data space and heap, such as 4M (default 1M)
   -b, --blocks FILE  the block file (default blocks.fb in the current directory)
       --sandbox      no file access from Forth, and the limits below: 10000000
-                     steps, 5s and 1M of output per line of the REPL or per file
+                     steps, 5s and 1M of output per line of the REPL or per file,
+                     and 4M of space for definitions and the like in all
       --max-steps N  at most N steps (instructions and words) per evaluation
       --max-time T   at most T per evaluation, such as 5s or 500ms
       --max-output SIZE  at most SIZE bytes of output per evaluation
+      --max-space SIZE   at most SIZE bytes outside Forth memory for definitions,
+                     code, word lists and the like
   -h, --help         show this help
 
 SIZE is a number of bytes with an optional K, M or G (binary units). A limit
@@ -56,6 +59,7 @@ struct Args {
     max_steps: Option<String>,
     max_time: Option<String>,
     max_output: Option<String>,
+    max_space: Option<String>,
     files: Vec<String>,
     help: bool,
 }
@@ -112,6 +116,9 @@ fn options() -> Result<Option<Run>, String> {
     if let Some(size) = &args.max_output {
         limits.output = limit(size, parse_bytes)?;
     }
+    if let Some(size) = &args.max_space {
+        limits.space = limit(size, parse_bytes)?;
+    }
     Ok(Some(Run { memory, blocks, sandbox: args.sandbox, limits, files: args.files }))
 }
 
@@ -151,6 +158,7 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
             "--max-steps" => parsed.max_steps = Some(value("a number")?),
             "--max-time" => parsed.max_time = Some(value("a time")?),
             "--max-output" => parsed.max_output = Some(value("a size")?),
+            "--max-space" => parsed.max_space = Some(value("a size")?),
             "-h" | "--help" => parsed.help = true,
             "--" => parsed.files.extend(args.by_ref()),
             a if a.starts_with('-') && a.len() > 1 => {
