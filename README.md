@@ -279,7 +279,7 @@ git clone https://github.com/gerryjackson/forth2012-test-suite.git tests/forth20
 git -C tests/forth2012-test-suite checkout 4c87e56
 ```
 
-forthling needs Rust 1.74 or newer. CI (`.github/workflows/ci.yml`) checks formatting and
-clippy lints and runs all tests, the test suite included, on Rust 1.74 and on the latest
+forthling needs Rust 1.85 or newer. CI (`.github/workflows/ci.yml`) checks formatting and
+clippy lints and runs all tests, the test suite included, on Rust 1.85 and on the latest
 stable Rust on Linux and Windows. It also builds the Python module and runs its tests
 (`python -m unittest discover -s python/tests`, after `pip install ./python`).

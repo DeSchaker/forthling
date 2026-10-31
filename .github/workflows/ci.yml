@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.74"
+          toolchain: "1.85"
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - name: Fetch the Forth-2012 test suite
@@ -48,8 +48,8 @@ jobs:
           git -C tests/forth2012-test-suite checkout --quiet "$SUITE_COMMIT"
       - run: cargo test
 
-  # The Python module in python/, a crate of its own with PyO3. Python 3.14
-  # is the newest version that the PyO3 in python/Cargo.toml knows.
+  # The Python module in python/, a crate of its own with PyO3, on Python
+  # 3.14, the version it is developed with.
   python:
     runs-on: ubuntu-latest
     steps:

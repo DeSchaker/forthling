@@ -58,8 +58,9 @@ style of the suite, with `tester.fr`), and run through `suite_xchar`.
 ### CI and hygiene (since 2026-10-30)
 
 GitHub Actions (`.github/workflows/ci.yml`) runs on every push and pull request:
-`cargo fmt --check`, `cargo clippy --all-targets -D warnings` and `cargo test` on Rust 1.74
-(the `rust-version` in `Cargo.toml`, the same as the local toolchain), plus `cargo test` on
+`cargo fmt --check`, `cargo clippy --all-targets -D warnings` and `cargo test` on Rust 1.85
+(the `rust-version` in `Cargo.toml`; raised from 1.74 on 2026-10-31, see "Next session"),
+plus `cargo test` on
 the latest stable on Linux and Windows. There the test suite is cloned at commit `4c87e56`.
 If you raise the `rust-version`, change the toolchain in `ci.yml` too. `.gitattributes`
 sets all text files to LF, also in a Windows checkout.
@@ -118,11 +119,16 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
   "Later: assembler and editor". All word sets are there (except
   `;CODE ASSEMBLER CODE EDITOR`), as are the statement of section 4.1, the host API and
   the Python module.
+- **Minimum Rust 1.85 (2026-10-31):** raised from 1.74 (November 2023, chosen only because
+  it was installed) to 1.85, the Rust of Debian stable and the first with edition 2024;
+  PyO3 0.30 needs it too. The local toolchain is stable (1.99.1 on 2026-10-31); CI checks
+  1.85. The code is still edition 2021; moving to 2024 (`cargo fix --edition`) is a
+  separate step, not yet done.
 - **Python module (2026-10-31):** step 2 of "Later: extensions" is done, in `python/`: a
   crate `forthling-py` with an empty `[workspace]` of its own, so PyO3 does not end up in
   the core's `Cargo.lock` and plain `cargo` commands in the root still see only the core
-  (a joint workspace can follow once there are more extension crates). PyO3 0.27, the
-  newest that builds on Rust 1.74 (0.30 needs 1.85) and that knows Python 3.14; maturin
+  (a joint workspace can follow once there are more extension crates). PyO3 0.30
+  (first 0.27, while the minimum was Rust 1.74), which knows Python 3.14; maturin
   as build backend (`pip install ./python`). The class `forthling.Forth(memory=None,
   input="")` has `interpret`/`include` (they return the output, via the new core method
   `take_output`), `push pop fpush fpop`, `stack` (new core method `Forth::stack`),
@@ -522,7 +528,7 @@ A Cargo workspace:
 
 | Crate | Contents |
 |---|---|
-| `forthling` | the core: no dependencies, no `unsafe`, Rust 1.74 (as now) |
+| `forthling` | the core: no dependencies, no `unsafe`, Rust 1.85 (as now) |
 | `forthling-sqlite` | word list `SQLITE`, through rusqlite (feature `bundled`) |
 | `forthling-gfx` | word list `GRAPHICS`, for example through minifb or SDL2 |
 | `forthling-win` | word list `WINDOWS`, behind `#[cfg(windows)]` |
@@ -531,7 +537,7 @@ A Cargo workspace:
 | `forthling-cli` | the binary; picks extensions through Cargo features or `forthling.conf` |
 
 That keeps the promises of the core true: no dependencies, no `unsafe` (see `SECURITY.md`)
-and Rust 1.74. An extension may require a newer Rust. CI tests the core on its own and
+and Rust 1.85. An extension may require a newer Rust. CI tests the core on its own and
 also with all extensions enabled.
 
 ### Key: a host API in the core ✅ done (2026-10-31, `src/host.rs`)

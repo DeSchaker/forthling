@@ -12,7 +12,7 @@ pub trait Input: BufRead {
     /// Whether input is waiting. The default looks ahead with `fill_buf`,
     /// which is right for input that never blocks, such as a string.
     fn ready(&mut self) -> bool {
-        self.fill_buf().map_or(false, |b| !b.is_empty())
+        self.fill_buf().is_ok_and(|b| !b.is_empty())
     }
 }
 

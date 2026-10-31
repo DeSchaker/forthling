@@ -19,7 +19,7 @@ pub(crate) fn install(f: &mut Forth) {
     });
     f.prim("FREE", |f| {
         let a = f.pop()?;
-        let freed = usize::try_from(a).map_or(false, |a| f.heap.free(a));
+        let freed = usize::try_from(a).is_ok_and(|a| f.heap.free(a));
         f.push(if freed { 0 } else { FREE_FAILED });
         Ok(())
     });

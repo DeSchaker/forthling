@@ -141,7 +141,8 @@ impl Forth {
     fn block_file(&mut self) -> Res<&mut File> {
         if self.blocks.file.is_none() {
             let path = &self.blocks.path;
-            let file = OpenOptions::new().read(true).write(true).create(true).open(path);
+            let file =
+                OpenOptions::new().read(true).write(true).create(true).truncate(false).open(path);
             let file =
                 file.map_err(|e| Throw::with(BLOCK_READ, format!("{}: {e}", path.display())))?;
             self.blocks.file = Some(file);

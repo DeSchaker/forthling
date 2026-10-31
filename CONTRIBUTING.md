@@ -14,7 +14,7 @@ Security problems go through [SECURITY.md](SECURITY.md), not a public issue.
 
 ## Changing the code
 
-forthling needs Rust 1.74 or newer, and 1.74 is also the oldest version it supports, so
+forthling needs Rust 1.85 or newer, and 1.85 is also the oldest version it supports, so
 please do not use features of newer Rust versions.
 
 Before you open a pull request, run:
@@ -26,7 +26,7 @@ cargo test
 ```
 
 The suite tests need the Forth-2012 test suite at a fixed commit; see
-[Testing](README.md#testing) in the README. CI runs the same checks on Rust 1.74 and on the
+[Testing](README.md#testing) in the README. CI runs the same checks on Rust 1.85 and on the
 latest stable Rust, on Linux and Windows.
 
 ### Where things are

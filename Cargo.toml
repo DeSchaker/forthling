@@ -2,7 +2,7 @@
 name = "forthling"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.74"
+rust-version = "1.85"
 description = "A small Forth interpreter, working towards the Forth-2012 standard"
 license = "MIT"
 repository = "https://github.com/DeSchaker/forthling"

@@ -255,7 +255,7 @@ impl Forth {
                     let start =
                         self.stack.len().checked_sub(take).ok_or(Throw::new(STACK_UNDERFLOW))?;
                     self.locals.extend(self.stack.drain(start..));
-                    self.locals.extend(std::iter::repeat(0).take(zeroed));
+                    self.locals.extend(std::iter::repeat_n(0, zeroed));
                 }
                 Instr::Local(i) => {
                     let base = self.frames.last().unwrap().locals;
