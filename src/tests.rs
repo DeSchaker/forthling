@@ -383,6 +383,35 @@ fn xkey_reads_whole_xchars() {
 }
 
 #[test]
+fn floats() {
+    // literals need an E and a decimal BASE; 1.5 is not a float, 15. a double
+    assert_eq!(run("1.5E0 2E F* F. -1.25e-1 F. 1E3 FDEPTH ."), "3. -0.125 1 ");
+    assert_eq!(err("1.5").code, -13);
+    assert_eq!(err("HEX 1.5E0").code, -13);
+    assert_eq!(run("HEX 1E DECIMAL . FDEPTH ."), "30 0 ");
+    assert_eq!(run(": X 2.5E0 FDUP F* ; X F. 7 S>F 2E F/ F>S ."), "6.25 3 ");
+    assert_eq!(run("1E 0E F/ F. -1E 0E F/ F. 0E 0E F/ F. -0E F."), "inf -inf nan -0. ");
+    // FVALUE and TO, interpreted and compiled
+    let src = "1.5E0 FVALUE V V F. 2E TO V V F. : SET TO V ; 3E SET V F.";
+    assert_eq!(run(src), "1.5 2. 3. ");
+    let src = "BEGIN-STRUCTURE P CFIELD: P.TAG FFIELD: P.X SFFIELD: P.Y END-STRUCTURE
+               P . 0 P.X . 0 P.Y . CREATE Q P ALLOT 0.5E0 Q P.Y SF! Q P.Y SF@ F.";
+    assert_eq!(run(src), "20 8 16 0.5 ");
+    assert_eq!(
+        run("3 SET-PRECISION PRECISION . 2E 3E F/ FDUP F. FS. 0 SET-PRECISION PRECISION ."),
+        "3 0.667 6.67E-1 1 "
+    );
+    assert_eq!(run("1E FSINCOS 1E FCOS 0E F~ . 1E FSIN 0E F~ ."), "-1 -1 ");
+    // the float stack has its own errors, and CATCH restores its depth
+    assert_eq!(err("FDROP").code, -45);
+    assert_eq!(err(": X 0 BEGIN 1E 1+ AGAIN ; X").code, -44);
+    assert_eq!(run("1E ' FDROP CATCH . ' F@ CATCH . FDEPTH ."), "0 -4 0 ");
+    assert_eq!(err("1E50 F>D").code, -11);
+    let out = run("2.5E0 FVALUE W : Y 1.5E0 TO W ; SEE W SEE Y");
+    assert!(out.contains("2.5E0 FVALUE W") && out.contains("1.5E0\n"), "{out}");
+}
+
+#[test]
 fn double_numbers() {
     assert_eq!(run("1. . . -2. . . : T 3. ; T D. HEX FF. DECIMAL D."), "0 1 -1 -2 3 255 ");
     assert_eq!(run("1. 2. D+ D. 5. 7. D- D. -3. DABS D. 1. DNEGATE D."), "3 -2 3 -1 ");

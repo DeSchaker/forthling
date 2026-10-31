@@ -110,6 +110,15 @@ pub(crate) fn install(f: &mut Forth) {
             f.store_to(addr)?;
             return f.store_to(addr + CELL);
         }
+        if let Kind::FValue(addr) = f.dict[xt].kind {
+            if f.compiling() {
+                f.code.push(Instr::FStore(addr));
+            } else {
+                let r = f.fpop()?;
+                f.fset(addr, r);
+            }
+            return Ok(());
+        }
         let addr = f.cell_of(xt as Cell, false).map_err(|e| Throw { detail: Some(name), ..e })?;
         f.store_to(addr)
     });

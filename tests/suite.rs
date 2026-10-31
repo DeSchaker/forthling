@@ -141,6 +141,44 @@ fn suite_block() {
     assert!(out.contains("End of Block word tests"), "{out}");
 }
 
+/// The floating-point tests in fp/, in the order of runfptests.fth. They use
+/// their own tester, ttester.fs.
+#[test]
+fn suite_floating() {
+    let files = [
+        "fp/ttester.fs",
+        "fp/fatan2-test.fs",
+        "fp/ieee-arith-test.fs",
+        "fp/ieee-fprox-test.fs",
+        "fp/fpzero-test.4th",
+        "fp/fpio-test.4th",
+        "fp/to-float-test.4th",
+        "fp/paranoia.4th",
+        "fp/ak-fp-test.fth",
+    ];
+    let Some(paths) = files.iter().map(|name| suite_file(name)).collect::<Option<Vec<_>>>() else {
+        return;
+    };
+    let mut f = Forth::new();
+    f.set_input(Box::new(io::Cursor::new(Vec::new())));
+    let result = paths.iter().try_for_each(|path| {
+        if path.ends_with("fpzero-test.4th") {
+            // fpzero-test.4th uses F>, which is not a standard word
+            f.interpret("[UNDEFINED] F> [IF] : F> FSWAP F< ; [THEN]")?;
+        }
+        f.include(path)
+    });
+    let out = output(f);
+    result.unwrap_or_else(|e| panic!("{e}\n{out}"));
+    assert!(!out.contains("INCORRECT"), "{out}");
+    assert!(!out.contains("WRONG NUMBER"), "{out}");
+    assert_eq!(out.matches("#ERRORS: ").count(), 5, "{out}");
+    assert_eq!(out.matches("#ERRORS: 0 ").count(), 5, "{out}");
+    assert!(out.contains("No failures, defects nor flaws have been discovered."), "{out}");
+    assert!(out.contains("You might see 0.00024 : 0.00024 "), "{out}");
+    assert!(out.contains("End of ak-fp-test.fth"), "{out}");
+}
+
 /// The XCHAR tests are forthling's own (tests/xchartest.fth); the suite has none.
 #[test]
 fn suite_xchar() {

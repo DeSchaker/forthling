@@ -10,6 +10,7 @@ mod blocks;
 mod compiler;
 mod dictionary;
 mod files;
+mod float;
 mod heap;
 mod interpreter;
 mod memory;
@@ -34,6 +35,7 @@ pub(crate) use blocks::*;
 pub(crate) use compiler::*;
 pub(crate) use dictionary::*;
 pub(crate) use files::*;
+pub(crate) use float::*;
 pub(crate) use heap::*;
 pub(crate) use interpreter::*;
 pub(crate) use memory::*;
@@ -65,6 +67,8 @@ pub(crate) const CELL: usize = 8;
 /// ```
 pub struct Forth {
     stack: Vec<Cell>,
+    fstack: Vec<f64>, // the floating-point stack
+    precision: usize, // the significant digits of F. FE. FS. (SET-PRECISION)
     rstack: Vec<Cell>,
     locals: Vec<Cell>, // the locals of all frames; each frame knows where its own start
     loops: Vec<LoopFrame>,
@@ -123,6 +127,8 @@ impl Forth {
         assert!(valid, "invalid memory size: {size}");
         let mut f = Forth {
             stack: Vec::new(),
+            fstack: Vec::new(),
+            precision: DEFAULT_PRECISION,
             rstack: Vec::new(),
             locals: Vec::new(),
             loops: Vec::new(),

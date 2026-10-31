@@ -93,6 +93,13 @@ impl Forth {
                 }
             }
             Ok(())
+        } else if let Some(r) = self.float_literal(w) {
+            if self.compiling() {
+                self.code.push(Instr::FLit(r));
+                Ok(())
+            } else {
+                self.fpush(r)
+            }
         } else {
             Err(Throw::with(-13, w))
         }
@@ -203,6 +210,7 @@ impl Forth {
     pub(crate) fn reset(&mut self, clear_stack: bool) {
         if clear_stack {
             self.stack.clear();
+            self.fstack.clear();
         }
         self.rstack.clear();
         self.loops.clear();

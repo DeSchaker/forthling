@@ -9,6 +9,7 @@ mod define;
 mod double;
 mod facility;
 mod file;
+mod float;
 mod heap;
 mod locals;
 mod memory;
@@ -42,4 +43,5 @@ pub(crate) fn install(f: &mut Forth) {
     search::install(f);
     block::install(f);
     xchar::install(f);
+    float::install(f);
 }

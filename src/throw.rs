@@ -65,6 +65,8 @@ impl Throw {
             -37 => "file I/O exception",
             -38 => "non-existent file",
             -39 => "unexpected end of file",
+            -44 => "floating-point stack overflow",
+            -45 => "floating-point stack underflow",
             -49 => "search-order overflow",
             -50 => "search-order underflow",
             -59 => "ALLOCATE",

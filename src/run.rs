@@ -10,6 +10,7 @@ pub(crate) const MAX_LOCALS: usize = 256; // per definition; ENVIRONMENT? #LOCAL
 pub(crate) enum Instr {
     Call(usize),
     Lit(Cell),
+    FLit(f64),
     Branch(usize),
     ZBranch(usize),
     Of(usize),       // ( x1 x2 -- | x1 ): equal drops both, else jumps to the target
@@ -25,6 +26,7 @@ pub(crate) enum Instr {
     SetDoes(usize),  // gives the latest CREATEd word the code at this offset
     Store(usize),    // compiled TO and IS: stores the top of the stack here
     Fetch(usize),    // compiled ACTION-OF: pushes the cell stored here
+    FStore(usize),   // compiled TO of an FVALUE: stores the top float here
     Locals(usize, usize), // new locals: this many from the stack, then this many zeroed
     Local(usize),    // pushes the frame's local with this index
     ToLocal(usize),  // compiled TO of a local
@@ -51,7 +53,7 @@ impl Forth {
     pub(crate) fn catch(&mut self, xt: Cell) -> Res<Cell> {
         let depth = self.stack.len();
         let (rdepth, loops, frames) = (self.rstack.len(), self.loops.len(), self.frames.len());
-        let locals = self.locals.len();
+        let (locals, fdepth) = (self.locals.len(), self.fstack.len());
         let (sources, to_in) = (self.sources.len(), self.get(IN_ADDR));
         let (current, state, ctrl) = (self.current, self.get(STATE_ADDR), self.ctrl.len());
         if self.catches == MAX_CATCHES {
@@ -68,6 +70,7 @@ impl Forth {
         };
         // The depth is restored even if the stack was emptied; such cells hold 0.
         self.stack.resize(depth, 0);
+        self.fstack.resize(fdepth, 0.0);
         self.rstack.truncate(rdepth);
         self.loops.truncate(loops);
         self.frames.truncate(frames);
@@ -136,6 +139,7 @@ impl Forth {
                 self.push(self.get(addr));
                 Ok(())
             }
+            Kind::FValue(addr) => self.fpush(self.fget(addr)),
             Kind::Defer(_) => unreachable!("resolved above"),
             Kind::Marker { dict_len, here, wordlists, order, current_wid } => {
                 self.forget_from(dict_len);
@@ -239,6 +243,11 @@ impl Forth {
                     self.set(addr, v);
                 }
                 Instr::Fetch(addr) => self.push(self.get(addr)),
+                Instr::FLit(r) => self.fpush(r)?,
+                Instr::FStore(addr) => {
+                    let r = self.fpop()?;
+                    self.fset(addr, r);
+                }
                 Instr::Locals(take, zeroed) => {
                     let start = self.stack.len().checked_sub(take).ok_or(Throw::new(-4))?;
                     self.locals.extend(self.stack.drain(start..));

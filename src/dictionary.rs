@@ -16,6 +16,7 @@ pub(crate) enum Kind {
     },
     Value(usize),    // address of the value's cell
     TwoValue(usize), // address of a 2VALUE's two cells, laid out as by 2!
+    FValue(usize),   // address of an FVALUE's float
     Defer(usize),    // address of the cell holding the xt to run
     Marker {
         dict_len: usize, // dictionary length before the marker, itself included
@@ -106,6 +107,8 @@ impl Forth {
             Instr::SetDoes(_) => "DOES>".into(),
             Instr::Store(addr) => format!("{addr} !"),
             Instr::Fetch(addr) => format!("{addr} @"),
+            Instr::FLit(r) => format!("{r:E}"),
+            Instr::FStore(addr) => format!("{addr} F!"),
             Instr::Locals(take, zeroed) => format!("(LOCALS) {take} {zeroed}"),
             Instr::Local(i) => format!("LOCAL#{i}"),
             Instr::ToLocal(i) => format!("TO LOCAL#{i}"),
@@ -132,6 +135,7 @@ impl Forth {
                 s + ";"
             }
             Kind::Value(addr) => format!("{} VALUE {}", self.get(*addr), w.name),
+            Kind::FValue(addr) => format!("{:E} FVALUE {}", self.fget(*addr), w.name),
             Kind::TwoValue(addr) => {
                 format!("{} {} 2VALUE {}", self.get(*addr + CELL), self.get(*addr), w.name)
             }

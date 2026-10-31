@@ -72,6 +72,9 @@ block file with `Forth::set_block_file(path)`.
   substitution with `REPLACES SUBSTITUTE UNESCAPE`
 - Blocks: `BLOCK BUFFER UPDATE FLUSH SAVE-BUFFERS EMPTY-BUFFERS LOAD THRU LIST`, kept in
   a block file
+- Floating point: `1.5E3` is a float, on a stack of its own, with `F+ F* F/ F. FS. FE.`,
+  `FSQRT FSIN FEXP FLN F** FATAN2` and more, `FVARIABLE FCONSTANT FVALUE`, `>FLOAT` and
+  `REPRESENT`
 - Extended characters in UTF-8: `XC@+ XC!+ XCHAR+ XEMIT XKEY X-SIZE X-WIDTH XHOLD` and
   more; `CHAR`, `[CHAR]`, `'€'` and `PARSE` take whole characters
 - Word lists and the search order: `WORDLIST GET-ORDER SET-ORDER ALSO ONLY PREVIOUS
@@ -95,14 +98,15 @@ assert_eq!(forth.output(), b"49 ");
 
 [`STANDAARD.md`](STANDAARD.md) (in Dutch) holds the roadmap to Forth-2012 and the
 current status. The CORE, CORE EXT, BLOCK, DOUBLE, EXCEPTION, FACILITY, FILE, LOCALS,
-MEMORY, SEARCH, STRING, TOOLS and XCHAR word sets are complete, and their tests in the
+MEMORY, SEARCH, STRING, TOOLS, XCHAR and FLOATING word sets are complete, and their tests in the
 [Forth-2012 test suite](https://github.com/gerryjackson/forth2012-test-suite) pass (`core.fr`,
 `coreplustest.fth`, `coreexttest.fth`, `blocktest.fth`, `doubletest.fth`, `exceptiontest.fth`,
 `facilitytest.fth`, `filetest.fth`, `localstest.fth`, `memorytest.fth`,
-`searchordertest.fth`, `stringtest.fth` and `toolstest.fth`). Of TOOLS EXT, everything is
+`searchordertest.fth`, `stringtest.fth`, `toolstest.fth` and all floating-point tests in
+`fp/`, the paranoia test included). Of TOOLS EXT, everything is
 present except `;CODE ASSEMBLER CODE EDITOR` (there is no assembler or editor). The test
 suite has no XCHAR tests, so forthling has its own, in the same style:
-[`tests/xchartest.fth`](tests/xchartest.fth). Next up is FLOATING.
+[`tests/xchartest.fth`](tests/xchartest.fth).
 
 ### Implementation-defined choices
 
@@ -123,6 +127,16 @@ suite has no XCHAR tests, so forthling has its own, in the same style:
   a line has been entered and not yet read. `EKEY` returns characters only, like `XKEY`;
   the special keys (`K-UP`, `K-F1`, …) are numbered from `$110000`, above Unicode, and
   never occur.
+- Floats are IEEE 754 doubles (8 bytes, like a DFLOAT; an SFLOAT is 4 bytes), on a
+  separate stack of 1024 floats; over- and underflowing it throws `-44` and `-45`.
+  Arithmetic follows IEEE: dividing by zero gives an infinity or a NaN rather than an
+  exception. `F>D` and `F>S` throw `-11` when the result does not fit. The text
+  interpreter knows float literals only while `BASE` is decimal; they need digits before
+  the point and an `E` (`1E`, `-1.5e-3`). `PRECISION` starts at 15 and `SET-PRECISION`
+  keeps it between 1 and 17. `F.`, `FE.` and `FS.` write `1000.`, `333.33E-3` and
+  `3.3333E0`, with trailing zeros after the point dropped by `F.` only; infinities and
+  NaNs come out as `inf`, `-inf` and `nan`. `CATCH` restores the depth of the float
+  stack too.
 - Extended characters (xchars) are UTF-8, up to `$10FFFF` in at most 4 bytes. A character
   stays one byte (`MAX-CHAR` is 255), so `KEY`, `EMIT` and `C@` work on bytes and
   `EKEY>CHAR` is true for ASCII only. Malformed UTF-8 is read a byte at a time: a byte that
