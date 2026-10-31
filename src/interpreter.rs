@@ -69,7 +69,10 @@ impl Forth {
     }
 
     pub(crate) fn handle(&mut self, w: &str) -> Res {
-        if let Some(xt) = self.find(w) {
+        if let Some(i) = self.find_local(w) {
+            self.code.push(Instr::Local(i));
+            Ok(())
+        } else if let Some(xt) = self.find(w) {
             if self.compiling() && !self.dict[xt].immediate {
                 self.code.push(Instr::Call(xt));
                 Ok(())
@@ -193,7 +196,9 @@ impl Forth {
         self.rstack.clear();
         self.loops.clear();
         self.frames.clear();
+        self.locals.clear();
         self.ctrl.clear();
+        self.end_local_scope();
         self.sources.truncate(1);
         if let Some(xt) = self.current.take() {
             self.dict.truncate(xt);

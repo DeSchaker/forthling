@@ -26,6 +26,7 @@ impl Forth {
         self.set_state(true);
         self.code.clear();
         self.ctrl.clear();
+        self.end_local_scope();
         Ok(xt)
     }
 

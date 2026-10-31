@@ -23,6 +23,7 @@ pub(crate) fn install(f: &mut Forth) {
         f.dict[xt].hidden = f.dict[xt].name.is_empty();
         f.current = None;
         f.set_state(false);
+        f.end_local_scope();
         Ok(())
     });
     f.prim("IMMEDIATE", |f| {
@@ -41,6 +42,7 @@ pub(crate) fn install(f: &mut Forth) {
         let at = f.code.len();
         f.code.push(Instr::SetDoes(at + 2));
         f.code.push(Instr::Exit);
+        f.end_local_scope(); // the DOES> code runs in a frame of its own
         Ok(())
     });
     f.prim("CONSTANT", |f| {
@@ -85,6 +87,10 @@ pub(crate) fn install(f: &mut Forth) {
     // TO, IS and ACTION-OF parse a name; compiled, they become Store/Fetch.
     f.imm("TO", |f| {
         let name = f.name()?;
+        if let Some(i) = f.find_local(&name) {
+            f.code.push(Instr::ToLocal(i));
+            return Ok(());
+        }
         let xt = f.find_or_err(&name)?;
         if let Kind::TwoValue(addr) = f.dict[xt].kind {
             // x2 is on top and goes in the first cell, as with 2!

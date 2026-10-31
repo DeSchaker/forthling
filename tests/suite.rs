@@ -119,6 +119,12 @@ fn suite_facility() {
 }
 
 #[test]
+fn suite_locals() {
+    let Some(out) = run_suite(&["localstest.fth"]) else { return };
+    assert!(out.contains("End of Locals word set tests"), "{out}");
+}
+
+#[test]
 fn suite_memory() {
     let Some(out) = run_suite(&["memorytest.fth"]) else { return };
     assert!(out.contains("End of Memory-Allocation word tests"), "{out}");

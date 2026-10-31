@@ -46,6 +46,7 @@ A program that embeds forthling picks the size with `Forth::with_memory(size)`.
   `POSTPONE`, `LITERAL`, `[ ]`, `' EXECUTE` and `SEE`
 - `IF ELSE THEN`, `BEGIN UNTIL/AGAIN/WHILE REPEAT`, `DO ?DO LOOP +LOOP LEAVE`,
   `CASE OF ENDOF ENDCASE`
+- Locals: `{: a b | c -- out :}`, `LOCALS|` and `(LOCAL)`, with `TO` for assigning
 - `VARIABLE`, `CONSTANT`, `VALUE`, `DEFER`, `BUFFER:`, `MARKER`, `:NONAME`, `CREATE … DOES>`
 - Byte-addressed memory with 64-bit cells, and a heap: `ALLOCATE FREE RESIZE`
 - Double-cell numbers: `123.` is a double, with `D+ D- D. D.R D< DNEGATE DABS M+ M*/`,
@@ -76,14 +77,14 @@ assert_eq!(forth.output(), b"49 ");
 ## Standard compliance
 
 [`STANDAARD.md`](STANDAARD.md) (in Dutch) holds the roadmap to Forth-2012 and the
-current status. The CORE, CORE EXT, DOUBLE, EXCEPTION, FACILITY, FILE, MEMORY, STRING and
-TOOLS word sets are complete, and their tests in the [Forth-2012 test suite](https://github.com/gerryjackson/forth2012-test-suite)
+current status. The CORE, CORE EXT, DOUBLE, EXCEPTION, FACILITY, FILE, LOCALS, MEMORY,
+STRING and TOOLS word sets are complete, and their tests in the [Forth-2012 test suite](https://github.com/gerryjackson/forth2012-test-suite)
 pass (`core.fr`, `coreplustest.fth`, `coreexttest.fth`, `doubletest.fth`,
-`exceptiontest.fth`, `facilitytest.fth`, `filetest.fth`, `memorytest.fth`,
-`stringtest.fth` and `toolstest.fth`). Of TOOLS EXT, everything is present except
+`exceptiontest.fth`, `facilitytest.fth`, `filetest.fth`, `localstest.fth`,
+`memorytest.fth`, `stringtest.fth` and `toolstest.fth`). Of TOOLS EXT, everything is present except
 `;CODE ASSEMBLER CODE EDITOR` (there is no assembler or editor), the obsolescent `FORGET`
 (use `MARKER`), and `NAME>COMPILE NAME>INTERPRET NAME>STRING TRAVERSE-WORDLIST`, which will
-come with the SEARCH word set. Next up is LOCALS.
+come with the SEARCH word set. Next up is SEARCH.
 
 ### Implementation-defined choices
 
@@ -113,6 +114,14 @@ come with the SEARCH word set. Next up is LOCALS.
   Allocated blocks are cell-aligned and a whole number of cells. A failing `ALLOCATE`
   returns `-59`, `FREE` of an address that `ALLOCATE` did not return gives `-60` (and
   changes nothing), and a failing `RESIZE` gives `-61` and leaves the block as it was.
+- Locals live on a stack of their own, not on the return stack, so `>R` and `R>` can be
+  mixed freely with them. A definition can have up to 256 locals (`#LOCALS`); more
+  throws `-21`. It may declare them in more than one group. The locals' names are found
+  before all other words, but only while compiling, and they are forgotten at `;` and at
+  `DOES>`; the `DOES>` part can declare locals of its own. A `{:` declaration may continue
+  over several lines. With `{:` the last argument gets the top of the stack, with
+  `LOCALS|` and `(LOCAL)` the first one. A `|` or `--` out of place, or a missing `:}`,
+  throws `-22`.
 - The data stack and the return stack hold 65536 cells each; overflowing them throws `-3`
   and `-5`. `ENVIRONMENT?` reports these sizes and the other standard queries.
 - `ABORT` throws `-1` and `ABORT"` throws `-2`; both empty the stacks and return to the

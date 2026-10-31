@@ -68,6 +68,7 @@ pub(crate) fn install(f: &mut Forth) {
         let i = f.check(a, n.max(0))?;
         let query = f.text(i, n.max(0) as usize).to_ascii_uppercase();
         match query.as_str() {
+            "#LOCALS" => f.push(MAX_LOCALS as Cell),
             "/COUNTED-STRING" => f.push(255),
             "/HOLD" => f.push((HOLD_END - HOLD_START) as Cell),
             "/PAD" => f.push((DICT_START - PAD_ADDR) as Cell),

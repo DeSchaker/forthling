@@ -4,6 +4,7 @@ use crate::*;
 
 pub(crate) const MAX_FRAMES: usize = 10_000;
 pub(crate) const MAX_CATCHES: usize = 1000; // nested CATCHes; each one nests the Rust stack
+pub(crate) const MAX_LOCALS: usize = 256; // per definition; ENVIRONMENT? #LOCALS
 
 #[derive(Clone, Debug)]
 pub(crate) enum Instr {
@@ -24,13 +25,17 @@ pub(crate) enum Instr {
     SetDoes(usize),  // gives the latest CREATEd word the code at this offset
     Store(usize),    // compiled TO and IS: stores the top of the stack here
     Fetch(usize),    // compiled ACTION-OF: pushes the cell stored here
+    Locals(usize, usize), // new locals: this many from the stack, then this many zeroed
+    Local(usize),    // pushes the frame's local with this index
+    ToLocal(usize),  // compiled TO of a local
     Exit,
 }
 
 pub(crate) struct Frame {
     pub(crate) code: Rc<Vec<Instr>>,
     pub(crate) pc: usize,
-    pub(crate) loops: usize, // loop stack depth on entry, restored on exit
+    pub(crate) loops: usize,  // loop stack depth on entry, restored on exit
+    pub(crate) locals: usize, // where the frame's locals start in Forth::locals
 }
 
 pub(crate) struct LoopFrame {
@@ -46,6 +51,7 @@ impl Forth {
     pub(crate) fn catch(&mut self, xt: Cell) -> Res<Cell> {
         let depth = self.stack.len();
         let (rdepth, loops, frames) = (self.rstack.len(), self.loops.len(), self.frames.len());
+        let locals = self.locals.len();
         let (sources, to_in) = (self.sources.len(), self.get(IN_ADDR));
         let (current, state, ctrl) = (self.current, self.get(STATE_ADDR), self.ctrl.len());
         if self.catches == MAX_CATCHES {
@@ -65,6 +71,7 @@ impl Forth {
         self.rstack.truncate(rdepth);
         self.loops.truncate(loops);
         self.frames.truncate(frames);
+        self.locals.truncate(locals);
         self.sources.truncate(sources);
         self.set(IN_ADDR, to_in);
         if current.is_none() {
@@ -72,6 +79,7 @@ impl Forth {
             if let Some(xt) = self.current.take() {
                 self.dict.truncate(xt);
                 self.code.clear();
+                self.end_local_scope();
             }
         }
         self.ctrl.truncate(ctrl);
@@ -140,13 +148,15 @@ impl Forth {
         if self.frames.len() >= MAX_FRAMES {
             return Err(Throw::new(-5));
         }
-        self.frames.push(Frame { code, pc, loops: self.loops.len() });
+        let (loops, locals) = (self.loops.len(), self.locals.len());
+        self.frames.push(Frame { code, pc, loops, locals });
         Ok(())
     }
 
     pub(crate) fn leave_frame(&mut self) {
         if let Some(f) = self.frames.pop() {
             self.loops.truncate(f.loops);
+            self.locals.truncate(f.locals);
         }
     }
 
@@ -225,6 +235,20 @@ impl Forth {
                     self.set(addr, v);
                 }
                 Instr::Fetch(addr) => self.push(self.get(addr)),
+                Instr::Locals(take, zeroed) => {
+                    let start = self.stack.len().checked_sub(take).ok_or(Throw::new(-4))?;
+                    self.locals.extend(self.stack.drain(start..));
+                    self.locals.extend(std::iter::repeat(0).take(zeroed));
+                }
+                Instr::Local(i) => {
+                    let base = self.frames.last().unwrap().locals;
+                    self.push(self.locals[base + i]);
+                }
+                Instr::ToLocal(i) => {
+                    let v = self.pop()?;
+                    let base = self.frames.last().unwrap().locals;
+                    self.locals[base + i] = v;
+                }
                 Instr::Exit => self.leave_frame(),
             }
         }

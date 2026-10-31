@@ -79,6 +79,9 @@ impl Forth {
             Instr::SetDoes(_) => "DOES>".into(),
             Instr::Store(addr) => format!("{addr} !"),
             Instr::Fetch(addr) => format!("{addr} @"),
+            Instr::Locals(take, zeroed) => format!("(LOCALS) {take} {zeroed}"),
+            Instr::Local(i) => format!("LOCAL#{i}"),
+            Instr::ToLocal(i) => format!("TO LOCAL#{i}"),
             Instr::Exit => "EXIT".into(),
         }
     }

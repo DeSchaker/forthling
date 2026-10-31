@@ -585,3 +585,23 @@ fn memory_size_is_configurable() {
     assert_eq!(unused(&large) - unused(&small), (4 << 20) - MIN_MEMORY);
     assert_eq!(err("1 ALLOCATE DROP 2000000 ALLOT").code, -8);
 }
+
+#[test]
+fn locals() {
+    assert_eq!(run(": T {: A B | C -- D :} B A + TO C C A B ; 1 2 T .S"), "<3> 3 1 2 ");
+    assert_eq!(run(": T LOCALS| A B | A B ; 1 2 T .S"), "<2> 2 1 ");
+    // locals are gone after ; and a local can share a word's name
+    assert_eq!(run(": T {: DUP :} DUP DUP ; 5 T .S"), "<2> 5 5 ");
+    assert_eq!(err(": T {: X :} X ; X").code, -13);
+    // each call has its own locals, also after EXIT, an error or a THROW
+    let src = ": F {: N :} N 0= IF 1 EXIT THEN N 1- RECURSE N * ; 10 F .";
+    assert_eq!(run(src), "3628800 ");
+    let src = ": BAD {: X :} X THROW ; : T {: A :} 7 ['] BAD CATCH . A ; 9 T .";
+    assert_eq!(run(src), "7 9 ");
+    assert_eq!(run("S\" #LOCALS\" ENVIRONMENT? . ."), "-1 256 ");
+    // {: reads on to the next line; here there is none
+    let mut f = Forth::new();
+    f.set_input(Box::new(io::Cursor::new(Vec::new())));
+    assert_eq!(f.interpret(": T {: A").unwrap_err().code, -22);
+    assert_eq!(err(": T {: A | B | C :} ;").code, -22);
+}

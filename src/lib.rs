@@ -62,6 +62,7 @@ pub(crate) const CELL: usize = 8;
 pub struct Forth {
     stack: Vec<Cell>,
     rstack: Vec<Cell>,
+    locals: Vec<Cell>, // the locals of all frames; each frame knows where its own start
     loops: Vec<LoopFrame>,
     frames: Vec<Frame>,
     mem: Vec<u8>,
@@ -71,6 +72,8 @@ pub struct Forth {
     current: Option<usize>,
     code: Vec<Instr>,
     ctrl: Vec<Ctrl>,
+    local_names: Vec<String>, // the locals of the definition being compiled
+    locals_bound: usize,      // how many of them have their Instr::Locals compiled
     sources: Vec<Source>,
     sq_next: usize,
     hld: usize,                              // start of the pictured numeric output string
@@ -111,6 +114,7 @@ impl Forth {
         let mut f = Forth {
             stack: Vec::new(),
             rstack: Vec::new(),
+            locals: Vec::new(),
             loops: Vec::new(),
             frames: Vec::new(),
             mem: vec![0; size],
@@ -120,6 +124,8 @@ impl Forth {
             current: None,
             code: Vec::new(),
             ctrl: Vec::new(),
+            local_names: Vec::new(),
+            locals_bound: 0,
             sources: vec![Source {
                 origin: Origin::Terminal,
                 buf: SOURCE_AREA,
