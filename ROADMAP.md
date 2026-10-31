@@ -116,10 +116,10 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
 
 ### Next session: resume here
 
-- **Next step:** step 4 of "Later: extensions", graphics, or the ideas under
-  "Later: assembler and editor". All word sets are there (except
-  `;CODE ASSEMBLER CODE EDITOR`), as are the statement of section 4.1, the host API, the
-  Python module and the SQLite words.
+- **Next step:** step 4 of "Later: extensions", the sandbox and limits in the core (see
+  "Revised order"). All word sets are there (except `;CODE ASSEMBLER CODE EDITOR`), as
+  are the statement of section 4.1, the host API, the Python module and the SQLite words.
+  The order of the extensions was revised on 2026-10-31: graphics moved to the back.
 - **SQLite (2026-10-31):** step 3 of "Later: extensions" is done, in `sqlite/`: a crate
   `forthling-sqlite` (own `[workspace]`, like `python/`) with rusqlite 0.40 `bundled`
   (0.41 needs Rust 1.89). The library has `Sqlite: Extension`; the binary
@@ -615,7 +615,7 @@ uses the same API.
     process. Hence a crate of its own and an explicit feature, and a note in
     `SECURITY.md`.
 
-### Proposed order
+### Proposed order (first version, superseded)
 
 1. ✅ **The host API.** Everything depends on it, and it is cleanup work in the core without
    dependencies.
@@ -623,6 +623,52 @@ uses the same API.
 3. ✅ **SQLite.** A clear API in FILE style and easy to test.
 4. **Graphics.** The most design questions, mainly around the event loop.
 5. **FFI and Windows last,** because of `unsafe`.
+
+### Revised order (2026-10-31)
+
+The question was which extensions would make forthling really worth using for developers
+and AI agents. Graphics, Windows words and an FFI are fun, but they do not set forthling
+apart: for those people reach for Python or Lua. What does set it apart is that it is
+**small, predictable and safe**: no dependencies, no `unsafe`, bounded memory, a standard
+language, embeddable in Rust and Python. The order builds on that.
+
+For AI agents, forthling can be a safe environment to compute and script in: agents want
+to run code that cannot harm the machine or run forever, and a full Python sandbox is
+heavy and hard to close off. LLMs are weak at tracking the stack in their head; an
+environment that returns the stack after every line makes up for that.
+
+4. **Sandbox and limits, in the core** (no dependencies). The basis for everything below.
+   - A budget of instructions, so that `BEGIN AGAIN` stops with a THROW instead of
+     hanging; a time limit; a limit on the output.
+   - Capabilities to switch on or off: files, blocks, `BYE`, reading the terminal.
+     Extensions (SQLite, HTTP) fall under them too.
+   - Through the host API, and as options of the program.
+5. **JSON words.** The language agents and tools speak: parse JSON into Forth data, and
+   give the stack and values back as JSON.
+6. **An MCP server** (`forthling-mcp`): tools such as `forth_eval` (a session that keeps its
+   state between calls), `forth_stack` and `forth_reset`, so any agent can use forthling
+   directly. Together with 4 and 5, a safe, persistent calculator and scripting language
+   for agents. With it, machine-readable output: errors, the stack and `SEE` as structured
+   data, so an agent need not parse text.
+7. **WebAssembly and a playground in the browser** (`forthling-web`, wasm-bindgen, built
+   with wasm-pack). Forth without installing anything, and the best showcase of the
+   project; it can run on a website such as robbertwesterink.nl as static files (an HTML
+   page, some JavaScript and a `.wasm` of a few hundred KB), in the visitor's browser, with
+   no server running Forth. The core then needs small `#[cfg(target_arch = "wasm32")]`
+   adjustments: no threads (the terminal thread for `KEY?`; input comes from the page
+   through `set_input`), no sleep or system clock (`MS`, `TIME&DATE`), and no file system
+   (FILE and BLOCK words give an ior, later perhaps a file system in memory or
+   localStorage). The sandbox of step 4 keeps a `BEGIN AGAIN` from freezing the
+   visitor's tab.
+8. **Debugging and tracing:** stepping with the stack after each word, breakpoints,
+   `TRACE` on and off. Helps people and agents alike.
+9. **Practical glue:** an HTTP client, regular expressions, starting processes. Useful,
+   but dependencies and risks, so separate extensions, under the capabilities of step 4.
+10. **Later, as hobby projects:** graphics, Windows words and the FFI (as designed above),
+    and editor support (an LSP with stack effects on hover), once there are users.
+
+forthling as an embedded DSL in Rust programs (a safe configuration or rule language, the
+niche of Lua) needs no step of its own: the host API is there, and step 4 makes it safe.
 
 ---
 
