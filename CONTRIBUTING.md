@@ -55,6 +55,10 @@ latest stable Rust, on Linux and Windows.
 
 ### Conventions
 
+- Keep the core small. Something new gets a crate of its own (as `python/`, `sqlite/` and
+  `mcp/`), unless it needs no dependency and nearly every use of forthling needs it, as
+  the sandbox and the JSON words do. The core never gets a dependency or `unsafe` code.
+
 - THROW codes are used by their names from `src/throw.rs` (`STACK_UNDERFLOW`,
   `INVALID_ARGUMENT`, …), never as bare numbers. The tests do use the numbers, since those
   are what the standard fixes.

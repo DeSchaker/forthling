@@ -7,8 +7,10 @@
 > 1. A diminutive creature thriving on a two-stack diet.
 > 2. A lean, extensible Forth system built from the ground up.
 
-A small Forth interpreter in Rust, with no dependencies, working towards the
-[Forth-2012 standard](https://forth-standard.org/).
+A small Forth interpreter in Rust, working towards the
+[Forth-2012 standard](https://forth-standard.org/). The core has no dependencies and no
+`unsafe`; extensions (Python, SQLite, an MCP server for AI agents) live in crates of
+their own.
 
 ```
 $ cargo run --release
