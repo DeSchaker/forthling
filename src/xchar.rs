@@ -47,7 +47,7 @@ pub(crate) fn decode(bytes: &[u8]) -> (Cell, usize) {
         return (lead as Cell, 1);
     }
     let first = (lead & (0x7F >> size)) as u32;
-    let c = bytes[1..size].iter().fold(first, |c, &b| c << 6 | (b & 0x3F) as u32);
+    let c = bytes[1..size].iter().fold(first, |c, &b| (c << 6) | (b & 0x3F) as u32);
     (c as Cell, size)
 }
 

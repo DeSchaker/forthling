@@ -71,7 +71,7 @@ impl Forth {
 
     pub(crate) fn pop_ud(&mut self) -> Res<u128> {
         let (lo, hi) = self.pop2()?;
-        Ok((hi as u64 as u128) << 64 | lo as u64 as u128)
+        Ok(((hi as u64 as u128) << 64) | lo as u64 as u128)
     }
 
     /// FM/MOD (floored) or SM/REM (symmetric): ( d n -- rem quot ).

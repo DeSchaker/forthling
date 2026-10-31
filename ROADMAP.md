@@ -122,7 +122,9 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
 - **Minimum Rust 1.85 (2026-10-31):** raised from 1.74 (November 2023, chosen only because
   it was installed) to 1.85, the Rust of Debian stable and the first with edition 2024;
   PyO3 0.30 needs it too. The local toolchain is stable (1.99.1 on 2026-10-31); CI checks
-  1.85. The code is still edition 2021; moving to 2024 (`cargo fix --edition`) is a
+  1.85. Clippy differs between the two (1.85 wants parentheses around `a << n | b`, 1.99
+  knows lints that 1.85 lacks), so check both: `cargo clippy` and `cargo +1.85 clippy`
+  (1.85 is installed locally with `--profile minimal`). The code is still edition 2021; moving to 2024 (`cargo fix --edition`) is a
   separate step, not yet done.
 - **Python module (2026-10-31):** step 2 of "Later: extensions" is done, in `python/`: a
   crate `forthling-py` with an empty `[workspace]` of its own, so PyO3 does not end up in

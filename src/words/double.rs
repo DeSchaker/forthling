@@ -14,7 +14,7 @@ pub(crate) fn mul_div(d: i128, n1: Cell, n2: Cell) -> Res<i128> {
     // Long division of the product hi:lo, one 64-bit limb at a time.
     let (mut q, mut r) = ([0u64; 3], 0u128);
     for (i, limb) in [(hi >> 64) as u64, hi as u64, lo as u64].into_iter().enumerate() {
-        let cur = r << 64 | limb as u128;
+        let cur = (r << 64) | limb as u128;
         q[i] = (cur / v) as u64;
         r = cur % v;
     }
@@ -22,7 +22,7 @@ pub(crate) fn mul_div(d: i128, n1: Cell, n2: Cell) -> Res<i128> {
     if q[0] != 0 {
         return Err(too_big());
     }
-    let q = (q[1] as u128) << 64 | q[2] as u128;
+    let q = ((q[1] as u128) << 64) | q[2] as u128;
     if (d < 0) ^ (n1 < 0) ^ (n2 < 0) {
         // A negative quotient with a remainder rounds down, away from zero.
         let q = q.checked_add((r != 0) as u128).filter(|&q| q <= 1 << 127).ok_or_else(too_big)?;
