@@ -12,3 +12,5 @@ __pycache__/
 /fatest*.txt
 # the default block file, when forthling runs here
 /blocks.fb
+# the way of working for Claude on this machine, not part of the repository
+/CLAUDE.md
