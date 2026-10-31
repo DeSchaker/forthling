@@ -1,0 +1,16 @@
+name: Feature request
+description: A word, word set or feature that forthling should have.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What you would like
+      description: The words or the feature, and what they should do.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: What you want to use it for. Name the standard or the system it comes from, if any.

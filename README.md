@@ -225,6 +225,12 @@ The main ones; [`COMPLIANCE.md`](COMPLIANCE.md) lists them all.
   current directory next to the file that is including it. `REQUIRED` recognises a file by
   its full path. Inside a file, a `(` comment may continue over several lines.
 
+## Contributing
+
+Bug reports, ideas and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md)
+and the [code of conduct](CODE_OF_CONDUCT.md). Security problems go through
+[SECURITY.md](SECURITY.md).
+
 ## License
 
 [MIT](LICENSE)

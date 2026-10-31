@@ -114,10 +114,20 @@ Een nieuwe wordset krijgt zijn eigen `words/<naam>.rs` met een `install(f)`, aan
 
 ### Volgende sessie: hier verder
 
-- **Volgende stap:** eventueel de drie gedragspunten uit de verklaring (`LSHIFT`/`RSHIFT`
-  met 64 of meer posities, `UNESCAPE` voorbij de buffer, een lege zoekvolgorde); alle
-  wordsets zijn er (op `;CODE ASSEMBLER CODE EDITOR` na), de verklaring volgens §4.1 en de
-  opschoonpunten zijn klaar.
+- **Volgende stap:** open. Alle wordsets zijn er (op `;CODE ASSEMBLER CODE EDITOR` na), net
+  als de verklaring volgens §4.1, de opschoonpunten, de gedragspunten en de community
+  standards. Kandidaten: de ideeën onder "Later: assembler en editor".
+- **Community standards (2026-10-31):** `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1;
+  melden via een issue of GitHubs "Report content", op verzoek geen e-mailadres),
+  `CONTRIBUTING.md`, `SECURITY.md` (melden via private vulnerability reporting), de
+  issue-formulieren in `.github/ISSUE_TEMPLATE/` en `.github/pull_request_template.md`. Alles
+  in het Engels. Houd de conventies in `CONTRIBUTING.md` bij als ze veranderen.
+- **Gedragspunten (2026-10-31):** drie ambigue situaties anders opgelost dan eerst.
+  `LSHIFT`/`RSHIFT` met 64 of meer posities (of een negatief aantal) geven 0 (`shift` in
+  `words/double.rs`). `UNESCAPE` gooit -9 als het resultaat voorbij het eind van zijn
+  buffer loopt; `Forth::buffer_end` (in `memory.rs`) kent de vaste buffers, de data space en
+  de blokken van de heap (`Heap::region_end`). Een lege zoekvolgorde vindt nog de
+  `ROOT_WORDS` (in `dictionary.rs`): `FORTH FORTH-WORDLIST GET-ORDER ONLY ORDER SET-ORDER`.
 - **Verklaring (§4.1):** `COMPLIANCE.md` (Engels) en `VERKLARING.md` (Nederlands), op
   verzoek in beide talen (2026-10-31). Ze volgen de volgorde van de standaard: de
   vermelding van §5.1.1, dan per wordset de keuzes (x.4.1.1), de ambigue situaties
