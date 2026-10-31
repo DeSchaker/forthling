@@ -124,7 +124,8 @@ impl Forth {
     pub(crate) fn encoding_name(&mut self) -> Res<(usize, usize)> {
         const NAME: &[u8] = b"UTF-8";
         if self.encoding_name.is_none() {
-            let a = self.heap.allocate(NAME.len(), self.here).ok_or(Throw::new(-8))?;
+            let a =
+                self.heap.allocate(NAME.len(), self.here).ok_or(Throw::new(DICTIONARY_OVERFLOW))?;
             self.mem[a..a + NAME.len()].copy_from_slice(NAME);
             self.encoding_name = Some(a);
         }

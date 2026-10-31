@@ -65,10 +65,20 @@ nieuwste stable op Linux en Windows. De testsuite wordt daar gekloond op commit 
 Verhoog je de `rust-version`, pas dan ook de toolchain in `ci.yml` aan. `.gitattributes`
 zet alle tekstbestanden op LF, ook in een Windows-checkout.
 
-Kleine opschoonpunten om mee te nemen bij volgende wordsets: een `pop_str()` voor het
-patroon `pop2` + `check` (8×), benoemde constanten voor de THROW-codes, een registratie voor
-compile-only woorden in plaats van `need_def()` in elk woord (30×), en constanten als
-`R/O W/O R/W` naar `prelude.fs`.
+Opschoonpunten, gedaan op 2026-10-31:
+- `pop_str()` (in `memory.rs`) popt `( c-addr u )`, controleert het en geeft index en
+  lengte; een negatieve lengte telt als nul. Het vervangt `pop2` + `check` op tien plekken.
+  `TYPE` en `FILL` doen nog zelf `if n > 0`, omdat ze bij lengte nul elk adres toestaan.
+- De THROW-codes van tabel 9.1 hebben namen (`STACK_UNDERFLOW`, `INVALID_ARGUMENT`,
+  `OPEN_FILE_FAILED`, …) in `throw.rs`; de berichtentabel gebruikt dezelfde namen. Nieuwe
+  code gebruikt de naam, nooit het getal. De tests houden de getallen, want die zijn wat de
+  standaard vastlegt.
+- Compile-only primitives registreer je met `compile_imm` of `compile_prim`; `invoke`
+  geeft dan `-14` (met de naam van het woord) als er geen definitie in aanbouw is, ook via
+  `EXECUTE`. `SEE` meldt `is a compile-only primitive`. `need_def()` blijft alleen voor de
+  instructie `Compile` van `POSTPONE`.
+- `R/O W/O R/W BIN` staan in de prelude; `R_O` en `W_O` in `files.rs` moeten daarmee
+  overeenkomen.
 
 ### Codeindeling (sinds 2026-10-30)
 
@@ -104,8 +114,10 @@ Een nieuwe wordset krijgt zijn eigen `words/<naam>.rs` met een `install(f)`, aan
 
 ### Volgende sessie: hier verder
 
-- **Volgende stap:** de opschoonpunten (zie "CI en hygiëne"); alle wordsets zijn er (op
-  `;CODE ASSEMBLER CODE EDITOR` na) en de verklaring volgens §4.1 is klaar.
+- **Volgende stap:** eventueel de drie gedragspunten uit de verklaring (`LSHIFT`/`RSHIFT`
+  met 64 of meer posities, `UNESCAPE` voorbij de buffer, een lege zoekvolgorde); alle
+  wordsets zijn er (op `;CODE ASSEMBLER CODE EDITOR` na), de verklaring volgens §4.1 en de
+  opschoonpunten zijn klaar.
 - **Verklaring (§4.1):** `COMPLIANCE.md` (Engels) en `VERKLARING.md` (Nederlands), op
   verzoek in beide talen (2026-10-31). Ze volgen de volgorde van de standaard: de
   vermelding van §5.1.1, dan per wordset de keuzes (x.4.1.1), de ambigue situaties

@@ -57,11 +57,10 @@ pub(crate) fn install(f: &mut Forth) {
         let text = f.parse_escaped();
         f.string_literal(&text)
     });
-    f.imm("C\"", |f| {
-        f.need_def()?;
+    f.compile_imm("C\"", |f| {
         let (a, n) = f.parse(b'"');
         if n > 255 {
-            return Err(Throw::with(-18, "counted string longer than 255 characters"));
+            return Err(Throw::with(PARSED_OVERFLOW, "counted string longer than 255 characters"));
         }
         let addr = f.reserve(n + 1)?;
         f.mem[addr] = n as u8;
@@ -113,8 +112,7 @@ pub(crate) fn install(f: &mut Forth) {
         }
         Ok(())
     });
-    f.imm("SLITERAL", |f| {
-        f.need_def()?;
+    f.compile_imm("SLITERAL", |f| {
         let (a, n) = f.pop2()?;
         let text = f.bytes(a, n)?;
         f.compile_string(&text)
@@ -124,7 +122,7 @@ pub(crate) fn install(f: &mut Forth) {
         let (a1, n1) = f.pop2()?;
         let (text, name) = (f.bytes(a1, n1)?, f.bytes(a2, n2)?);
         if name.contains(&b'%') {
-            return Err(Throw::with(-79, "the name contains %"));
+            return Err(Throw::with(REPLACES_FAILED, "the name contains %"));
         }
         let name = String::from_utf8_lossy(&name).to_ascii_uppercase();
         f.substitutions.insert(name, text);
@@ -137,7 +135,7 @@ pub(crate) fn install(f: &mut Forth) {
         f.push(a2);
         if out.len() as Cell > n2 {
             f.push(0);
-            f.push(-78); // the result does not fit
+            f.push(SUBSTITUTE_FAILED); // the result does not fit
             return Ok(());
         }
         let d = f.check(a2, out.len() as Cell)?;

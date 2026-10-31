@@ -37,9 +37,9 @@ pub(crate) fn install(f: &mut Forth) {
             f.order = vec![FORTH_WID];
             return Ok(());
         }
-        let n = usize::try_from(n).map_err(|_| Throw::new(-24))?;
+        let n = usize::try_from(n).map_err(|_| Throw::new(INVALID_ARGUMENT))?;
         if n > MAX_ORDER {
-            return Err(Throw::new(-49));
+            return Err(Throw::new(ORDER_OVERFLOW));
         }
         let mut order = Vec::with_capacity(n);
         for _ in 0..n {
@@ -49,13 +49,13 @@ pub(crate) fn install(f: &mut Forth) {
         Ok(())
     });
     f.prim("DEFINITIONS", |f| {
-        f.current_wid = *f.order.first().ok_or(Throw::new(-50))?;
+        f.current_wid = *f.order.first().ok_or(Throw::new(ORDER_UNDERFLOW))?;
         Ok(())
     });
     f.prim("SEARCH-WORDLIST", |f| {
         let wid = f.pop_wid()?;
-        let (a, n) = f.pop2()?;
-        let name = f.text(f.check(a, n.max(0))?, n.max(0) as usize);
+        let (i, n) = f.pop_str()?;
+        let name = f.text(i, n);
         match f.find_in(&name, wid) {
             Some(xt) => {
                 f.push(xt as Cell);
@@ -71,9 +71,9 @@ pub(crate) fn install(f: &mut Forth) {
         Ok(())
     });
     f.prim("ALSO", |f| {
-        let first = *f.order.first().ok_or(Throw::new(-50))?;
+        let first = *f.order.first().ok_or(Throw::new(ORDER_UNDERFLOW))?;
         if f.order.len() == MAX_ORDER {
-            return Err(Throw::new(-49));
+            return Err(Throw::new(ORDER_OVERFLOW));
         }
         f.order.insert(0, first);
         Ok(())
@@ -84,7 +84,7 @@ pub(crate) fn install(f: &mut Forth) {
     });
     f.prim("PREVIOUS", |f| {
         if f.order.is_empty() {
-            return Err(Throw::new(-50));
+            return Err(Throw::new(ORDER_UNDERFLOW));
         }
         f.order.remove(0);
         Ok(())
@@ -103,7 +103,7 @@ pub(crate) fn install(f: &mut Forth) {
     f.prim("TRAVERSE-WORDLIST", |f| {
         let wid = f.pop_wid()?;
         let xt = f.pop()?;
-        let xt = usize::try_from(xt).map_err(|_| Throw::with(-24, xt.to_string()))?;
+        let xt = usize::try_from(xt).map_err(|_| Throw::with(INVALID_ARGUMENT, xt.to_string()))?;
         let mut nt = f.dict.len();
         // The xt may shorten the dictionary (a marker, FORGET); go on below its new end.
         while let Some(i) =
@@ -146,7 +146,7 @@ impl Forth {
         let wid = self.pop()?;
         match usize::try_from(wid) {
             Ok(w) if (1..=self.wordlists.len()).contains(&w) => Ok(w),
-            _ => Err(Throw::with(-24, format!("invalid word list {wid}"))),
+            _ => Err(Throw::with(INVALID_ARGUMENT, format!("invalid word list {wid}"))),
         }
     }
 
@@ -154,7 +154,7 @@ impl Forth {
         let nt = self.pop()?;
         match usize::try_from(nt) {
             Ok(i) if i < self.dict.len() => Ok(i),
-            _ => Err(Throw::with(-24, format!("invalid name token {nt}"))),
+            _ => Err(Throw::with(INVALID_ARGUMENT, format!("invalid name token {nt}"))),
         }
     }
 
@@ -177,7 +177,7 @@ impl Forth {
             return Ok(a);
         }
         let name = self.dict[nt].name.clone().into_bytes();
-        let a = self.heap.allocate(name.len(), self.here).ok_or(Throw::new(-8))?;
+        let a = self.heap.allocate(name.len(), self.here).ok_or(Throw::new(DICTIONARY_OVERFLOW))?;
         self.mem[a..a + name.len()].copy_from_slice(&name);
         self.dict[nt].name_addr = Some(a);
         Ok(a)

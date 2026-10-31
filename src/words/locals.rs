@@ -7,8 +7,7 @@
 use crate::*;
 
 pub(crate) fn install(f: &mut Forth) {
-    f.prim("(LOCAL)", |f| {
-        f.need_def()?;
+    f.compile_prim("(LOCAL)", |f| {
         let (a, n) = f.pop2()?;
         if n == 0 {
             return f.end_stack_order_locals();
@@ -17,22 +16,21 @@ pub(crate) fn install(f: &mut Forth) {
         f.declare_local(&String::from_utf8_lossy(&name))
     });
     // {: args | vals -- outputs :}
-    f.imm("{:", |f| {
-        f.need_def()?;
+    f.compile_imm("{:", |f| {
         let (mut vals, mut part) = (0, 0);
         loop {
             let Some(word) = f.word() else {
                 if f.refill()? {
                     continue;
                 }
-                return Err(Throw::with(-22, "{: without :}"));
+                return Err(Throw::with(CONTROL_MISMATCH, "{: without :}"));
             };
             match (word.as_str(), part) {
                 (":}", _) => break,
                 ("|", 0) => part = 1,
                 ("--", 0 | 1) => part = 2,
                 (_, 2) => {} // the outputs are a comment
-                ("|" | "--", _) => return Err(Throw::with(-22, word)),
+                ("|" | "--", _) => return Err(Throw::with(CONTROL_MISMATCH, word)),
                 (name, _) => {
                     f.declare_local(name)?;
                     if part == 1 {
@@ -44,14 +42,11 @@ pub(crate) fn install(f: &mut Forth) {
         f.end_locals(vals)
     });
     // LOCALS| a b c |, which works like (LOCAL)
-    f.imm("LOCALS|", |f| {
-        f.need_def()?;
-        loop {
-            match f.word() {
-                Some(w) if w == "|" => return f.end_stack_order_locals(),
-                Some(w) => f.declare_local(&w)?,
-                None => return Err(Throw::with(-22, "LOCALS| without |")),
-            }
+    f.compile_imm("LOCALS|", |f| loop {
+        match f.word() {
+            Some(w) if w == "|" => return f.end_stack_order_locals(),
+            Some(w) => f.declare_local(&w)?,
+            None => return Err(Throw::with(CONTROL_MISMATCH, "LOCALS| without |")),
         }
     });
 }
@@ -61,7 +56,7 @@ impl Forth {
     /// stack when the declarations end.
     pub(crate) fn declare_local(&mut self, name: &str) -> Res {
         if self.local_names.len() == MAX_LOCALS {
-            return Err(Throw::with(-21, "too many locals"));
+            return Err(Throw::with(UNSUPPORTED, "too many locals"));
         }
         self.local_names.push(name.to_ascii_uppercase());
         Ok(())

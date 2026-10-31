@@ -7,9 +7,8 @@ use crate::*;
 pub(crate) fn install(f: &mut Forth) {
     // conversion
     f.prim(">FLOAT", |f| {
-        let (a, n) = f.pop2()?;
-        let i = f.check(a, n.max(0))?;
-        match to_float(&f.mem[i..i + n.max(0) as usize], false) {
+        let (i, n) = f.pop_str()?;
+        match to_float(&f.mem[i..i + n], false) {
             Some(r) => {
                 f.fpush(r)?;
                 f.push(-1);
@@ -25,7 +24,7 @@ pub(crate) fn install(f: &mut Forth) {
     f.prim("F>D", |f| {
         let r = f.fpop()?.trunc();
         if !(r >= i128::MIN as f64 && r < i128::MAX as f64) {
-            return Err(Throw::new(-11));
+            return Err(Throw::new(OUT_OF_RANGE));
         }
         f.push_d(r as i128);
         Ok(())
@@ -37,7 +36,7 @@ pub(crate) fn install(f: &mut Forth) {
     f.prim("F>S", |f| {
         let r = f.fpop()?.trunc();
         if !(r >= Cell::MIN as f64 && r < Cell::MAX as f64) {
-            return Err(Throw::new(-11));
+            return Err(Throw::new(OUT_OF_RANGE));
         }
         f.push(r as Cell);
         Ok(())
@@ -98,8 +97,7 @@ pub(crate) fn install(f: &mut Forth) {
         f.fpush(c)?;
         f.fpush(a)
     });
-    f.imm("FLITERAL", |f| {
-        f.need_def()?;
+    f.compile_imm("FLITERAL", |f| {
         let r = f.fpop()?;
         f.code.push(Instr::FLit(r));
         Ok(())

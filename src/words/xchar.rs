@@ -64,7 +64,7 @@ pub(crate) fn install(f: &mut Forth) {
         Ok(())
     });
     f.prim("XKEY", |f| {
-        let xc = f.read_xkey().ok_or(Throw::new(-39))?;
+        let xc = f.read_xkey().ok_or(Throw::new(UNEXPECTED_EOF))?;
         f.push(xc);
         Ok(())
     });
@@ -100,9 +100,8 @@ pub(crate) fn install(f: &mut Forth) {
         Ok(())
     });
     f.prim("X-WIDTH", |f| {
-        let (a, n) = f.pop2()?;
-        let i = f.check(a, n.max(0))?;
-        let mut bytes = &f.mem[i..i + n.max(0) as usize];
+        let (i, n) = f.pop_str()?;
+        let mut bytes = &f.mem[i..i + n];
         let mut columns = 0;
         while !bytes.is_empty() {
             let (xc, size) = decode(bytes);

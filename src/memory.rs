@@ -44,14 +44,14 @@ impl Forth {
         if a >= 0 && n >= 0 && end >= 0 && end as usize <= self.mem.len() {
             Ok(a as usize)
         } else {
-            Err(Throw::with(-9, a.to_string()))
+            Err(Throw::with(INVALID_ADDRESS, a.to_string()))
         }
     }
 
     pub(crate) fn reserve(&mut self, n: usize) -> Res<usize> {
         let a = self.here;
         if a + n > self.data_end() {
-            return Err(Throw::new(-8));
+            return Err(Throw::new(DICTIONARY_OVERFLOW));
         }
         self.here += n;
         Ok(a)
@@ -95,6 +95,14 @@ impl Forth {
     }
 
     /// A copy of the string at a with length n.
+    /// Pops a string ( c-addr u ) and checks it; returns its index in memory
+    /// and its length. A negative length counts as zero.
+    pub(crate) fn pop_str(&mut self) -> Res<(usize, usize)> {
+        let (a, n) = self.pop2()?;
+        let n = n.max(0);
+        Ok((self.check(a, n)?, n as usize))
+    }
+
     pub(crate) fn bytes(&self, a: Cell, n: Cell) -> Res<Vec<u8>> {
         let n = n.max(0);
         let i = self.check(a, n)?;

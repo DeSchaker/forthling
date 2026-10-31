@@ -95,7 +95,7 @@ pub(crate) fn install(f: &mut Forth) {
         let delim = f.pop()? as u8;
         let (a, n) = if delim == b' ' { f.parse_name() } else { f.scan(true, |c| c == delim) };
         if n > 255 {
-            return Err(Throw::new(-18));
+            return Err(Throw::new(PARSED_OVERFLOW));
         }
         f.mem.copy_within(a..a + n, WORD_BUF + 1);
         f.mem[WORD_BUF] = n as u8;

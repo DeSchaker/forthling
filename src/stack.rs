@@ -11,12 +11,12 @@ impl Forth {
     }
 
     pub(crate) fn pop(&mut self) -> Res<Cell> {
-        self.stack.pop().ok_or(Throw::new(-4))
+        self.stack.pop().ok_or(Throw::new(STACK_UNDERFLOW))
     }
 
     pub(crate) fn check_stack(&self) -> Res {
         if self.stack.len() > STACK_CELLS {
-            return Err(Throw::new(-3));
+            return Err(Throw::new(STACK_OVERFLOW));
         }
         Ok(())
     }
@@ -77,16 +77,16 @@ impl Forth {
         let d = self.pop()? as i128;
         let n = self.pop_d()?;
         if d == 0 {
-            return Err(Throw::new(-10));
+            return Err(Throw::new(DIVISION_BY_ZERO));
         }
         // The only overflow, the smallest double divided by -1, is out of range anyway.
-        let mut q = n.checked_div(d).ok_or(Throw::new(-11))?;
+        let mut q = n.checked_div(d).ok_or(Throw::new(OUT_OF_RANGE))?;
         let mut r = n % d;
         if floored && r != 0 && (r < 0) != (d < 0) {
             q -= 1;
             r += d;
         }
-        let q = Cell::try_from(q).map_err(|_| Throw::new(-11))?;
+        let q = Cell::try_from(q).map_err(|_| Throw::new(OUT_OF_RANGE))?;
         self.push(r as Cell);
         self.push(q);
         Ok(())
@@ -95,7 +95,7 @@ impl Forth {
     /// The run-time part of ABORT".
     pub(crate) fn abort_if(&mut self, msg: &[u8]) -> Res {
         if self.pop()? != 0 {
-            return Err(Throw::with(-2, String::from_utf8_lossy(msg)));
+            return Err(Throw::with(ABORT_QUOTE, String::from_utf8_lossy(msg)));
         }
         Ok(())
     }
@@ -105,7 +105,7 @@ impl Forth {
         if depth < n {
             Ok(self.loops[n - 1 - depth].index)
         } else {
-            Err(Throw::new(-26))
+            Err(Throw::new(NO_LOOP))
         }
     }
 }

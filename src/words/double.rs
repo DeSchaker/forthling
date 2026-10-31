@@ -6,7 +6,7 @@ use crate::*;
 /// the multiplication cannot overflow.
 pub(crate) fn mul_div(d: i128, n1: Cell, n2: Cell) -> Res<i128> {
     if n2 == 0 {
-        return Err(Throw::new(-10));
+        return Err(Throw::new(DIVISION_BY_ZERO));
     }
     let (m, n, v) = (d.unsigned_abs(), n1.unsigned_abs() as u128, n2.unsigned_abs() as u128);
     let lo = (m as u64 as u128) * n;
@@ -18,7 +18,7 @@ pub(crate) fn mul_div(d: i128, n1: Cell, n2: Cell) -> Res<i128> {
         q[i] = (cur / v) as u64;
         r = cur % v;
     }
-    let too_big = || Throw::new(-11);
+    let too_big = || Throw::new(OUT_OF_RANGE);
     if q[0] != 0 {
         return Err(too_big());
     }
@@ -52,9 +52,9 @@ pub(crate) fn install(f: &mut Forth) {
         let d = f.pop()? as u64 as u128;
         let n = f.pop_ud()?;
         if d == 0 {
-            return Err(Throw::new(-10));
+            return Err(Throw::new(DIVISION_BY_ZERO));
         }
-        let q = u64::try_from(n / d).map_err(|_| Throw::new(-11))?;
+        let q = u64::try_from(n / d).map_err(|_| Throw::new(OUT_OF_RANGE))?;
         f.push((n % d) as u64 as Cell);
         f.push(q as Cell);
         Ok(())

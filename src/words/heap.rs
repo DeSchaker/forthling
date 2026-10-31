@@ -12,7 +12,7 @@ pub(crate) fn install(f: &mut Forth) {
             }
             None => {
                 f.push(0);
-                f.push(-59);
+                f.push(ALLOCATE_FAILED);
             }
         }
         Ok(())
@@ -20,7 +20,7 @@ pub(crate) fn install(f: &mut Forth) {
     f.prim("FREE", |f| {
         let a = f.pop()?;
         let freed = usize::try_from(a).map_or(false, |a| f.heap.free(a));
-        f.push(if freed { 0 } else { -60 });
+        f.push(if freed { 0 } else { FREE_FAILED });
         Ok(())
     });
     f.prim("RESIZE", |f| {
@@ -36,7 +36,7 @@ pub(crate) fn install(f: &mut Forth) {
             }
             None => {
                 f.push(a);
-                f.push(-61);
+                f.push(RESIZE_FAILED);
             }
         }
         Ok(())

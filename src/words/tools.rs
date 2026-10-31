@@ -23,18 +23,19 @@ pub(crate) fn install(f: &mut Forth) {
     f.prim("N>R", |f| {
         let n = f.pop()?;
         let len = f.stack.len();
-        let n = usize::try_from(n).ok().filter(|&n| n <= len).ok_or(Throw::new(-4))?;
+        let n = usize::try_from(n).ok().filter(|&n| n <= len).ok_or(Throw::new(STACK_UNDERFLOW))?;
         if f.rstack.len() + n >= RSTACK_CELLS {
-            return Err(Throw::new(-5));
+            return Err(Throw::new(RSTACK_OVERFLOW));
         }
         f.rstack.extend(f.stack.drain(len - n..));
         f.rstack.push(n as Cell);
         Ok(())
     });
     f.prim("NR>", |f| {
-        let n = f.rstack.pop().ok_or(Throw::new(-6))?;
+        let n = f.rstack.pop().ok_or(Throw::new(RSTACK_UNDERFLOW))?;
         let len = f.rstack.len();
-        let n = usize::try_from(n).ok().filter(|&n| n <= len).ok_or(Throw::new(-6))?;
+        let n =
+            usize::try_from(n).ok().filter(|&n| n <= len).ok_or(Throw::new(RSTACK_UNDERFLOW))?;
         f.stack.extend(f.rstack.drain(len - n..));
         f.push(n as Cell);
         Ok(())
@@ -50,11 +51,10 @@ pub(crate) fn install(f: &mut Forth) {
         Ok(())
     });
     f.prim("DUMP", |f| {
-        let (a, n) = f.pop2()?;
-        let i = f.check(a, n.max(0))?;
+        let (i, n) = f.pop_str()?;
         let mut text = String::new();
-        for (row, bytes) in f.mem[i..i + n.max(0) as usize].chunks(16).enumerate() {
-            text += &format!("{:08X} ", a as usize + 16 * row);
+        for (row, bytes) in f.mem[i..i + n].chunks(16).enumerate() {
+            text += &format!("{:08X} ", i + 16 * row);
             for b in bytes {
                 text += &format!(" {b:02X}");
             }

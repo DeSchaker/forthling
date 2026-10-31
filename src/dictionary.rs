@@ -31,6 +31,7 @@ pub(crate) struct Word {
     pub(crate) name: String,
     pub(crate) kind: Kind,
     pub(crate) immediate: bool,
+    pub(crate) compile_only: bool, // a primitive that throws -14 outside a definition
     pub(crate) hidden: bool,
     pub(crate) wid: usize,               // the word list it is in
     pub(crate) here: usize,              // HERE when it was defined, for FORGET
@@ -43,6 +44,7 @@ impl Forth {
             name: name.to_ascii_uppercase(),
             kind,
             immediate: false,
+            compile_only: false,
             hidden: false,
             wid: self.current_wid,
             here: self.here,
@@ -58,6 +60,18 @@ impl Forth {
     pub(crate) fn imm(&mut self, name: &str, f: Prim) {
         let xt = self.define(name, Kind::Prim(f));
         self.dict[xt].immediate = true;
+    }
+
+    /// A primitive that may only run while a definition is being compiled.
+    pub(crate) fn compile_prim(&mut self, name: &str, f: Prim) {
+        let xt = self.define(name, Kind::Prim(f));
+        self.dict[xt].compile_only = true;
+    }
+
+    /// An immediate primitive that may only run while a definition is being compiled.
+    pub(crate) fn compile_imm(&mut self, name: &str, f: Prim) {
+        self.compile_prim(name, f);
+        self.dict.last_mut().unwrap().immediate = true;
     }
 
     pub(crate) fn variable(&mut self, name: &str, addr: usize) {
@@ -85,7 +99,7 @@ impl Forth {
     }
 
     pub(crate) fn find_or_err(&self, name: &str) -> Res<usize> {
-        self.find(name).ok_or_else(|| Throw::with(-13, name))
+        self.find(name).ok_or_else(|| Throw::with(UNDEFINED_WORD, name))
     }
 
     pub(crate) fn show(&self, instr: &Instr) -> String {
@@ -120,6 +134,7 @@ impl Forth {
         let name = self.name()?;
         let w = &self.dict[self.find_or_err(&name)?];
         let mut text = match &w.kind {
+            Kind::Prim(_) if w.compile_only => format!("{} is a compile-only primitive", w.name),
             Kind::Prim(_) => format!("{} is a primitive", w.name),
             Kind::Constant(v) => format!("{v} CONSTANT {}", w.name),
             Kind::Created { addr, does } => format!(

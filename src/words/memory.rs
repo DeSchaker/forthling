@@ -45,7 +45,7 @@ pub(crate) fn install(f: &mut Forth) {
         let n = f.pop()?;
         let new = f.here as Cell + n;
         if new < DICT_START as Cell || new > f.data_end() as Cell {
-            return Err(Throw::new(-8));
+            return Err(Throw::new(DICTIONARY_OVERFLOW));
         }
         f.here = new as usize;
         Ok(())

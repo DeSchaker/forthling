@@ -29,17 +29,15 @@ pub(crate) fn install(f: &mut Forth) {
         f.require(&path)
     });
     f.prim("ACCEPT", |f| {
-        let (a, n) = f.pop2()?;
-        let n = n.max(0);
-        let i = f.check(a, n)?;
+        let (i, n) = f.pop_str()?;
         let line = f.read_line().unwrap_or_default();
-        let len = line.len().min(n as usize);
+        let len = line.len().min(n);
         f.mem[i..i + len].copy_from_slice(&line[..len]);
         f.push(len as Cell);
         Ok(())
     });
     f.prim("KEY", |f| {
-        let c = f.read_key().ok_or(Throw::new(-39))?;
+        let c = f.read_key().ok_or(Throw::new(UNEXPECTED_EOF))?;
         f.push(c as Cell);
         Ok(())
     });
@@ -56,17 +54,14 @@ pub(crate) fn install(f: &mut Forth) {
         Ok(())
     });
     f.prim("EVALUATE", |f| {
-        let (a, n) = f.pop2()?;
-        let n = n.max(0);
-        let i = f.check(a, n)?;
-        f.evaluate(i, n as usize)
+        let (i, n) = f.pop_str()?;
+        f.evaluate(i, n)
     });
-    f.prim("ABORT", |_| Err(Throw::new(-1)));
+    f.prim("ABORT", |_| Err(Throw::new(ABORT)));
     f.prim("QUIT", |_| Err(Throw::new(QUIT)));
     f.prim("ENVIRONMENT?", |f| {
-        let (a, n) = f.pop2()?;
-        let i = f.check(a, n.max(0))?;
-        let query = f.text(i, n.max(0) as usize).to_ascii_uppercase();
+        let (i, n) = f.pop_str()?;
+        let query = f.text(i, n).to_ascii_uppercase();
         match query.as_str() {
             "#LOCALS" => f.push(MAX_LOCALS as Cell),
             "/COUNTED-STRING" => f.push(255),

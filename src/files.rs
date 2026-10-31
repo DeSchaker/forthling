@@ -5,10 +5,10 @@ use std::fs;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 
-// File access methods; BIN adds 4, which changes nothing.
+// File access methods, as R/O and W/O in the prelude; R/W is 2 and BIN adds 4,
+// which changes nothing.
 pub(crate) const R_O: Cell = 0;
 pub(crate) const W_O: Cell = 1;
-pub(crate) const R_W: Cell = 2;
 
 /// A file opened by OPEN-FILE, CREATE-FILE or INCLUDED; file id n is `files[n - 1]`.
 pub(crate) struct OpenFile {
@@ -56,7 +56,8 @@ impl Forth {
     /// INCLUDED: opens a file, remembers it for REQUIRED and interprets it.
     pub fn include(&mut self, path: &str) -> Res {
         let path = self.resolve(path);
-        let file = fs::File::open(&path).map_err(|e| Throw::with(-38, format!("{path}: {e}")))?;
+        let file =
+            fs::File::open(&path).map_err(|e| Throw::with(NO_SUCH_FILE, format!("{path}: {e}")))?;
         self.included.insert(canonical(&path));
         let fid = self.add_file(file, &path);
         self.include_file(fid)
@@ -91,13 +92,13 @@ impl Forth {
     /// INCLUDE-FILE: interprets the rest of an open file, then closes it.
     pub(crate) fn include_file(&mut self, fid: Cell) -> Res {
         let Some(f) = self.open_file_mut(fid) else {
-            return Err(Throw::with(-37, "invalid file id"));
+            return Err(Throw::with(FILE_IO, "invalid file id"));
         };
         let name = f.name.clone();
         let mut bytes = Vec::new();
         let result = match f.file.read_to_end(&mut bytes) {
             Ok(_) => self.include_lines(fid, &name, &bytes),
-            Err(e) => Err(Throw::with(-37, format!("{name}: {e}"))),
+            Err(e) => Err(Throw::with(FILE_IO, format!("{name}: {e}"))),
         };
         self.close_file(fid);
         result
@@ -174,8 +175,8 @@ impl Forth {
 
     /// Pops a file name ( c-addr u ).
     pub(crate) fn pop_name(&mut self) -> Res<String> {
-        let (a, n) = self.pop2()?;
-        Ok(String::from_utf8_lossy(&self.bytes(a, n)?).into_owned())
+        let (i, n) = self.pop_str()?;
+        Ok(self.text(i, n))
     }
 
     /// Opens a file for OPEN-FILE and CREATE-FILE and pushes ( fileid ior ).

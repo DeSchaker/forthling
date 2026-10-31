@@ -432,7 +432,8 @@ Keuzes van de implementatie:
 - **Bron en opmaak van `SEE`**: `SEE` toont een colon-definitie als `: NAAM`, dan één
   genummerde regel per gecompileerde instructie (een woord, een getal, een sprong met zijn
   doel), dan `;` en `IMMEDIATE` als het woord dat is. Andere woorden krijgen één regel,
-  zoals `DUP is a primitive`, `5 CONSTANT X` of `CREATE BUF ( address 27464 )`.
+  zoals `DUP is a primitive`, `IF is a compile-only primitive IMMEDIATE`, `5 CONSTANT X`
+  of `CREATE BUF ( address 27464 )`.
 
 Ambigue situaties:
 

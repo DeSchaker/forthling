@@ -18,7 +18,7 @@ impl Forth {
     /// Starts a colon definition (hidden until `;`) and enters compilation state.
     pub(crate) fn start_def(&mut self, name: &str) -> Res<usize> {
         if self.current.is_some() {
-            return Err(Throw::new(-29));
+            return Err(Throw::new(COMPILER_NESTING));
         }
         let xt = self.define(name, Kind::Colon(Rc::new(Vec::new())));
         self.dict[xt].hidden = true;
@@ -36,7 +36,7 @@ impl Forth {
         match word.map(|w| &w.kind) {
             Some(Kind::Value(addr)) if !defer => Ok(*addr),
             Some(Kind::Defer(addr)) if defer => Ok(*addr),
-            _ => Err(Throw::new(-32)),
+            _ => Err(Throw::new(INVALID_NAME)),
         }
     }
 
@@ -62,7 +62,7 @@ impl Forth {
         if self.current.is_some() {
             Ok(())
         } else {
-            Err(Throw::new(-14))
+            Err(Throw::new(COMPILE_ONLY))
         }
     }
 
@@ -86,7 +86,7 @@ impl Forth {
         let u = self.pop()?;
         match usize::try_from(u).ok().filter(|&u| u < self.ctrl.len()) {
             Some(u) => Ok(self.ctrl.len() - 1 - u),
-            None => Err(Throw::new(-22)),
+            None => Err(Throw::new(CONTROL_MISMATCH)),
         }
     }
 
@@ -115,26 +115,25 @@ impl Forth {
     pub(crate) fn pop_orig(&mut self) -> Res<usize> {
         match self.ctrl.pop() {
             Some(Ctrl::Orig(p)) => Ok(p),
-            _ => Err(Throw::new(-22)),
+            _ => Err(Throw::new(CONTROL_MISMATCH)),
         }
     }
 
     pub(crate) fn pop_dest(&mut self) -> Res<usize> {
         match self.ctrl.pop() {
             Some(Ctrl::Dest(p)) => Ok(p),
-            _ => Err(Throw::new(-22)),
+            _ => Err(Throw::new(CONTROL_MISMATCH)),
         }
     }
 
     pub(crate) fn pop_do(&mut self) -> Res<usize> {
         match self.ctrl.pop() {
             Some(Ctrl::Do(p)) => Ok(p),
-            _ => Err(Throw::new(-22)),
+            _ => Err(Throw::new(CONTROL_MISMATCH)),
         }
     }
 
     pub(crate) fn close_loop(&mut self, make: fn(usize) -> Instr) -> Res {
-        self.need_def()?;
         let p = self.pop_do()?;
         self.code.push(make(p + 1));
         let end = self.code.len();

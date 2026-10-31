@@ -420,7 +420,8 @@ Implementation-defined options:
 - **Source and format of `SEE`**: `SEE` shows a colon definition as `: NAME`, then one
   numbered line per compiled instruction (a word, a number, a branch with its target),
   then `;` and `IMMEDIATE` if it is. Other words get one line, such as `DUP is a
-  primitive`, `5 CONSTANT X` or `CREATE BUF ( address 27464 )`.
+  primitive`, `IF is a compile-only primitive IMMEDIATE`, `5 CONSTANT X` or
+  `CREATE BUF ( address 27464 )`.
 
 Ambiguous conditions:
 

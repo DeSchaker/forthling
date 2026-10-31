@@ -158,14 +158,14 @@ pub(crate) fn round_even(r: f64) -> f64 {
 impl Forth {
     pub(crate) fn fpush(&mut self, r: f64) -> Res {
         if self.fstack.len() >= FSTACK_FLOATS {
-            return Err(Throw::new(-44));
+            return Err(Throw::new(FSTACK_OVERFLOW));
         }
         self.fstack.push(r);
         Ok(())
     }
 
     pub(crate) fn fpop(&mut self) -> Res<f64> {
-        self.fstack.pop().ok_or(Throw::new(-45))
+        self.fstack.pop().ok_or(Throw::new(FSTACK_UNDERFLOW))
     }
 
     pub(crate) fn fpop2(&mut self) -> Res<(f64, f64)> {

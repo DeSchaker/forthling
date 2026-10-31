@@ -35,7 +35,7 @@ pub(crate) fn install(f: &mut Forth) {
         let n = f.pop()?;
         let len = f.stack.len() as Cell;
         if n < 0 || n >= len {
-            return Err(Throw::new(-4));
+            return Err(Throw::new(STACK_UNDERFLOW));
         }
         f.push(f.stack[(len - 1 - n) as usize]);
         Ok(())
@@ -44,7 +44,7 @@ pub(crate) fn install(f: &mut Forth) {
         let n = f.pop()?;
         let len = f.stack.len() as Cell;
         if n < 0 || n >= len {
-            return Err(Throw::new(-4));
+            return Err(Throw::new(STACK_UNDERFLOW));
         }
         let x = f.stack.remove((len - 1 - n) as usize);
         f.push(x);
@@ -57,18 +57,18 @@ pub(crate) fn install(f: &mut Forth) {
     f.prim(">R", |f| {
         let a = f.pop()?;
         if f.rstack.len() >= RSTACK_CELLS {
-            return Err(Throw::new(-5));
+            return Err(Throw::new(RSTACK_OVERFLOW));
         }
         f.rstack.push(a);
         Ok(())
     });
     f.prim("R>", |f| {
-        let a = f.rstack.pop().ok_or(Throw::new(-6))?;
+        let a = f.rstack.pop().ok_or(Throw::new(RSTACK_UNDERFLOW))?;
         f.push(a);
         Ok(())
     });
     f.prim("R@", |f| {
-        let a = *f.rstack.last().ok_or(Throw::new(-6))?;
+        let a = *f.rstack.last().ok_or(Throw::new(RSTACK_UNDERFLOW))?;
         f.push(a);
         Ok(())
     });

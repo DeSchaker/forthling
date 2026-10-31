@@ -57,7 +57,7 @@ impl Forth {
         let (sources, to_in) = (self.sources.len(), self.get(IN_ADDR));
         let (current, state, ctrl) = (self.current, self.get(STATE_ADDR), self.ctrl.len());
         if self.catches == MAX_CATCHES {
-            return Err(Throw::with(-5, "CATCH nested too deeply"));
+            return Err(Throw::with(RSTACK_OVERFLOW, "CATCH nested too deeply"));
         }
         self.catches += 1;
         let base = self.frames.len();
@@ -104,18 +104,20 @@ impl Forth {
         let mut hops = 0;
         while let Some(Word { kind: Kind::Defer(addr), name, .. }) = self.dict.get(xt) {
             match self.get(*addr) {
-                -1 => return Err(Throw::with(-21, format!("{name} has no action yet"))),
+                -1 => return Err(Throw::with(UNSUPPORTED, format!("{name} has no action yet"))),
                 action => xt = action as usize,
             }
             hops += 1;
             if hops > MAX_FRAMES {
-                return Err(Throw::new(-5));
+                return Err(Throw::new(RSTACK_OVERFLOW));
             }
         }
-        let word = self
-            .dict
-            .get(xt)
-            .ok_or_else(|| Throw::with(-24, format!("invalid execution token {xt}")))?;
+        let word = self.dict.get(xt).ok_or_else(|| {
+            Throw::with(INVALID_ARGUMENT, format!("invalid execution token {xt}"))
+        })?;
+        if word.compile_only && self.current.is_none() {
+            return Err(Throw::with(COMPILE_ONLY, word.name.clone()));
+        }
         match word.kind.clone() {
             Kind::Prim(f) => f(self),
             Kind::Colon(code) => self.enter(code, 0),
@@ -154,7 +156,7 @@ impl Forth {
 
     pub(crate) fn enter(&mut self, code: Rc<Vec<Instr>>, pc: usize) -> Res {
         if self.frames.len() >= MAX_FRAMES {
-            return Err(Throw::new(-5));
+            return Err(Throw::new(RSTACK_OVERFLOW));
         }
         let (loops, locals) = (self.loops.len(), self.locals.len());
         self.frames.push(Frame { code, pc, loops, locals });
@@ -220,7 +222,7 @@ impl Forth {
                     self.loop_step(start, step)?;
                 }
                 Instr::Leave => {
-                    let lf = self.loops.pop().ok_or(Throw::new(-26))?;
+                    let lf = self.loops.pop().ok_or(Throw::new(NO_LOOP))?;
                     self.jump(lf.exit);
                 }
                 Instr::Print(s) => self.out.extend_from_slice(&s),
@@ -235,7 +237,7 @@ impl Forth {
                         Some(Word { kind: Kind::Created { does, .. }, .. }) => {
                             *does = Some((code, pc))
                         }
-                        _ => return Err(Throw::with(-21, "DOES> without CREATE")),
+                        _ => return Err(Throw::with(UNSUPPORTED, "DOES> without CREATE")),
                     }
                 }
                 Instr::Store(addr) => {
@@ -249,7 +251,8 @@ impl Forth {
                     self.fset(addr, r);
                 }
                 Instr::Locals(take, zeroed) => {
-                    let start = self.stack.len().checked_sub(take).ok_or(Throw::new(-4))?;
+                    let start =
+                        self.stack.len().checked_sub(take).ok_or(Throw::new(STACK_UNDERFLOW))?;
                     self.locals.extend(self.stack.drain(start..));
                     self.locals.extend(std::iter::repeat(0).take(zeroed));
                 }
@@ -271,7 +274,7 @@ impl Forth {
     /// Advances the innermost loop; it ends when the index crosses the
     /// boundary between limit-1 and limit, in either direction.
     pub(crate) fn loop_step(&mut self, start: usize, step: Cell) -> Res {
-        let lf = self.loops.last_mut().ok_or(Throw::new(-26))?;
+        let lf = self.loops.last_mut().ok_or(Throw::new(NO_LOOP))?;
         let before = lf.index.wrapping_sub(lf.limit);
         let after = before.wrapping_add(step);
         lf.index = lf.index.wrapping_add(step);

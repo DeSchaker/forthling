@@ -14,9 +14,9 @@ pub(crate) fn install(f: &mut Forth) {
         Ok(())
     });
     f.imm(";", |f| {
-        let xt = f.current.ok_or(Throw::new(-22))?;
+        let xt = f.current.ok_or(Throw::new(CONTROL_MISMATCH))?;
         if !f.ctrl.is_empty() {
-            return Err(Throw::new(-22));
+            return Err(Throw::new(CONTROL_MISMATCH));
         }
         f.dict[xt].kind = Kind::Colon(Rc::new(std::mem::take(&mut f.code)));
         // A :NONAME definition is only reachable through its xt.
@@ -37,8 +37,7 @@ pub(crate) fn install(f: &mut Forth) {
         f.define(&name, Kind::Created { addr, does: None });
         Ok(())
     });
-    f.imm("DOES>", |f| {
-        f.need_def()?;
+    f.compile_imm("DOES>", |f| {
         let at = f.code.len();
         f.code.push(Instr::SetDoes(at + 2));
         f.code.push(Instr::Exit);
@@ -89,9 +88,10 @@ pub(crate) fn install(f: &mut Forth) {
     // looks in the compilation word list only.
     f.prim("FORGET", |f| {
         let name = f.name()?;
-        let xt = f.find_in(&name, f.current_wid).ok_or_else(|| Throw::with(-13, &name))?;
+        let xt =
+            f.find_in(&name, f.current_wid).ok_or_else(|| Throw::with(UNDEFINED_WORD, &name))?;
         if xt < f.fence {
-            return Err(Throw::with(-15, name));
+            return Err(Throw::with(INVALID_FORGET, name));
         }
         f.here = f.dict[xt].here;
         f.forget_from(xt);
@@ -153,8 +153,7 @@ pub(crate) fn install(f: &mut Forth) {
         f.push(xt as Cell);
         Ok(())
     });
-    f.imm("[']", |f| {
-        f.need_def()?;
+    f.compile_imm("[']", |f| {
         let name = f.name()?;
         let xt = f.find_or_err(&name)?;
         f.code.push(Instr::Lit(xt as Cell));
@@ -163,7 +162,7 @@ pub(crate) fn install(f: &mut Forth) {
     f.prim("EXECUTE", |f| {
         let xt = f.pop()?;
         if xt < 0 {
-            return Err(Throw::with(-24, format!("invalid execution token {xt}")));
+            return Err(Throw::with(INVALID_ARGUMENT, format!("invalid execution token {xt}")));
         }
         f.invoke(xt as usize)
     });
@@ -185,28 +184,26 @@ pub(crate) fn install(f: &mut Forth) {
                 f.push(addr);
                 Ok(())
             }
-            _ => Err(Throw::new(-31)),
+            _ => Err(Throw::new(NOT_CREATED)),
         }
     });
     f.prim("CHAR", |f| {
         let (a, n) = f.parse_name();
         if n == 0 {
-            return Err(Throw::new(-16));
+            return Err(Throw::new(ZERO_LENGTH_NAME));
         }
         f.push(decode(&f.mem[a..a + n]).0);
         Ok(())
     });
-    f.imm("[CHAR]", |f| {
-        f.need_def()?;
+    f.compile_imm("[CHAR]", |f| {
         let (a, n) = f.parse_name();
         if n == 0 {
-            return Err(Throw::new(-16));
+            return Err(Throw::new(ZERO_LENGTH_NAME));
         }
         f.code.push(Instr::Lit(decode(&f.mem[a..a + n]).0));
         Ok(())
     });
-    f.imm("LITERAL", |f| {
-        f.need_def()?;
+    f.compile_imm("LITERAL", |f| {
         let v = f.pop()?;
         f.code.push(Instr::Lit(v));
         Ok(())
@@ -215,41 +212,37 @@ pub(crate) fn install(f: &mut Forth) {
         f.set_state(false);
         Ok(())
     });
-    f.prim("]", |f| {
-        f.need_def()?;
+    f.compile_prim("]", |f| {
         f.set_state(true);
         Ok(())
     });
-    f.imm("POSTPONE", |f| {
-        f.need_def()?;
+    f.compile_imm("POSTPONE", |f| {
         let name = f.name()?;
         let xt = f.find_or_err(&name)?;
         f.code.push(if f.dict[xt].immediate { Instr::Call(xt) } else { Instr::Compile(xt) });
         Ok(())
     });
-    f.prim("COMPILE,", |f| {
-        f.need_def()?;
+    f.compile_prim("COMPILE,", |f| {
         let xt = f.pop()?;
         match usize::try_from(xt).ok().filter(|&i| i < f.dict.len()) {
             Some(xt) => f.code.push(Instr::Call(xt)),
-            None => return Err(Throw::with(-24, format!("invalid execution token {xt}"))),
+            None => {
+                return Err(Throw::with(INVALID_ARGUMENT, format!("invalid execution token {xt}")))
+            }
         }
         Ok(())
     });
-    f.imm("[COMPILE]", |f| {
-        f.need_def()?;
+    f.compile_imm("[COMPILE]", |f| {
         let name = f.name()?;
         let xt = f.find_or_err(&name)?;
         f.code.push(Instr::Call(xt));
         Ok(())
     });
-    f.imm("RECURSE", |f| {
-        f.need_def()?;
+    f.compile_imm("RECURSE", |f| {
         f.code.push(Instr::Call(f.current.unwrap()));
         Ok(())
     });
-    f.imm("EXIT", |f| {
-        f.need_def()?;
+    f.compile_imm("EXIT", |f| {
         f.code.push(Instr::Exit);
         Ok(())
     });

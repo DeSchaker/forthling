@@ -53,7 +53,7 @@ impl Forth {
         let s = self.sources.last_mut().unwrap();
         s.line += 1;
         if bytes.len() > LINE_MAX {
-            return Err(Throw::with(-18, "input line too long"));
+            return Err(Throw::with(PARSED_OVERFLOW, "input line too long"));
         }
         s.len = bytes.len();
         let buf = s.buf;
@@ -101,7 +101,7 @@ impl Forth {
                 self.fpush(r)
             }
         } else {
-            Err(Throw::with(-13, w))
+            Err(Throw::with(UNDEFINED_WORD, w))
         }
     }
 

@@ -121,7 +121,7 @@ impl Forth {
     }
 
     pub(crate) fn name(&mut self) -> Res<String> {
-        self.word().ok_or(Throw::new(-16))
+        self.word().ok_or(Throw::new(ZERO_LENGTH_NAME))
     }
 
     /// Converts a word to a number, if it is one. A trailing `.` makes it a
@@ -174,7 +174,7 @@ impl Forth {
     /// Adds a character in front of the pictured numeric output string.
     pub(crate) fn hold(&mut self, c: u8) -> Res {
         if self.hld <= HOLD_START {
-            return Err(Throw::new(-17));
+            return Err(Throw::new(PICTURED_OVERFLOW));
         }
         self.hld -= 1;
         self.mem[self.hld] = c;

@@ -270,6 +270,10 @@ fn noname_and_compiling_words() {
     assert_eq!(run(r#": T C" abc" ; T COUNT TYPE T C@ ."#), "abc3 ");
     assert_eq!(err(r#"C" abc""#).code, -14);
     assert_eq!(err("5 COMPILE,").code, -14);
+    assert_eq!(err("' IF EXECUTE").code, -14);
+    assert_eq!(err("LOOP").code, -14);
+    assert_eq!(run(": T 3 0 DO I . LOOP ; T"), "0 1 2 ");
+    assert_eq!(run("SEE THEN"), "THEN is a compile-only primitive IMMEDIATE\n");
 }
 
 #[test]

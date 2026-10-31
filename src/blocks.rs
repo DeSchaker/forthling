@@ -53,7 +53,7 @@ impl Forth {
     pub(crate) fn block(&mut self, u: Cell, read: bool) -> Res<usize> {
         let u = match u64::try_from(u) {
             Ok(u) if (1..=MAX_BLOCK).contains(&u) => u,
-            _ => return Err(Throw::with(-35, u.to_string())),
+            _ => return Err(Throw::with(INVALID_BLOCK, u.to_string())),
         };
         let i = match self.blocks.bufs.iter().position(|b| b.block == u) {
             Some(i) => i,
@@ -87,7 +87,7 @@ impl Forth {
             self.write_buffer(i)?;
         }
         if let Some(file) = &mut self.blocks.file {
-            file.flush().map_err(|e| Throw::with(-34, e.to_string()))?;
+            file.flush().map_err(|e| Throw::with(BLOCK_WRITE, e.to_string()))?;
         }
         Ok(())
     }
@@ -106,7 +106,7 @@ impl Forth {
         }
         let data = self.mem[buffer_addr(i)..][..BLOCK_SIZE].to_vec();
         let file = self.block_file()?;
-        let err = |e: io::Error| Throw::with(-34, e.to_string());
+        let err = |e: io::Error| Throw::with(BLOCK_WRITE, e.to_string());
         // Blocks between the end of the file and this one become blank.
         let offset = (b.block - 1) * BLOCK_SIZE as u64;
         let len = file.metadata().map_err(err)?.len();
@@ -123,7 +123,7 @@ impl Forth {
     /// The contents of block u; a block beyond the end of the file is blank.
     fn read_block(&mut self, u: u64) -> Res<Vec<u8>> {
         let file = self.block_file()?;
-        let err = |e: io::Error| Throw::with(-33, e.to_string());
+        let err = |e: io::Error| Throw::with(BLOCK_READ, e.to_string());
         let mut data = vec![b' '; BLOCK_SIZE];
         file.seek(SeekFrom::Start((u - 1) * BLOCK_SIZE as u64)).map_err(err)?;
         let mut n = 0;
@@ -142,7 +142,8 @@ impl Forth {
         if self.blocks.file.is_none() {
             let path = &self.blocks.path;
             let file = OpenOptions::new().read(true).write(true).create(true).open(path);
-            let file = file.map_err(|e| Throw::with(-33, format!("{}: {e}", path.display())))?;
+            let file =
+                file.map_err(|e| Throw::with(BLOCK_READ, format!("{}: {e}", path.display())))?;
             self.blocks.file = Some(file);
         }
         Ok(self.blocks.file.as_mut().unwrap())
