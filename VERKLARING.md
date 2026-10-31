@@ -8,7 +8,7 @@ De namen van de punten zijn korte omschrijvingen van die in de standaard; de
 paragraafnummers verwijzen naar de tekst van de standaard zelf.
 
 De Engelse versie staat in [`COMPLIANCE.md`](COMPLIANCE.md). De roadmap en de stand van
-elke wordset staan in [`STANDAARD.md`](STANDAARD.md).
+elke wordset staan in [`ROADMAP.md`](ROADMAP.md) (in het Engels).
 
 ## Vermelding (5.1.1)
 

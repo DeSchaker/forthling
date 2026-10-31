@@ -1,4 +1,4 @@
-//! A small Forth interpreter, working towards Forth-2012 (see STANDAARD.md).
+//! A small Forth interpreter, working towards Forth-2012 (see ROADMAP.md).
 //!
 //! Words are compiled to a list of instructions and run by an explicit
 //! frame stack, so deep recursion in Forth never overflows the Rust stack.

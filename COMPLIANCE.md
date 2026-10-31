@@ -8,7 +8,7 @@ names are short paraphrases of the standard's; the section numbers point to the
 standard's own text.
 
 A Dutch translation is in [`VERKLARING.md`](VERKLARING.md). The roadmap and the status
-of each word set are in [`STANDAARD.md`](STANDAARD.md) (in Dutch).
+of each word set are in [`ROADMAP.md`](ROADMAP.md).
 
 ## Labeling (5.1.1)
 

@@ -96,7 +96,7 @@ assert_eq!(forth.output(), b"49 ");
 
 ## Standard compliance
 
-[`STANDAARD.md`](STANDAARD.md) (in Dutch) holds the roadmap to Forth-2012 and the
+[`ROADMAP.md`](ROADMAP.md) holds the roadmap to Forth-2012 and the
 current status. The CORE, CORE EXT, BLOCK, DOUBLE, EXCEPTION, FACILITY, FILE, LOCALS,
 MEMORY, SEARCH, STRING, TOOLS, XCHAR and FLOATING word sets are complete, and their tests in the
 [Forth-2012 test suite](https://github.com/gerryjackson/forth2012-test-suite) pass (`core.fr`,

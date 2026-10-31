@@ -1,4 +1,4 @@
-//! The Forth-2012 test suite (tests/forth2012-test-suite, see STANDAARD.md).
+//! The Forth-2012 test suite (tests/forth2012-test-suite, see ROADMAP.md).
 
 use forthling::Forth;
 use std::path::{Path, PathBuf};
@@ -14,7 +14,7 @@ fn suite_file(name: &str) -> Option<String> {
     if path.exists() {
         Some(path.to_string_lossy().into_owned())
     } else {
-        eprintln!("skipped: {} not found (see STANDAARD.md)", path.display());
+        eprintln!("skipped: {} not found (see ROADMAP.md)", path.display());
         None
     }
 }

@@ -48,7 +48,7 @@ latest stable Rust, on Linux and Windows.
 - Keep a change small and give it tests. If it changes how forthling behaves, update
   `COMPLIANCE.md` and the README where they describe that behaviour. `VERKLARING.md` is
   its Dutch translation; the maintainer keeps it in step, so you need not.
-- `STANDAARD.md` is the maintainer's roadmap, in Dutch.
+- `ROADMAP.md` is the roadmap and the status; it also records the design decisions.
 - Commit messages start with a verb in the imperative, such as "Add the XCHAR word set".
 
 ## License
