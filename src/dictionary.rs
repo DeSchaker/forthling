@@ -2,6 +2,9 @@
 
 use crate::*;
 
+pub(crate) const FORTH_WID: usize = 1; // word list ids count from 1
+pub(crate) const MAX_ORDER: usize = 16; // word lists in the search order
+
 #[derive(Clone)]
 pub(crate) enum Kind {
     Prim(Prim),
@@ -17,6 +20,9 @@ pub(crate) enum Kind {
     Marker {
         dict_len: usize, // dictionary length before the marker, itself included
         here: usize,
+        wordlists: usize,
+        order: Vec<usize>,
+        current_wid: usize,
     },
 }
 
@@ -25,6 +31,9 @@ pub(crate) struct Word {
     pub(crate) kind: Kind,
     pub(crate) immediate: bool,
     pub(crate) hidden: bool,
+    pub(crate) wid: usize,               // the word list it is in
+    pub(crate) here: usize,              // HERE when it was defined, for FORGET
+    pub(crate) name_addr: Option<usize>, // its name on the heap, once NAME>STRING asked
 }
 
 impl Forth {
@@ -34,6 +43,9 @@ impl Forth {
             kind,
             immediate: false,
             hidden: false,
+            wid: self.current_wid,
+            here: self.here,
+            name_addr: None,
         });
         self.dict.len() - 1
     }
@@ -51,9 +63,24 @@ impl Forth {
         self.define(name, Kind::Created { addr: addr as Cell, does: None });
     }
 
+    /// Deletes the words from index `len` on, for MARKER and FORGET.
+    pub(crate) fn forget_from(&mut self, len: usize) {
+        for w in self.dict.drain(len..) {
+            if let Some(a) = w.name_addr {
+                self.heap.free(a);
+            }
+        }
+    }
+
+    /// Looks a word up in the word lists of the search order, in turn.
     pub(crate) fn find(&self, name: &str) -> Option<usize> {
+        self.order.iter().find_map(|&wid| self.find_in(name, wid))
+    }
+
+    /// Looks a word up in one word list.
+    pub(crate) fn find_in(&self, name: &str, wid: usize) -> Option<usize> {
         let upper = name.to_ascii_uppercase();
-        self.dict.iter().rposition(|w| !w.hidden && w.name == upper)
+        self.dict.iter().rposition(|w| !w.hidden && w.wid == wid && w.name == upper)
     }
 
     pub(crate) fn find_or_err(&self, name: &str) -> Res<usize> {
@@ -122,12 +149,14 @@ impl Forth {
         Ok(())
     }
 
+    /// WORDS: the words of the first word list in the search order.
     pub(crate) fn words(&mut self) {
         let mut seen = HashSet::new();
         let mut text = String::new();
         let mut line = String::new();
+        let first = self.order.first().copied();
         for w in self.dict.iter().rev() {
-            if w.hidden || !seen.insert(w.name.as_str()) {
+            if w.hidden || Some(w.wid) != first || !seen.insert(w.name.as_str()) {
                 continue;
             }
             if line.len() + w.name.len() > 72 {

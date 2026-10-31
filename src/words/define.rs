@@ -80,8 +80,21 @@ pub(crate) fn install(f: &mut Forth) {
     });
     f.prim("MARKER", |f| {
         let name = f.name()?;
-        let (dict_len, here) = (f.dict.len(), f.here);
-        f.define(&name, Kind::Marker { dict_len, here });
+        let (dict_len, here, wordlists) = (f.dict.len(), f.here, f.wordlists.len());
+        let (order, current_wid) = (f.order.clone(), f.current_wid);
+        f.define(&name, Kind::Marker { dict_len, here, wordlists, order, current_wid });
+        Ok(())
+    });
+    // FORGET name: deletes the word and everything defined after it. It
+    // looks in the compilation word list only.
+    f.prim("FORGET", |f| {
+        let name = f.name()?;
+        let xt = f.find_in(&name, f.current_wid).ok_or_else(|| Throw::with(-13, &name))?;
+        if xt < f.fence {
+            return Err(Throw::with(-15, name));
+        }
+        f.here = f.dict[xt].here;
+        f.forget_from(xt);
         Ok(())
     });
     // TO, IS and ACTION-OF parse a name; compiled, they become Store/Fetch.

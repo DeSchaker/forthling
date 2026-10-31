@@ -96,6 +96,8 @@ fn suite_string() {
 fn suite_tools() {
     let Some(out) = run_suite(&["toolstest.fth"]) else { return };
     assert!(out.contains("End of Programming Tools word tests"), "{out}");
+    // the part that needs the SEARCH word set ran too
+    assert!(out.contains("NAME>INTERPRET returns an execution token"), "{out}");
 }
 
 /// filetest.fth uses words from coreexttest.fth. It creates its files in
@@ -122,6 +124,13 @@ fn suite_facility() {
 fn suite_locals() {
     let Some(out) = run_suite(&["localstest.fth"]) else { return };
     assert!(out.contains("End of Locals word set tests"), "{out}");
+    assert!(!out.contains("priority of Locals not fully tested"), "{out}");
+}
+
+#[test]
+fn suite_search() {
+    let Some(out) = run_suite(&["searchordertest.fth"]) else { return };
+    assert!(out.contains("End of Search Order word tests"), "{out}");
 }
 
 #[test]

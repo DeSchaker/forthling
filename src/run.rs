@@ -136,9 +136,12 @@ impl Forth {
                 Ok(())
             }
             Kind::Defer(_) => unreachable!("resolved above"),
-            Kind::Marker { dict_len, here } => {
-                self.dict.truncate(dict_len);
+            Kind::Marker { dict_len, here, wordlists, order, current_wid } => {
+                self.forget_from(dict_len);
                 self.here = here;
+                self.wordlists.truncate(wordlists);
+                self.order = order;
+                self.current_wid = current_wid;
                 Ok(())
             }
         }

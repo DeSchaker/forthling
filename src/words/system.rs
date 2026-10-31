@@ -81,6 +81,7 @@ pub(crate) fn install(f: &mut Forth) {
             "MAX-UD" => f.push_ud(u128::MAX),
             "RETURN-STACK-CELLS" => f.push(RSTACK_CELLS as Cell),
             "STACK-CELLS" => f.push(STACK_CELLS as Cell),
+            "WORDLISTS" => f.push(MAX_ORDER as Cell),
             _ => {
                 f.push(0); // unknown query
                 return Ok(());

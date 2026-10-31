@@ -605,3 +605,40 @@ fn locals() {
     assert_eq!(f.interpret(": T {: A").unwrap_err().code, -22);
     assert_eq!(err(": T {: A | B | C :} ;").code, -22);
 }
+
+#[test]
+fn word_lists() {
+    let src = "WORDLIST CONSTANT W  W SET-CURRENT : X 1 ; FORTH-WORDLIST SET-CURRENT : X 2 ;";
+    assert_eq!(run(&format!("{src} X . GET-ORDER W SWAP 1+ SET-ORDER X . PREVIOUS X .")), "2 1 2 ");
+    assert_eq!(run(&format!("{src} S\" X\" W SEARCH-WORDLIST . EXECUTE .")), "-1 1 ");
+    assert_eq!(err(": P PREVIOUS PREVIOUS ; ONLY P").code, -50);
+    assert_eq!(err("17 SET-ORDER").code, -49);
+    assert_eq!(err("99 SET-CURRENT").code, -24);
+    // with an empty search order nothing is found, not even ONLY
+    assert_eq!(err("0 SET-ORDER ONLY").code, -13);
+    // a marker puts the search order and the compilation word list back
+    let src = "MARKER M  WORDLIST DUP SET-CURRENT GET-ORDER 1+ SET-ORDER  : Y ;  M";
+    assert_eq!(run(&format!("{src} GET-ORDER . . GET-CURRENT .")), "1 1 1 ");
+    assert_eq!(err("WORDLIST SET-CURRENT : Z ; ONLY Z").code, -13);
+}
+
+#[test]
+fn name_tokens() {
+    let src = "WORDLIST CONSTANT W  W SET-CURRENT : A 1 ; : B 2 ; IMMEDIATE \
+               FORTH-WORDLIST SET-CURRENT : SHOW NAME>STRING TYPE SPACE TRUE ;";
+    assert_eq!(run(&format!("{src} ' SHOW W TRAVERSE-WORDLIST")), "B A ");
+    let src = format!("{src} S\" A\" W SEARCH-WORDLIST DROP");
+    assert_eq!(run(&format!("{src} NAME>INTERPRET EXECUTE .")), "1 ");
+    assert_eq!(run(&format!("{src} NAME>COMPILE ' COMPILE, = . DROP")), "-1 ");
+}
+
+#[test]
+fn forget() {
+    let src = ": A 1 ; HERE : B 2 ; CREATE C 10 ALLOT : A 3 ;";
+    assert_eq!(run(&format!("{src} FORGET B HERE = . A .")), "-1 1 ");
+    assert_eq!(err(&format!("{src} FORGET B C")).code, -13);
+    // FORGET looks in the compilation word list only
+    let src = "WORDLIST CONSTANT W  GET-ORDER W SWAP 1+ SET-ORDER  : D 4 ;";
+    assert_eq!(err(&format!("{src} W SET-CURRENT FORGET D")).code, -13);
+    assert_eq!(err("FORGET DUP").code, -15);
+}

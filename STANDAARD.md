@@ -5,7 +5,7 @@ Eerst de verplichte CORE-wordset, daarna CORE EXT en daarna de optionele wordset
 
 ## Waar staan we nu
 
-*Bijgewerkt 2026-10-31: CORE, CORE EXT, EXCEPTION, TOOLS, STRING, FILE, DOUBLE, FACILITY, MEMORY en LOCALS zijn compleet; mijlpaal M5 is bereikt.*
+*Bijgewerkt 2026-10-31: CORE, CORE EXT, EXCEPTION, TOOLS, STRING, FILE, DOUBLE, FACILITY, MEMORY, LOCALS en SEARCH zijn compleet; mijlpaal M5 is bereikt.*
 
 | Wordset       | Aanwezig  | Ontbreekt |
 |---------------|----------:|----------:|
@@ -14,7 +14,7 @@ Eerst de verplichte CORE-wordset, daarna CORE EXT en daarna de optionele wordset
 | EXCEPTION     | 2 / 2     | 0         |
 | EXCEPTION EXT | 2 / 2     | 0         |
 | TOOLS         | 5 / 5     | 0         |
-| TOOLS EXT     | 13 / 22   | 9 (zie hieronder) |
+| TOOLS EXT     | 18 / 22   | 4 (zie hieronder) |
 | STRING        | 8 / 8     | 0         |
 | STRING EXT    | 3 / 3     | 0         |
 | FILE          | 21 / 21   | 0         |
@@ -26,20 +26,22 @@ Eerst de verplichte CORE-wordset, daarna CORE EXT en daarna de optionele wordset
 | MEMORY        | 3 / 3     | 0         |
 | LOCALS        | 1 / 1     | 0         |
 | LOCALS EXT    | 2 / 2     | 0         |
+| SEARCH        | 9 / 9     | 0         |
+| SEARCH EXT    | 5 / 5     | 0         |
 
 Ontbrekend in TOOLS EXT: `;CODE ASSEMBLER CODE EDITOR` (er is geen assembler en geen
-editor), `FORGET` (verouderd; gebruik `MARKER`) en `NAME>COMPILE NAME>INTERPRET NAME>STRING
-TRAVERSE-WORDLIST` (die hebben wordlists nodig en komen met SEARCH).
+editor).
 
 Testsuite: in de volgorde van `runtests.fth` draaien `prelimtest.fth`, `tester.fr`, `core.fr`,
 `coreplustest.fth`, `utilities.fth`, `errorreport.fth`, `coreexttest.fth`, `doubletest.fth`,
 `exceptiontest.fth`, `facilitytest.fth`, `filetest.fth`, `localstest.fth`, `memorytest.fth`,
-`stringtest.fth` en `toolstest.fth`
+`searchordertest.fth`, `stringtest.fth` en `toolstest.fth`
 **foutloos**. `cargo test` draait ze allemaal vanuit `tests/suite.rs` (`suite_prelimtest`,
 `suite_core`, `suite_core_ext`, `suite_double`, `suite_exception`, `suite_facility`,
-`suite_file_access`, `suite_locals`, `suite_memory`, `suite_string`, `suite_tools`); een nieuwe wordset-test is één regel met de hulpfunctie `run_suite`, die ook
-meerdere bestanden neemt (`filetest.fth` heeft `coreexttest.fth` nodig). `toolstest.fth`
-slaat zijn `TRAVERSE-WORDLIST`-deel over zolang SEARCH ontbreekt.
+`suite_file_access`, `suite_locals`, `suite_memory`, `suite_search`, `suite_string`, `suite_tools`); een nieuwe wordset-test is één regel met de hulpfunctie `run_suite`, die ook
+meerdere bestanden neemt (`filetest.fth` heeft `coreexttest.fth` nodig). Sinds SEARCH
+draaien ook de SEARCH-delen van `toolstest.fth` en `localstest.fth`; `suite_tools` en
+`suite_locals` controleren dat.
 
 ### CI en hygiëne (sinds 2026-10-30)
 
@@ -77,7 +79,7 @@ her-exporteert de items van alle modules, zodat ze overal beschikbaar zijn. De m
 | `files.rs` | file ids, `INCLUDED`/`REQUIRED`, hulpfuncties voor de FILE-woorden |
 | `run.rs` | binnenste interpreter: `Instr`, frames, loops, `CATCH` |
 | `compiler.rs` | `Ctrl`, hulpjes voor definities en control flow, `TO`/`IS` |
-| `words/*.rs` | de primitieven per groep (`stack`, `double`, `memory`, `console`, `define`, `control`, `string`, `tools`, `system`, `file`, `facility`, `heap`, `locals`) |
+| `words/*.rs` | de primitieven per groep (`stack`, `double`, `memory`, `console`, `define`, `control`, `string`, `tools`, `system`, `file`, `facility`, `heap`, `locals`, `search`) |
 | `prelude.fs` | woorden die in Forth zelf geschreven zijn (`include_str!`) |
 | `tests.rs` | unit-tests (mogen bij de interne staat); de suites staan in `tests/suite.rs` |
 
@@ -86,9 +88,19 @@ Een nieuwe wordset krijgt zijn eigen `words/<naam>.rs` met een `install(f)`, aan
 
 ### Volgende sessie: hier verder
 
-- **Volgende stap:** fase 3, SEARCH (`searchordertest.fth`): wordlists en de zoekvolgorde.
-  Daarna kunnen ook `NAME>COMPILE NAME>INTERPRET NAME>STRING TRAVERSE-WORDLIST` (TOOLS
-  EXT) en het SEARCH-deel van `localstest.fth` en `toolstest.fth`.
+- **Volgende stap:** BLOCK (`blocktest.fth`), daarna XCHAR en als laatste FLOATING
+  (voorgestelde volgorde, 2026-10-31; de gebruiker kiest).
+- **SEARCH:** `words/search.rs`, met ook `TRAVERSE-WORDLIST NAME>STRING NAME>INTERPRET
+  NAME>COMPILE`. Elk `Word` heeft een `wid`; `Forth::wordlists` (naam per wid - 1),
+  `order` (eerst doorzocht vooraan) en `current_wid`. `FORTH_WID` is 1 en `MAX_ORDER` 16
+  (in `dictionary.rs`). `find()` loopt de zoekvolgorde af met `find_in(name, wid)`.
+  Een nt is de xt. `NAME>STRING` kopieert de naam bij de eerste vraag naar de heap
+  (`Word::name_addr`); `MARKER` geeft die blokken vrij en zet ook wordlists, zoekvolgorde
+  en `current_wid` terug. Fouten: `-49 -50`, en `-24` voor een ongeldige wid of nt.
+- **FORGET (2026-10-31, op verzoek):** in `words/define.rs`. Elk `Word` onthoudt `here` van
+  zijn definitie; `FORGET` zoekt alleen in de compilatielijst, zet `HERE` terug en schrapt
+  het woord en alles erna (`forget_from`, gedeeld met `MARKER`). Woorden onder
+  `Forth::fence` (systeem en prelude) geven `-15`.
 - **LOCALS:** `words/locals.rs`. Locals staan op een eigen stack `Forth::locals`;
   `Frame::locals` is waar die van het frame beginnen, en `leave_frame`, `CATCH` en `reset`
   kappen hem af. Instructies: `Locals(take, zeroed)` haalt `take` cellen van de data stack
@@ -310,14 +322,14 @@ Gegroepeerd van makkelijk naar lastig:
 | Prioriteit | Wordset   | Waarom / wat |
 |-----------:|-----------|--------------|
 | 1 ✅ | EXCEPTION | `CATCH THROW`, plus `ABORT ABORT"` uit EXCEPTION EXT. Klaar 2026-10-30. |
-| 2 ✅ | TOOLS     | `.S ? DUMP SEE WORDS`, `[IF] [ELSE] [THEN]`, `AHEAD`, `CS-PICK`, `CS-ROLL`, `BYE`, `N>R`/`NR>`, `[DEFINED]`/`[UNDEFINED]`, `SYNONYM`. Klaar 2026-10-30; `NAME>…` en `TRAVERSE-WORDLIST` volgen met SEARCH. |
+| 2 ✅ | TOOLS     | `.S ? DUMP SEE WORDS`, `[IF] [ELSE] [THEN]`, `AHEAD`, `CS-PICK`, `CS-ROLL`, `BYE`, `N>R`/`NR>`, `[DEFINED]`/`[UNDEFINED]`, `SYNONYM`. Klaar 2026-10-30; `NAME>…` en `TRAVERSE-WORDLIST` kwamen met SEARCH (2026-10-31). |
 | 3 ✅ | STRING    | `COMPARE SEARCH /STRING -TRAILING BLANK CMOVE CMOVE> SLITERAL`, plus `REPLACES`/`SUBSTITUTE`/`UNESCAPE`. Klaar 2026-10-30. |
 | 4 ✅ | FILE      | `INCLUDED INCLUDE REQUIRE`, plus file-I/O (`OPEN-FILE READ-LINE WRITE-FILE …`) met echte file ids. Klaar 2026-10-30. |
 | 5 ✅ | DOUBLE    | `D+ D- D. D< DNEGATE 2CONSTANT 2VARIABLE M+ M*/ …`, en getallen met een punt (`123.`) als dubbele cel. Klaar 2026-10-30. |
 | 6 ✅ | FACILITY  | `KEY? PAGE AT-XY MS TIME&DATE`, plus `BEGIN-STRUCTURE`/`FIELD:`. Klaar 2026-10-30. |
 | 7 ✅ | MEMORY    | `ALLOCATE FREE RESIZE`: een heap die vanaf de bovenkant van de data space omlaag groeit. Klaar 2026-10-31. |
 | 8 ✅ | LOCALS    | `{: a b | c -- :}`, `LOCALS|`, `(LOCAL)`, op een eigen locals-stack. Klaar 2026-10-31. |
-| 9 | SEARCH    | Wordlists: `WORDLIST GET-ORDER SET-ORDER DEFINITIONS …`. Vraagt een herbouw van `find()`. |
+| 9 ✅ | SEARCH    | Wordlists: `WORDLIST GET-ORDER SET-ORDER DEFINITIONS …`, met de zoekvolgorde in `find()`. Klaar 2026-10-31. |
 | 10 | FLOATING | Aparte float-stack en `F+ F. F@ …` (groot, ongeveer 70 woorden). |
 | 11 | XCHAR    | UTF-8-bewuste tekenwoorden. Pas zinvol na 0.2. |
 | 12 | BLOCK    | Historisch. Alleen voor de volledigheid. |
@@ -327,7 +339,8 @@ Gegroepeerd van makkelijk naar lastig:
 ## Later: assembler en editor (vastgelegd 2026-10-30)
 
 Uit TOOLS EXT ontbreken bewust `;CODE ASSEMBLER CODE EDITOR`. `ASSEMBLER` en `EDITOR` zelf
-zetten alleen een woordenlijst vooraan in de zoekvolgorde, dus beide wachten op **SEARCH**.
+zetten alleen een woordenlijst vooraan in de zoekvolgorde; sinds SEARCH (2026-10-31) kan dat,
+maar zonder assembler- of editorwoorden zijn die lijsten leeg.
 
 - **Echte assembler** (`CODE naam … END-CODE` met machinecode): vergt uitvoerbaar geheugen
   van het OS (`VirtualAlloc`/`mmap`, zelfgeschreven FFI en `unsafe`), een aanroepconventie
@@ -375,7 +388,7 @@ Core word set, the Core Extensions word set, the Exception word set, …"*.
 | M3 ✅ | Fase 1 | `core.fr` foutloos en alle CORE-woorden aanwezig → **CORE-compliant** (2026-10-30) |
 | M4 ✅ | Fase 2 | `coreexttest.fth` foutloos (2026-10-30) |
 | M5 ✅ | EXCEPTION + TOOLS + STRING | bijbehorende testfiles foutloos (2026-10-30) |
-| M6+ | overige wordsets naar behoefte (FILE, DOUBLE en FACILITY ✅ 2026-10-30, MEMORY en LOCALS ✅ 2026-10-31) | idem |
+| M6+ | overige wordsets naar behoefte (FILE, DOUBLE en FACILITY ✅ 2026-10-30, MEMORY, LOCALS en SEARCH ✅ 2026-10-31) | idem |
 
 M2 is de grootste en riskantste stap. Die doe je het best in één keer, met de huidige
 unit-tests als vangnet, voordat er nieuwe woorden bovenop komen.

@@ -11,6 +11,7 @@ mod file;
 mod heap;
 mod locals;
 mod memory;
+mod search;
 mod stack;
 mod string;
 mod system;
@@ -34,4 +35,5 @@ pub(crate) fn install(f: &mut Forth) {
     facility::install(f);
     heap::install(f);
     locals::install(f);
+    search::install(f);
 }

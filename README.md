@@ -59,6 +59,8 @@ A program that embeds forthling picks the size with `Forth::with_memory(size)`.
   which `CATCH` can catch
 - Strings: `COMPARE SEARCH /STRING -TRAILING BLANK CMOVE CMOVE> SLITERAL`, and text
   substitution with `REPLACES SUBSTITUTE UNESCAPE`
+- Word lists and the search order: `WORDLIST GET-ORDER SET-ORDER ALSO ONLY PREVIOUS
+  DEFINITIONS ORDER SEARCH-WORDLIST`, and `TRAVERSE-WORDLIST NAME>STRING`
 - Programming tools: `.S ? DUMP SEE WORDS`, `[IF] [ELSE] [THEN]`, `[DEFINED] [UNDEFINED]`,
   `AHEAD CS-PICK CS-ROLL`, `N>R NR>` and `SYNONYM`
 
@@ -78,13 +80,13 @@ assert_eq!(forth.output(), b"49 ");
 
 [`STANDAARD.md`](STANDAARD.md) (in Dutch) holds the roadmap to Forth-2012 and the
 current status. The CORE, CORE EXT, DOUBLE, EXCEPTION, FACILITY, FILE, LOCALS, MEMORY,
-STRING and TOOLS word sets are complete, and their tests in the [Forth-2012 test suite](https://github.com/gerryjackson/forth2012-test-suite)
-pass (`core.fr`, `coreplustest.fth`, `coreexttest.fth`, `doubletest.fth`,
-`exceptiontest.fth`, `facilitytest.fth`, `filetest.fth`, `localstest.fth`,
-`memorytest.fth`, `stringtest.fth` and `toolstest.fth`). Of TOOLS EXT, everything is present except
-`;CODE ASSEMBLER CODE EDITOR` (there is no assembler or editor), the obsolescent `FORGET`
-(use `MARKER`), and `NAME>COMPILE NAME>INTERPRET NAME>STRING TRAVERSE-WORDLIST`, which will
-come with the SEARCH word set. Next up is SEARCH.
+SEARCH, STRING and TOOLS word sets are complete, and their tests in the
+[Forth-2012 test suite](https://github.com/gerryjackson/forth2012-test-suite) pass (`core.fr`,
+`coreplustest.fth`, `coreexttest.fth`, `doubletest.fth`, `exceptiontest.fth`,
+`facilitytest.fth`, `filetest.fth`, `localstest.fth`, `memorytest.fth`,
+`searchordertest.fth`, `stringtest.fth` and `toolstest.fth`). Of TOOLS EXT, everything is
+present except `;CODE ASSEMBLER CODE EDITOR` (there is no assembler or editor). Next up is
+BLOCK.
 
 ### Implementation-defined choices
 
@@ -114,6 +116,20 @@ come with the SEARCH word set. Next up is SEARCH.
   Allocated blocks are cell-aligned and a whole number of cells. A failing `ALLOCATE`
   returns `-59`, `FREE` of an address that `ALLOCATE` did not return gives `-60` (and
   changes nothing), and a failing `RESIZE` gives `-61` and leaves the block as it was.
+- A word list id (wid) is a small number; `FORTH-WORDLIST` is 1 and `WORDLIST` hands out
+  2, 3, …, without limit. The search order holds up to 16 word lists (`WORDLISTS`); more
+  throws `-49`, and `PREVIOUS` or `ALSO` on an empty order throws `-50`. An invalid wid
+  throws `-24`. `ONLY` and `-1 SET-ORDER` leave just `FORTH-WORDLIST`, which holds all
+  words of the system, `SET-ORDER` included. `WORDS` lists the first word list of the
+  search order, and `ORDER` shows unnamed word lists as `#2`, `#3`, …. `MARKER` also
+  restores the search order, the compilation word list and the word lists made since.
+- `FORGET name` looks for the name in the compilation word list only, deletes that word
+  and every word defined after it, and puts `HERE` back to where it was before the word.
+  It does not undo changes to the search order or word lists; `MARKER` does. Words of the
+  system itself cannot be forgotten (`-15`).
+- A name token is the same number as the execution token. `NAME>STRING` copies the name
+  to the heap the first time, in upper case, since names are not case-sensitive.
+  `NAME>INTERPRET` never returns 0: every word can be executed.
 - Locals live on a stack of their own, not on the return stack, so `>R` and `R>` can be
   mixed freely with them. A definition can have up to 256 locals (`#LOCALS`); more
   throws `-21`. It may declare them in more than one group. The locals' names are found

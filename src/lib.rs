@@ -69,7 +69,11 @@ pub struct Forth {
     here: usize,
     heap: Heap,
     dict: Vec<Word>,
+    wordlists: Vec<Option<String>>, // by wid - 1: the name, if the list has one
+    order: Vec<usize>,              // the search order, first searched first
+    current_wid: usize,             // the word list new definitions go into
     current: Option<usize>,
+    fence: usize, // the words of the system itself, which FORGET leaves alone
     code: Vec<Instr>,
     ctrl: Vec<Ctrl>,
     local_names: Vec<String>, // the locals of the definition being compiled
@@ -121,7 +125,11 @@ impl Forth {
             here: DICT_START,
             heap: Heap::new(size),
             dict: Vec::new(),
+            wordlists: vec![Some("FORTH".into())],
+            order: vec![FORTH_WID],
+            current_wid: FORTH_WID,
             current: None,
+            fence: 0,
             code: Vec::new(),
             ctrl: Vec::new(),
             local_names: Vec::new(),
@@ -147,6 +155,7 @@ impl Forth {
         f.set(BASE_ADDR, 10);
         words::install(&mut f);
         f.interpret(include_str!("prelude.fs")).expect("prelude must compile");
+        f.fence = f.dict.len();
         f
     }
 }
