@@ -242,11 +242,7 @@ fn fmax(a: f64, b: f64) -> f64 {
     if a.is_nan() || b.is_nan() {
         a + b
     } else if a == b {
-        if a.is_sign_negative() {
-            b
-        } else {
-            a
-        }
+        if a.is_sign_negative() { b } else { a }
     } else {
         a.max(b)
     }
@@ -256,11 +252,7 @@ fn fmin(a: f64, b: f64) -> f64 {
     if a.is_nan() || b.is_nan() {
         a + b
     } else if a == b {
-        if a.is_sign_negative() {
-            a
-        } else {
-            b
-        }
+        if a.is_sign_negative() { a } else { b }
     } else {
         a.min(b)
     }

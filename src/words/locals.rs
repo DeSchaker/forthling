@@ -42,11 +42,13 @@ pub(crate) fn install(f: &mut Forth) {
         f.end_locals(vals)
     });
     // LOCALS| a b c |, which works like (LOCAL)
-    f.compile_imm("LOCALS|", |f| loop {
-        match f.word() {
-            Some(w) if w == "|" => return f.end_stack_order_locals(),
-            Some(w) => f.declare_local(&w)?,
-            None => return Err(Throw::with(CONTROL_MISMATCH, "LOCALS| without |")),
+    f.compile_imm("LOCALS|", |f| {
+        loop {
+            match f.word() {
+                Some(w) if w == "|" => return f.end_stack_order_locals(),
+                Some(w) => f.declare_local(&w)?,
+                None => return Err(Throw::with(CONTROL_MISMATCH, "LOCALS| without |")),
+            }
         }
     });
 }

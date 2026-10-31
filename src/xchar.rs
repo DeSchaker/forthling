@@ -60,11 +60,7 @@ pub(crate) fn last_start(bytes: &[u8]) -> usize {
     while j > 0 && n - j < XCHAR_MAXMEM && is_cont(bytes[j]) {
         j -= 1;
     }
-    if decode(&bytes[j..]).1 == n - j {
-        j
-    } else {
-        n.saturating_sub(1)
-    }
+    if decode(&bytes[j..]).1 == n - j { j } else { n.saturating_sub(1) }
 }
 
 /// The number of terminal columns an xchar takes: 0 for control characters

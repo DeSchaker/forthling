@@ -16,7 +16,7 @@ pub(crate) const MAX_SOURCES: usize = 16; // the terminal plus nested INCLUDEs
 pub(crate) const SOURCE_AREA: usize = 64;
 pub(crate) const SQ_BUFS: usize = SOURCE_AREA + MAX_SOURCES * LINE_MAX; // two alternating S" buffers
 pub(crate) const WORD_BUF: usize = SQ_BUFS + 2 * LINE_MAX; // counted string, trailing space, padding
-                                                           // <# #> builds its string downwards from HOLD_END, down to HOLD_START
+// <# #> builds its string downwards from HOLD_END, down to HOLD_START
 pub(crate) const HOLD_START: usize = WORD_BUF + 264;
 pub(crate) const HOLD_END: usize = HOLD_START + 256;
 pub(crate) const PAD_ADDR: usize = HOLD_END;

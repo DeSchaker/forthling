@@ -8,7 +8,7 @@
 //! f.add_word("HYPOT", math.hypot, inputs=2)     # pushes a float
 //! ```
 
-use forthling::{Cell, Extension, Forth, Throw, MAX_MEMORY, MIN_MEMORY};
+use forthling::{Cell, Extension, Forth, MAX_MEMORY, MIN_MEMORY, Throw};
 use pyo3::create_exception;
 use pyo3::exceptions::{PyException, PyTypeError, PyValueError};
 use pyo3::prelude::*;
@@ -120,7 +120,7 @@ impl PyForth {
             Some(n) => {
                 return Err(PyValueError::new_err(format!(
                     "memory must be a multiple of 8 between {MIN_MEMORY} and {MAX_MEMORY}, not {n}"
-                )))
+                )));
             }
         };
         forth.set_input(Box::new(io::Cursor::new(input.as_bytes().to_vec())));

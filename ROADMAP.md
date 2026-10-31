@@ -124,8 +124,13 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
   PyO3 0.30 needs it too. The local toolchain is stable (1.99.1 on 2026-10-31); CI checks
   1.85. Clippy differs between the two (1.85 wants parentheses around `a << n | b`, 1.99
   knows lints that 1.85 lacks), so check both: `cargo clippy` and `cargo +1.85 clippy`
-  (1.85 is installed locally with `--profile minimal`). The code is still edition 2021; moving to 2024 (`cargo fix --edition`) is a
-  separate step, not yet done.
+  (1.85 is installed locally with `--profile minimal`).
+- **Edition 2024 (2026-10-31):** both crates are edition 2024. `cargo fix --edition`
+  changed no code; the rustfmt style of 2024 put short `if … else` on one line (as
+  `use_small_heuristics = "Max"` in `rustfmt.toml` intends) and sorts imports differently.
+  `python/Cargo.toml` has `rust-version = "1.85"` too, so clippy does not suggest let
+  chains (`if let … && …`, Rust 1.88) and resolver 3 picks dependencies that build on 1.85.
+  Let chains are an option once the minimum is raised to 1.88.
 - **Python module (2026-10-31):** step 2 of "Later: extensions" is done, in `python/`: a
   crate `forthling-py` with an empty `[workspace]` of its own, so PyO3 does not end up in
   the core's `Cargo.lock` and plain `cargo` commands in the root still see only the core

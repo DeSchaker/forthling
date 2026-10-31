@@ -60,13 +60,13 @@ pub(crate) fn install(f: &mut Forth) {
             }
             text += &"   ".repeat(16 - bytes.len());
             text += "  ";
-            text.extend(bytes.iter().map(|&b| {
-                if b == b' ' || b.is_ascii_graphic() {
-                    b as char
-                } else {
-                    '.'
-                }
-            }));
+            text.extend(
+                bytes.iter().map(
+                    |&b| {
+                        if b == b' ' || b.is_ascii_graphic() { b as char } else { '.' }
+                    },
+                ),
+            );
             text.push('\n');
         }
         f.emit_str(&text);

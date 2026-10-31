@@ -65,11 +65,7 @@ pub(crate) fn to_float(text: &[u8], literal: bool) -> Option<f64> {
     // Rust's own parser rounds correctly, however many digits there are.
     // only ASCII digits get here
     let part = |d: &[u8]| {
-        if d.is_empty() {
-            "0".to_string()
-        } else {
-            String::from_utf8_lossy(d).into_owned()
-        }
+        if d.is_empty() { "0".to_string() } else { String::from_utf8_lossy(d).into_owned() }
     };
     let s = format!(
         "{}{}.{}e{}{}",
@@ -106,11 +102,7 @@ fn special(r: f64) -> String {
 }
 
 fn sign(r: f64) -> &'static str {
-    if r.is_sign_negative() {
-        "-"
-    } else {
-        ""
-    }
+    if r.is_sign_negative() { "-" } else { "" }
 }
 
 /// F.: fixed-point notation with `p` significant digits, without trailing
@@ -148,11 +140,7 @@ pub(crate) fn scientific(r: f64, p: usize, engineering: bool) -> String {
 /// FROUND: to the nearest integer, and to the even one when halfway.
 pub(crate) fn round_even(r: f64) -> f64 {
     let rounded = r.round();
-    if (r - r.trunc()).abs() == 0.5 {
-        2.0 * (r / 2.0).round()
-    } else {
-        rounded
-    }
+    if (r - r.trunc()).abs() == 0.5 { 2.0 * (r / 2.0).round() } else { rounded }
 }
 
 impl Forth {
@@ -199,10 +187,6 @@ impl Forth {
     /// A float literal in the text interpreter, which only knows them while
     /// BASE is decimal.
     pub(crate) fn float_literal(&self, w: &str) -> Option<f64> {
-        if self.get(BASE_ADDR) == 10 {
-            to_float(w.as_bytes(), true)
-        } else {
-            None
-        }
+        if self.get(BASE_ADDR) == 10 { to_float(w.as_bytes(), true) } else { None }
     }
 }

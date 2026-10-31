@@ -295,8 +295,7 @@ fn parse_refill_and_input_state() {
     // REFILL continues in the next line; the rest of the current one is skipped.
     let file = temp_file("refill.fs", "SOURCE-ID 0> . REFILL 99 .\n. 2 .\n");
     assert_eq!(run(&format!("INCLUDE {file}")), "-1 -1 2 ");
-    let lines =
-        "VARIABLE N  : AGAIN? N @ 3 < IF 2OVER 2OVER RESTORE-INPUT . ELSE 2DROP 2DROP THEN ;\n\
+    let lines = "VARIABLE N  : AGAIN? N @ 3 < IF 2OVER 2OVER RESTORE-INPUT . ELSE 2DROP 2DROP THEN ;\n\
                  SAVE-INPUT\n\
                  1 N +! AGAIN?\n\
                  N @ .\n";

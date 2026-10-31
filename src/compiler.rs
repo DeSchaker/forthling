@@ -59,11 +59,7 @@ impl Forth {
     }
 
     pub(crate) fn need_def(&self) -> Res {
-        if self.current.is_some() {
-            Ok(())
-        } else {
-            Err(Throw::new(COMPILE_ONLY))
-        }
+        if self.current.is_some() { Ok(()) } else { Err(Throw::new(COMPILE_ONLY)) }
     }
 
     pub(crate) fn emit_fwd(&mut self, instr: Instr) -> usize {

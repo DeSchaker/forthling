@@ -1,6 +1,6 @@
 //! forthling: runs the Forth files given as arguments, or else a REPL.
 
-use forthling::{Forth, DEFAULT_MEMORY, MAX_MEMORY, MIN_MEMORY, QUIT};
+use forthling::{DEFAULT_MEMORY, Forth, MAX_MEMORY, MIN_MEMORY, QUIT};
 use std::path::PathBuf;
 use std::{env, fs};
 

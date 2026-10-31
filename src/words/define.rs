@@ -227,7 +227,7 @@ pub(crate) fn install(f: &mut Forth) {
         match usize::try_from(xt).ok().filter(|&i| i < f.dict.len()) {
             Some(xt) => f.code.push(Instr::Call(xt)),
             None => {
-                return Err(Throw::with(INVALID_ARGUMENT, format!("invalid execution token {xt}")))
+                return Err(Throw::with(INVALID_ARGUMENT, format!("invalid execution token {xt}")));
             }
         }
         Ok(())

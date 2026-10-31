@@ -29,7 +29,7 @@ mod tests;
 pub use host::Extension;
 pub use memory::{DEFAULT_MEMORY, MAX_MEMORY, MIN_MEMORY};
 pub use terminal::Input;
-pub use throw::{Throw, QUIT};
+pub use throw::{QUIT, Throw};
 
 // Every module starts with `use crate::*;`, so these make the items of all
 // modules, and the std items most of them need, available everywhere.
@@ -108,11 +108,7 @@ pub struct Forth {
 }
 
 pub(crate) fn flag(b: bool) -> Cell {
-    if b {
-        -1
-    } else {
-        0
-    }
+    if b { -1 } else { 0 }
 }
 
 impl Forth {

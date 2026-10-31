@@ -164,11 +164,7 @@ impl Forth {
     /// BASE for number output, with decimal as the fallback for an invalid BASE.
     pub(crate) fn base(&self) -> u64 {
         let base = self.get(BASE_ADDR);
-        if (2..=36).contains(&base) {
-            base as u64
-        } else {
-            10
-        }
+        if (2..=36).contains(&base) { base as u64 } else { 10 }
     }
 
     /// Adds a character in front of the pictured numeric output string.
@@ -183,10 +179,6 @@ impl Forth {
 
     pub(crate) fn fmt_num(&self, n: Cell) -> String {
         let s = fmt_unsigned(n.unsigned_abs(), self.base());
-        if n < 0 {
-            format!("-{s}")
-        } else {
-            s
-        }
+        if n < 0 { format!("-{s}") } else { s }
     }
 }

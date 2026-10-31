@@ -104,10 +104,6 @@ impl Forth {
 
     pub(crate) fn loop_index(&self, depth: usize) -> Res<Cell> {
         let n = self.loops.len();
-        if depth < n {
-            Ok(self.loops[n - 1 - depth].index)
-        } else {
-            Err(Throw::new(NO_LOOP))
-        }
+        if depth < n { Ok(self.loops[n - 1 - depth].index) } else { Err(Throw::new(NO_LOOP)) }
     }
 }

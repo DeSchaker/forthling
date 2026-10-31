@@ -23,11 +23,7 @@ pub(crate) fn canonical(path: &str) -> String {
 
 /// The ior of a file word: 0 on success, else the word's THROW code.
 pub(crate) fn ior<T>(result: Option<T>, code: Cell) -> Cell {
-    if result.is_some() {
-        0
-    } else {
-        code
-    }
+    if result.is_some() { 0 } else { code }
 }
 
 /// The core of READ-LINE: reads at most `max` characters of the next line,
