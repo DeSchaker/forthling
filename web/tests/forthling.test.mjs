@@ -14,7 +14,9 @@ const fresh = () => load(bytes);
 test("a session keeps its definitions", async () => {
   const forth = await fresh();
   let r = forth.eval(": SQUARE DUP * ;\n7 SQUARE");
-  assert.deepEqual(r, { output: "", stack: [49], fstack: [], compiling: false, error: null });
+  const { steps, max_depth, ...rest } = r;
+  assert.deepEqual(rest, { output: "", stack: [49], fstack: [], compiling: false, error: null });
+  assert.ok(steps > 0 && max_depth === 2, `${steps} ${max_depth}`);
   r = forth.eval("SQUARE . 1.5E0 2E0 F*");
   assert.equal(r.output, "2401 ");
   assert.deepEqual(r.fstack, [3.0]);
@@ -32,8 +34,12 @@ test("errors come back as data", async () => {
   assert.deepEqual(r.error, {
     code: -13, message: "undefined word", detail: "NOSUCH",
     text: "error -13: undefined word: NOSUCH",
+    stack: [1, 2], fstack: [], words: [], source: "input", line: 1, column: 16, token: "NOSUCH",
   });
   assert.deepEqual(r.stack, []);
+  forth.eval(": STEP 0 / ;\n: MAIN 1 2 STEP ;");
+  const e = forth.eval("5\n  MAIN").error;
+  assert.deepEqual([e.words, e.stack, e.line, e.column], [["MAIN", "STEP", "/"], [5, 1], 2, 3]);
 });
 
 test("the sandbox holds in the browser", async () => {

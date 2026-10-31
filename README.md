@@ -200,6 +200,32 @@ one. A limit that is reached throws -258, and every step after it throws again, 
 called by the host still reads its file. Extensions follow the permissions too; SQLite
 then only opens `:memory:`.
 
+### Error reports
+
+An error empties the stacks, but the `Throw` that `interpret` or `include` returns keeps
+what the system looked like at that moment, so a person or an agent sees what went wrong
+without running the code again:
+
+```rust
+let mut forth = forthling::Forth::new();
+forth.interpret(": STEP 0 / ;\n: MAIN 1 2 STEP ;").unwrap();
+let error = forth.interpret("5 MAIN").unwrap_err();
+let c = error.context().unwrap();
+assert_eq!(c.words, ["MAIN", "STEP", "/"]);   // the words that were running
+assert_eq!(c.stack, [5, 1]);                  // `/` has taken its two arguments
+assert_eq!((c.line, c.column, c.token.as_str()), (1, 3, "MAIN"));
+```
+
+`ErrorContext` has the data and float stacks at the error, the words that were running
+(from the outermost; the chain ends at a word of the system, such as `/`, which is
+written in Forth itself), and where in the input: `source` (`input`, `evaluate`, the path
+of a file or `block n`), `line`, `column` (in characters) and `token`, the last word read.
+A word that takes its arguments before it fails has taken them; a stack underflow takes
+nothing. `steps_used()` and `max_depth()` tell how many steps the last evaluation took and
+how deep the data stack went, the words of the system it ran (such as `.`, written in
+Forth) included. The MCP server, the playground and the Python module pass
+all of this on.
+
 ### In the browser
 
 `web/` compiles forthling to WebAssembly (about 420 KB, no dependencies, no wasm-bindgen)

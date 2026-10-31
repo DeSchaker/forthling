@@ -39,12 +39,15 @@ starts a new one.
 import { load } from "./forthling.js";
 const forth = await load("forthling.wasm");
 forth.eval(": SQUARE DUP * ; 7 SQUARE .");
-// { output: "49 ", stack: [], fstack: [], compiling: false, error: null }
+// { output: "49 ", stack: [], fstack: [], compiling: false, error: null, steps: 73, max_depth: 5 }
 forth.words();   // ["SQUARE"]
 forth.reset();
 ```
 
-An error comes back as `error: { code, message, detail, text }`. One module is one
+An error comes back as `error: { code, message, detail, text, stack, fstack, words, source,
+line, column, token }`: besides what went wrong, the stacks as they were at the error
+(which then empties them), where in the code it happened, and the words that were running,
+such as `["MAIN", "STEP", "/"]`. `steps` and `max_depth` tell what the run took. One module is one
 session; the words stay until `reset()`.
 
 ## In WebAssembly

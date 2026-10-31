@@ -118,9 +118,31 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
 
 ### Next session: resume here
 
-- **Next step:** step 9 of the revised order (revised again on 2026-10-31), error
-  reports for agents. The website (robbertwesterink.nl, private repo `DeSchaker/website`)
-  links to the playground since 2026-10-31.
+- **Next step:** step 10 of the revised order (revised again on 2026-10-31), tracing,
+  on the frames that step 9 now gives a word. The website (robbertwesterink.nl, private
+  repo `DeSchaker/website`) links to the playground since 2026-10-31.
+- **Error reports (2026-10-31):** step 9 is done, in `src/report.rs`. A `Throw` that
+  leaves `interpret` or `include_lines` (while the file is still open) gets an
+  `ErrorContext` (public, `Throw::context()`, boxed so `Res` stays small): the data and
+  float stacks at the error, `words` (the xt of each frame, a new field of `Frame`, then
+  the word the innermost frame was calling; the chain stops at the first word below
+  `fence`, so `/` and `MOD`, written in the prelude, do not show their insides), and
+  `source` (`input`, `evaluate`, a file's path, `block n`), `line` (for `input` counted
+  from the start of that call of `interpret`), `column` (characters, from 1) and `token`
+  (the last word before >IN). Without frames, `words` is the token if it is a word; an
+  undefined word gives none. An error caught by CATCH costs nothing extra, except when it
+  passes `include_lines`. `pop2` now checks the depth first, so an underflow of a binary
+  word leaves the stack as it was; other words that take their arguments before failing
+  (such as `/` on 0) have taken them, which the docs say. A line too long now reads as
+  empty, so the report shows no stale word. `Forth::steps_used()` and `max_depth()` (kept
+  in `Budget`; `check_stack` keeps the deepest, about 2% in the benchmark, like the
+  sandbox) tell what the last evaluation took; the system's own Forth words count too.
+  MCP: the error gains `stack fstack words source line column token`, the text adds `at
+  …`, `in: A > B > C` and `stack at the error:`, and `forth_eval` gives `steps` and
+  `max_depth`; the instructions and `llms.txt` say so. The web answer and the playground
+  show the same (tested with Node and in headless Chrome); Python's `ForthError` gets the
+  same attributes (None without a context; untested locally, as there is no Python here,
+  so CI's `python` job is the test).
 - **Positioning (2026-10-31):** step 8 is done. The README opens with what sets
   forthling apart, in a short list (standard, small, sandbox, JSON, agents, anywhere).
   `llms.txt` in the root (format of llmstxt.org) sums up for language models how to
@@ -772,7 +794,7 @@ positioning and what agents need. The old step 8 (debugging and tracing) became 
    Pages site) with the idioms, the sandbox rules, the JSON words and the MCP tools; and
    advice in the MCP instructions to use locals (`{: a b -- c :}`) rather than `ROT`,
    `PICK` and `ROLL` for more than two or three values.
-9. **Error reports for agents:** an error now empties the stacks, so an agent does not
+9. ✅ **Error reports for agents:** an error now empties the stacks, so an agent does not
    see what went wrong. `forth_eval` (and the playground) then report the stacks at the
    moment of the error, where it happened (line, column and token, also for code that is
    not in a file), the chain of words that was running (such as `MAIN > STEP > /`, from

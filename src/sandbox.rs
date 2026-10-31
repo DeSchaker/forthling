@@ -54,6 +54,8 @@ pub(crate) struct Budget {
     #[cfg(not(target_arch = "wasm32"))]
     deadline: Option<Instant>,
     spent: Option<&'static str>, // the limit that was reached (steps then is 0)
+    start: u64,                  // steps at the start, to tell how many were used
+    pub(crate) deepest: usize,   // the deepest data stack seen after a step
     depth: usize,                // evaluations in progress, nested through host words
 }
 
@@ -65,6 +67,8 @@ impl Default for Budget {
             #[cfg(not(target_arch = "wasm32"))]
             deadline: None,
             spent: None,
+            start: u64::MAX,
+            deepest: 0,
             depth: 0,
         }
     }
@@ -123,6 +127,18 @@ impl Forth {
         self.space_used()
     }
 
+    /// The steps the current or last evaluation took (see `Limits::steps`),
+    /// with or without a limit.
+    pub fn steps_used(&self) -> u64 {
+        self.budget.start - self.budget.steps
+    }
+
+    /// The deepest the data stack was in the current or last evaluation, as
+    /// seen after each step.
+    pub fn max_depth(&self) -> usize {
+        self.budget.deepest
+    }
+
     /// The limits of each evaluation.
     pub fn limits(&self) -> Limits {
         self.limits
@@ -152,12 +168,15 @@ impl Forth {
     /// full limits; one started from inside (by a host word) shares them.
     pub(crate) fn evaluation(&mut self, run: impl FnOnce(&mut Self) -> Res) -> Res {
         if self.budget.depth == 0 {
+            let steps = self.limits.steps.unwrap_or(u64::MAX);
             self.budget = Budget {
-                steps: self.limits.steps.unwrap_or(u64::MAX),
+                steps,
                 output: self.limits.output.unwrap_or(usize::MAX),
                 #[cfg(not(target_arch = "wasm32"))]
                 deadline: self.limits.time.map(|t| Instant::now() + t),
                 spent: None,
+                start: steps,
+                deepest: self.stack.len(),
                 depth: 0,
             };
         }

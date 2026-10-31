@@ -554,6 +554,57 @@ fn include_reports_error_location() {
 }
 
 #[test]
+fn errors_keep_their_context() {
+    let context = |src: &str| err(src).context().cloned().unwrap();
+    let c = context(": STEP 0 / ;\n: MAIN 1 2 STEP ;\n5   MAIN 7");
+    assert_eq!(c.words, ["MAIN", "STEP", "/"]);
+    // `/` has taken its two arguments; 5 1 are left.
+    assert_eq!(c.stack, [5, 1]);
+    assert_eq!((c.source.as_str(), c.line, c.column, c.token.as_str()), ("input", 3, 5, "MAIN"));
+    // An underflow takes nothing, so the stack is as it was.
+    let c = context("1.5e0 4 +");
+    assert_eq!((c.stack, c.fstack, c.words), (vec![4], vec![1.5], vec!["+".to_string()]));
+    // An undefined word runs nothing, also while compiling.
+    let c = context("1 2\n  : X  DUP FOO ;");
+    assert_eq!((c.line, c.column, c.token.as_str()), (2, 12, "FOO"));
+    assert!(c.words.is_empty() && c.stack == [1, 2]);
+    // The column counts characters, not bytes.
+    assert_eq!(context("S\" é\" 2DROP FOO").column, 13);
+    // A line too long reads nothing.
+    let c = context(&"1 ".repeat(1000));
+    assert_eq!((c.line, c.column, c.token.as_str()), (1, 0, ""));
+    // EVALUATE: the position is in its string; the words go on from the caller.
+    let c = context(": RUN S\" 1 2\" EVALUATE S\" 3 0 MOD\" EVALUATE ;\nRUN");
+    assert_eq!((c.source.as_str(), c.line, c.column, c.token.as_str()), ("evaluate", 1, 5, "MOD"));
+    assert_eq!(c.words, ["RUN", "MOD"]);
+    assert_eq!(context(":NONAME 0 0 / ; EXECUTE").words, [":NONAME", "/"]);
+    // Lines count from the start of each call of interpret.
+    let mut f = Forth::new();
+    f.interpret("1\n2\n3 DROP DROP DROP").unwrap();
+    let e = f.interpret("\n BOGUS").unwrap_err();
+    assert_eq!(e.context().map(|c| (c.line, c.column)), Some((2, 2)));
+    // An error caught by CATCH has none; one from a file has its path.
+    assert!(f.interpret("' DROP CATCH").is_ok());
+    let path = temp_file("context.fs", "1 2\n3 0 /\n");
+    let c = context(&format!("INCLUDE {path}"));
+    assert_eq!((c.source, c.line, c.column, c.stack), (path, 2, 5, vec![1, 2]));
+}
+
+#[test]
+fn steps_used_and_max_depth() {
+    let mut f = Forth::new();
+    f.interpret(": F 1 2 3 DROP DROP DROP ; F 7").unwrap();
+    assert_eq!(f.max_depth(), 3);
+    let steps = f.steps_used();
+    assert!(steps > 0, "{steps}");
+    f.interpret("F F 7").unwrap();
+    assert!(f.steps_used() > steps);
+    f.set_limits(Limits { steps: Some(1000), ..Limits::default() });
+    assert_eq!(f.interpret(": L BEGIN AGAIN ; L").unwrap_err().code, LIMIT_EXCEEDED);
+    assert_eq!(f.steps_used(), 1000);
+}
+
+#[test]
 fn file_access() {
     let path = temp_file("io.txt", "");
     let src = format!(

@@ -16,14 +16,22 @@ impl Forth {
         self.stack.pop().ok_or(Throw::new(STACK_UNDERFLOW))
     }
 
-    pub(crate) fn check_stack(&self) -> Res {
-        if self.stack.len() > STACK_CELLS {
+    /// Checks the depth after a step, and keeps the deepest for `max_depth`.
+    pub(crate) fn check_stack(&mut self) -> Res {
+        let depth = self.stack.len();
+        if depth > STACK_CELLS {
             return Err(Throw::new(STACK_OVERFLOW));
         }
+        self.budget.deepest = self.budget.deepest.max(depth);
         Ok(())
     }
 
     pub(crate) fn pop2(&mut self) -> Res<(Cell, Cell)> {
+        // Take nothing when there are too few, so that an error report shows
+        // the stack as it was.
+        if self.stack.len() < 2 {
+            return Err(Throw::new(STACK_UNDERFLOW));
+        }
         let b = self.pop()?;
         let a = self.pop()?;
         Ok((a, b))

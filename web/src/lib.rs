@@ -52,7 +52,11 @@ pub extern "C" fn fl_eval(now: f64) -> usize {
     let answer = with_session(|f| {
         let result = f.interpret(&code);
         let output = String::from_utf8_lossy(&f.take_output()).into_owned();
-        state(f, &output, result.err())
+        let mut answer = state(f, &output, result.err());
+        // What the run took: its steps and the deepest stack.
+        answer.pop();
+        answer += &format!(",\"steps\":{},\"max_depth\":{}}}", f.steps_used(), f.max_depth());
+        answer
     });
     set_answer(answer)
 }
@@ -99,13 +103,33 @@ pub fn state(f: &Forth, output: &str, error: Option<Throw>) -> String {
     let floats: Vec<String> = f.fstack().iter().map(|&r| float(r)).collect();
     let error = match error {
         None => "null".to_string(),
-        Some(e) => format!(
-            "{{\"code\":{},\"message\":{},\"detail\":{},\"text\":{}}}",
-            e.code,
-            quoted(e.message()),
-            e.detail().map_or("null".into(), quoted),
-            quoted(&e.to_string()),
-        ),
+        Some(e) => {
+            // Where it happened and the stacks then, since the error has
+            // emptied them.
+            let context = e.context().map_or(String::new(), |c| {
+                let cells: Vec<String> = c.stack.iter().map(i64::to_string).collect();
+                let floats: Vec<String> = c.fstack.iter().map(|&r| float(r)).collect();
+                let words: Vec<String> = c.words.iter().map(|w| quoted(w)).collect();
+                format!(
+                    ",\"stack\":[{}],\"fstack\":[{}],\"words\":[{}],\"source\":{},\"line\":{},\
+                     \"column\":{},\"token\":{}",
+                    cells.join(","),
+                    floats.join(","),
+                    words.join(","),
+                    quoted(&c.source),
+                    c.line,
+                    c.column,
+                    quoted(&c.token),
+                )
+            });
+            format!(
+                "{{\"code\":{},\"message\":{},\"detail\":{},\"text\":{}{context}}}",
+                e.code,
+                quoted(e.message()),
+                e.detail().map_or("null".into(), quoted),
+                quoted(&e.to_string()),
+            )
+        }
     };
     format!(
         "{{\"output\":{},\"stack\":[{}],\"fstack\":[{}],\"compiling\":{},\"error\":{}}}",

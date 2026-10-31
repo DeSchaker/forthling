@@ -113,9 +113,11 @@ impl Forth {
         // Read the line number before interpreting: a nested source may be
         // on top of the stack when an error comes back.
         let line = |f: &Forth| f.sources.last().unwrap().line;
-        while self.refill().map_err(|e| e.at(path, line(self)))? {
+        // The report is made here, while the file is still open and the
+        // stacks are as the error left them.
+        while self.refill().map_err(|e| self.report(e, 0).at(path, line(self)))? {
             let n = line(self);
-            self.interpret_buffer().map_err(|e| e.at(path, n))?;
+            self.interpret_buffer().map_err(|e| self.report(e, 0).at(path, n))?;
             if self.bye {
                 break;
             }

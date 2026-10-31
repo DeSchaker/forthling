@@ -50,9 +50,26 @@ stack: 1 2
 ```
 
 and the same as structured JSON (`structuredContent`, with an `outputSchema`):
-`{"output": "2401 ", "stack": [1, 2], "fstack": [], "compiling": false, "error": null}`;
-for an error, `"error": {"code": -13, "message": "undefined word", "detail": "FOO", …}`
-and `isError` is true, so the model sees it and can put it right.
+`{"output": "2401 ", "stack": [1, 2], "fstack": [], "compiling": false, "error": null,
+"steps": …, "max_depth": …}`; `steps` and `max_depth` (only for `forth_eval`) tell how
+many steps the call took and how deep the data stack went, counting the words of the
+system it ran (`.` is written in Forth, so it counts too).
+
+An error empties the stacks, so the result also tells what they held at the error, where
+it happened and which words were running; the model can put it right in one go:
+
+```
+error -10: division by zero
+at input, line 2, column 3: MAIN
+in: MAIN > STEP > /
+stack at the error: 5 1
+stack: empty
+```
+
+and as JSON: `"error": {"code": -10, "message": "division by zero", "stack": [5, 1],
+"fstack": [], "words": ["MAIN", "STEP", "/"], "source": "input", "line": 2, "column": 3,
+"token": "MAIN", …}`, with `isError` true. A word that took its arguments before it
+failed, such as `/` here, has taken them.
 
 The JSON words are installed (`ALSO JSON`), and the SQLite words for databases in memory
 (`ALSO SQLITE`, only `:memory:`, which SQL stops when the time is up and which cannot

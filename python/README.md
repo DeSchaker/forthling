@@ -45,7 +45,10 @@ except forthling.ForthError as e:
   `ForthError` with code -258, something forbidden -259.
 - `interpret(text)` and `include(path)` return what was printed. An uncaught `THROW`
   raises `ForthError`, with `code` (the THROW code) and `output` (what was printed
-  before it); the stacks are then empty.
+  before it); the stacks are then empty. It also tells where it happened and what the
+  stacks held then: `stack` and `fstack` at the error, `words` (the words that were
+  running, such as `["MAIN", "STEP", "/"]`), `source`, `line`, `column` and `token`;
+  these are None for an error that did not come from `interpret` or `include`.
 - `push(n)`, `pop()`, `fpush(r)`, `fpop()`, and `stack` (a list, the top last).
 - `add_word(name, func, inputs=0, wordlist=None)` adds a word that calls `func` with
   `inputs` cells from the stack, the deepest first. Its result is pushed: `None`

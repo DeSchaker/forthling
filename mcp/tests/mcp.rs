@@ -104,9 +104,32 @@ fn forth_errors_are_results() {
         (json!(-13), json!("undefined word"))
     );
     assert_eq!(error["detail"], "NOSUCH");
-    assert_eq!(text(&r), "before\nerror -13: undefined word: NOSUCH\nstack: empty");
+    assert_eq!(
+        text(&r),
+        "before\nerror -13: undefined word: NOSUCH\nat input, line 1, column 19: NOSUCH\n\
+         stack at the error: 1 2\nstack: empty"
+    );
     let r = eval(&mut s, "IF");
     assert_eq!(r["structuredContent"]["error"]["code"], -14);
+}
+
+#[test]
+fn errors_show_where_and_the_stacks_then() {
+    let mut s = server();
+    eval(&mut s, ": STEP 0 / ;\n: MAIN 1 2 STEP ;");
+    let r = eval(&mut s, "5\n  MAIN");
+    let error = &r["structuredContent"]["error"];
+    assert_eq!(error["words"], json!(["MAIN", "STEP", "/"]));
+    assert_eq!(error["stack"], json!([5, 1]));
+    assert_eq!((error["line"].clone(), error["column"].clone()), (json!(2), json!(3)));
+    assert_eq!((error["source"].clone(), error["token"].clone()), (json!("input"), json!("MAIN")));
+    assert_eq!(r["structuredContent"]["stack"], json!([]));
+    assert!(text(&r).contains("\nin: MAIN > STEP > /\nstack at the error: 5 1\nstack: empty"));
+    // Each call tells its steps and the deepest stack.
+    let r = eval(&mut s, "1 2 3 + + DROP");
+    assert_eq!(r["structuredContent"]["max_depth"], 3);
+    assert!(r["structuredContent"]["steps"].as_u64().unwrap() > 0);
+    assert!(call(&mut s, "forth_stack", json!({}))["structuredContent"].get("steps").is_none());
 }
 
 #[test]

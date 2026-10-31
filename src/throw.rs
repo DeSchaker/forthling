@@ -79,12 +79,13 @@ pub struct Throw {
     pub code: Cell,
     pub(crate) detail: Option<String>,
     pub(crate) location: Option<String>,
+    pub(crate) context: Option<Box<ErrorContext>>,
 }
 
 impl Throw {
     /// An exception with a THROW code, such as -24 (invalid numeric argument).
     pub fn new(code: Cell) -> Self {
-        Throw { code, detail: None, location: None }
+        Throw { code, detail: None, location: None, context: None }
     }
 
     /// An exception with a THROW code and a detail for the message.
@@ -100,6 +101,13 @@ impl Throw {
     /// Where it happened, as `file:line`, for an error in a file.
     pub fn location(&self) -> Option<&str> {
         self.location.as_deref()
+    }
+
+    /// What the system looked like when the error reached the host: the
+    /// stacks, where in the input, and the words that were running. Made by
+    /// `interpret` and `include`; None for an error that never left Forth.
+    pub fn context(&self) -> Option<&ErrorContext> {
+        self.context.as_deref()
     }
 
     /// Records where the error happened; the innermost location wins.

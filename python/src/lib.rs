@@ -87,6 +87,16 @@ impl PyForth {
         let value = err.value(py);
         value.setattr("code", e.code).ok();
         value.setattr("output", output).ok();
+        // Where it happened and the stacks then; None for an error that did
+        // not come through interpret or include, such as pop() on an empty stack.
+        let c = e.context();
+        value.setattr("stack", c.map(|c| c.stack.clone())).ok();
+        value.setattr("fstack", c.map(|c| c.fstack.clone())).ok();
+        value.setattr("words", c.map(|c| c.words.clone())).ok();
+        value.setattr("source", c.map(|c| c.source.clone())).ok();
+        value.setattr("line", c.map(|c| c.line)).ok();
+        value.setattr("column", c.map(|c| c.column)).ok();
+        value.setattr("token", c.map(|c| c.token.clone())).ok();
         err
     }
 

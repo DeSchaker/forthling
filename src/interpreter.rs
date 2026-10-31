@@ -27,7 +27,8 @@ pub(crate) enum Origin {
 impl Forth {
     /// Interprets text line by line, as if typed at the terminal.
     pub fn interpret(&mut self, src: &str) -> Res {
-        let result = self.evaluation(|f| f.interpret_lines(src));
+        let first = self.sources[0].line;
+        let result = self.evaluation(|f| f.interpret_lines(src)).map_err(|e| self.report(e, first));
         if let Err(e) = &result {
             // QUIT leaves the data stack alone; every other error empties it.
             self.reset(e.code != QUIT);
@@ -53,6 +54,9 @@ impl Forth {
         let s = self.sources.last_mut().unwrap();
         s.line += 1;
         if bytes.len() > LINE_MAX {
+            // None of the line is read, so an error report shows no word.
+            s.len = 0;
+            self.set(IN_ADDR, 0);
             return Err(Throw::with(PARSED_OVERFLOW, "input line too long"));
         }
         s.len = bytes.len();

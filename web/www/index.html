@@ -117,6 +117,17 @@ function showStack(answer) {
   cells.textContent = floats ? `${stack}   floats: ${floats}` : stack;
 }
 
+// The error, then where it happened and the stack then, since the error
+// has emptied it.
+function errorText(e) {
+  let text = e.text + "\n";
+  const of = e.source === "input" ? "" : ` of ${e.source}`;
+  if (e.column) text += `  at line ${e.line}${of}, column ${e.column}: ${e.token}\n`;
+  if (e.words?.length) text += `  in ${e.words.join(" > ")}\n`;
+  if (e.stack) text += `  stack at the error: ${e.stack.join(" ") || "empty"}\n`;
+  return text;
+}
+
 function busy(on) {
   for (const b of buttons) b.disabled = on;
 }
@@ -166,7 +177,7 @@ function run() {
   show(text.replace(/\n?$/, "\n"), "in");
   ask("eval", text, (answer) => {
     if (answer.output) show(answer.output);
-    if (answer.error) show((answer.output && !answer.output.endsWith("\n") ? "\n" : "") + answer.error.text + "\n", "err");
+    if (answer.error) show((answer.output && !answer.output.endsWith("\n") ? "\n" : "") + errorText(answer.error), "err");
     else show(answer.compiling ? " compiled\n" : " ok\n", "ok");
     showStack(answer);
   });

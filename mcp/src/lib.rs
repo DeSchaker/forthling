@@ -178,7 +178,11 @@ impl Server {
                 }
                 let result = self.forth.interpret(code);
                 let output = String::from_utf8_lossy(&self.forth.take_output()).into_owned();
-                Ok(state(&self.forth, &output, result.err()))
+                let mut answer = state(&self.forth, &output, result.err());
+                let content = &mut answer["structuredContent"];
+                content["steps"] = json!(self.forth.steps_used());
+                content["max_depth"] = json!(self.forth.max_depth());
+                Ok(answer)
             }
             "forth_stack" => Ok(state(&self.forth, "", None)),
             "forth_words" => {
@@ -253,7 +257,9 @@ fn reply(id: Value, result: Result<Value, Failure>) -> String {
 /// the error, as text the way the REPL shows them, and as JSON.
 fn state(f: &Forth, output: &str, error: Option<Throw>) -> Value {
     let cells = |stack: &[i64]| stack.iter().map(i64::to_string).collect::<Vec<_>>().join(" ");
-    let floats = f.fstack().iter().map(|r| format!("{r:E}")).collect::<Vec<_>>().join(" ");
+    let float_cells =
+        |stack: &[f64]| stack.iter().map(|r| format!("{r:E}")).collect::<Vec<_>>().join(" ");
+    let floats = float_cells(f.fstack());
     let mut text = output.to_string();
     match &error {
         Some(e) => {
@@ -261,6 +267,24 @@ fn state(f: &Forth, output: &str, error: Option<Throw>) -> Value {
                 text.push('\n');
             }
             text += &e.to_string();
+            // Where it happened and what the stacks held then, since the
+            // error has emptied them.
+            if let Some(c) = e.context() {
+                if c.column > 0 {
+                    text += &format!(
+                        "\nat {}, line {}, column {}: {}",
+                        c.source, c.line, c.column, c.token
+                    );
+                }
+                if !c.words.is_empty() {
+                    text += &format!("\nin: {}", c.words.join(" > "));
+                }
+                let at = if c.stack.is_empty() { "empty".to_string() } else { cells(&c.stack) };
+                text += &format!("\nstack at the error: {at}");
+                if !c.fstack.is_empty() {
+                    text += &format!("\nfloat stack at the error: {}", float_cells(&c.fstack));
+                }
+            }
         }
         None if f.in_definition() => text += " compiled",
         None => text += " ok",
@@ -271,12 +295,22 @@ fn state(f: &Forth, output: &str, error: Option<Throw>) -> Value {
         text += &format!("\nfloat stack: {floats}");
     }
     let error = error.map(|e| {
-        json!({
+        let mut error = json!({
             "code": e.code,
             "message": e.message(),
             "detail": e.detail(),
             "location": e.location(),
-        })
+        });
+        if let Some(c) = e.context() {
+            error["stack"] = json!(c.stack);
+            error["fstack"] = json!(c.fstack);
+            error["words"] = json!(c.words);
+            error["source"] = json!(c.source);
+            error["line"] = json!(c.line);
+            error["column"] = json!(c.column);
+            error["token"] = json!(c.token);
+        }
+        error
     });
     json!({
         "content": [{ "type": "text", "text": text }],
@@ -307,9 +341,18 @@ fn state_schema() -> Value {
                     "message": { "type": "string" },
                     "detail": { "type": ["string", "null"] },
                     "location": { "type": ["string", "null"] },
+                    "stack": { "type": "array", "items": { "type": "integer" }, "description": "the data stack at the error, before it was emptied; a word that took its arguments before it failed has taken them" },
+                    "fstack": { "type": "array", "items": { "type": ["number", "null"] }, "description": "the float stack at the error" },
+                    "words": { "type": "array", "items": { "type": "string" }, "description": "the words that were running, outermost first, such as MAIN, STEP, /" },
+                    "source": { "type": "string", "description": "input (the code of this call), evaluate (a string given to EVALUATE) or block n" },
+                    "line": { "type": "integer", "description": "the line in that source, from 1" },
+                    "column": { "type": "integer", "description": "the column of token, in characters from 1; 0 when no word was read" },
+                    "token": { "type": "string", "description": "the last word read: the one that failed, or the one that ran the code that failed" },
                 },
                 "required": ["code", "message"],
             },
+            "steps": { "type": "integer", "description": "forth_eval only: the steps this call took, of its limit" },
+            "max_depth": { "type": "integer", "description": "forth_eval only: the deepest the data stack was during this call" },
         },
         "required": ["output", "stack", "fstack", "compiling", "error"],
     })
@@ -381,7 +424,7 @@ fn instructions(s: &Settings) -> String {
          the like work only inside a definition; `S\" text\"` gives ( c-addr u ) and TYPE prints \
          it. For more than two or three values, name them with locals rather than juggling \
          them with ROT, PICK and ROLL: `: HYP2 {{: a b -- c :}} a a * b b * + ;` (the last \
-         name gets the top). An error empties the stacks. A line of code, and so a string in `S\" \"`, is at most \
+         name gets the top). An error empties the stacks, but the result shows them as they were at the error, with where it happened and the words that were running. A line of code, and so a string in `S\" \"`, is at most \
          1024 characters: give larger input, such as a JSON document, as the `data` argument of \
          forth_eval, and read it in the code with `DATA ( -- c-addr u )`, an ALLOCATEd copy. \
          `ALSO JSON` gives JSON words: `JSON@` reads a path such \

@@ -34,6 +34,7 @@ pub(crate) enum Instr {
 }
 
 pub(crate) struct Frame {
+    pub(crate) xt: usize, // the word whose code this is, for error reports
     pub(crate) code: Rc<Vec<Instr>>,
     pub(crate) pc: usize,
     pub(crate) loops: usize,  // loop stack depth on entry, restored on exit
@@ -122,7 +123,7 @@ impl Forth {
         match word.kind.clone() {
             Kind::Prim(f) => f(self),
             Kind::Host(f) => f(self),
-            Kind::Colon(code) => self.enter(code, 0),
+            Kind::Colon(code) => self.enter(xt, code, 0),
             Kind::Constant(v) => {
                 self.push(v);
                 Ok(())
@@ -130,7 +131,7 @@ impl Forth {
             Kind::Created { addr, does } => {
                 self.push(addr);
                 match does {
-                    Some((code, pc)) => self.enter(code, pc),
+                    Some((code, pc)) => self.enter(xt, code, pc),
                     None => Ok(()),
                 }
             }
@@ -156,12 +157,12 @@ impl Forth {
         }
     }
 
-    pub(crate) fn enter(&mut self, code: Rc<Vec<Instr>>, pc: usize) -> Res {
+    pub(crate) fn enter(&mut self, xt: usize, code: Rc<Vec<Instr>>, pc: usize) -> Res {
         if self.frames.len() >= MAX_FRAMES {
             return Err(Throw::new(RSTACK_OVERFLOW));
         }
         let (loops, locals) = (self.loops.len(), self.locals.len());
-        self.frames.push(Frame { code, pc, loops, locals });
+        self.frames.push(Frame { xt, code, pc, loops, locals });
         Ok(())
     }
 

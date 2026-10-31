@@ -9,7 +9,8 @@ This file is for language models that write Forth for forthling, mostly through 
 - `forth_eval` runs code (`code`, and optionally `data`); `forth_stack` shows the stacks; `forth_words` lists the words defined in the session; `forth_reset` starts over.
 - The session keeps its definitions, variables and stacks between calls. Define words in one call and use them in the next.
 - Each result has the output, the data stack (the top last), the float stack, whether a definition is still open (`compiling`), and the error if there was one: `{"code": -13, "message": "undefined word", "detail": "FOO"}`.
-- An error empties the stacks. Run small pieces, look at the stack, then go on.
+- An error empties the stacks, but the result shows them as they were at the error (`stack`, `fstack`), where it happened (`line`, `column`, `token`) and the words that were running (`words`, such as `MAIN > STEP > /`). Run small pieces, look at the stack, then go on.
+- `steps` and `max_depth` in each result tell how many steps the call took and how deep the data stack went: a depth that grows with each pass of a loop shows a value left behind.
 - A line of code, and so a string in `S" "`, is at most 1024 characters. Give larger input, such as a JSON document, as the `data` argument, and read it with `DATA ( -- c-addr u )`, an `ALLOCATE`d copy (`FREE` it). It stays for later calls until another call sends data.
 - Each call may take at most 10000000 steps, 5000 ms and 1048576 bytes of output; the session's definitions and the like at most 4194304 bytes in all. A limit reached throws -258 (detail `steps`, `time` or `output`); `CATCH` cannot go on after it. There is no file access (-259).
 

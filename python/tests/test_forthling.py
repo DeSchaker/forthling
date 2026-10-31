@@ -32,9 +32,18 @@ class InterpretTest(unittest.TestCase):
         self.assertEqual(cm.exception.output, "before")
         self.assertIn("undefined word: NOSUCHWORD", str(cm.exception))
         self.assertEqual(f.stack, [])
+        self.assertEqual(cm.exception.stack, [1, 2])
+        self.assertEqual(cm.exception.token, "NOSUCHWORD")
+        self.assertEqual((cm.exception.line, cm.exception.column), (1, 16))
+        f.interpret(": STEP 0 / ;\n: MAIN 1 2 STEP ;")
+        with self.assertRaises(forthling.ForthError) as cm:
+            f.interpret("5 MAIN")
+        self.assertEqual(cm.exception.words, ["MAIN", "STEP", "/"])
+        self.assertEqual(cm.exception.stack, [5, 1])
         with self.assertRaises(forthling.ForthError) as cm:
             f.pop()
         self.assertEqual(cm.exception.code, -4)
+        self.assertIsNone(cm.exception.stack)
 
     def test_input_and_bye(self):
         f = forthling.Forth(input="A")
