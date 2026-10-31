@@ -1,0 +1,26 @@
+[package]
+name = "forthling-mcp"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "An MCP server that runs Forth in forthling's sandbox, for AI agents"
+license = "MIT"
+repository = "https://github.com/DeSchaker/forthling"
+publish = false
+
+# A workspace of its own, so the core keeps its own Cargo.lock without serde_json.
+[workspace]
+
+[[bin]]
+name = "forthling-mcp"
+path = "src/main.rs"
+
+[features]
+default = ["sqlite"]
+# The SQLite words, for :memory: databases.
+sqlite = ["dep:forthling-sqlite"]
+
+[dependencies]
+forthling = { path = ".." }
+forthling-sqlite = { path = "../sqlite", optional = true }
+serde_json = "1"

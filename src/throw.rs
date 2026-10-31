@@ -92,6 +92,16 @@ impl Throw {
         Throw { detail: Some(detail.into()), ..Throw::new(code) }
     }
 
+    /// The detail of the message, such as the undefined word.
+    pub fn detail(&self) -> Option<&str> {
+        self.detail.as_deref()
+    }
+
+    /// Where it happened, as `file:line`, for an error in a file.
+    pub fn location(&self) -> Option<&str> {
+        self.location.as_deref()
+    }
+
     /// Records where the error happened; the innermost location wins.
     pub(crate) fn at(mut self, path: &str, line: usize) -> Self {
         if self.location.is_none() {
@@ -100,7 +110,8 @@ impl Throw {
         self
     }
 
-    pub(crate) fn message(&self) -> &'static str {
+    /// What went wrong, without the detail: the message of the THROW code.
+    pub fn message(&self) -> &'static str {
         match self.code {
             ABORT | ABORT_QUOTE => "aborted",
             STACK_OVERFLOW => "stack overflow",

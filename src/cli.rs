@@ -128,7 +128,7 @@ fn limit<T>(s: &str, parse: impl Fn(&str) -> Result<T, String>) -> Result<Option
 }
 
 /// A time such as 5s, 500ms or 2m; a plain number is seconds.
-fn parse_duration(s: &str) -> Result<Duration, String> {
+pub fn parse_duration(s: &str) -> Result<Duration, String> {
     let invalid = || format!("invalid time {s}");
     let digits = s.find(|c: char| !c.is_ascii_digit()).unwrap_or(s.len());
     let n: u64 = s[..digits].parse().map_err(|_| invalid())?;
@@ -210,7 +210,7 @@ fn parse_config(text: &str) -> Result<Settings, String> {
 }
 
 /// A memory size such as 65536, 512K, 4M or 1G.
-fn parse_size(s: &str) -> Result<usize, String> {
+pub fn parse_size(s: &str) -> Result<usize, String> {
     let size = parse_bytes(s).map_err(|_| format!("invalid memory size {s}"))?;
     if !(MIN_MEMORY..=MAX_MEMORY).contains(&size) {
         return Err(format!("memory size {s} is not between 64K and 4G"));
@@ -222,7 +222,7 @@ fn parse_size(s: &str) -> Result<usize, String> {
 }
 
 /// A number of bytes such as 65536, 512K, 4M or 1G.
-fn parse_bytes(s: &str) -> Result<usize, String> {
+pub fn parse_bytes(s: &str) -> Result<usize, String> {
     let invalid = || format!("invalid size {s}");
     let s = s.trim();
     let digits = s.find(|c: char| !c.is_ascii_digit()).unwrap_or(s.len());

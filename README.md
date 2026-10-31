@@ -185,6 +185,15 @@ one. A limit that is reached throws -258, and every step after it throws again, 
 called by the host still reads its file. Extensions follow the permissions too; SQLite
 then only opens `:memory:`.
 
+### For AI agents (MCP)
+
+`mcp/` holds `forthling-mcp`, an [MCP](https://modelcontextprotocol.io/) server: AI agents
+run Forth through it, in a session that keeps their definitions, always in the sandbox and
+without file access. With Claude Code: `claude mcp add forthling -- forthling-mcp`. Its
+tools are `forth_eval`, `forth_stack`, `forth_words` and `forth_reset`; each result has
+the output and the stacks as text and as JSON. See [mcp/README.md](mcp/README.md), also
+for what enforces the sandbox when a user asks the AI to get around it.
+
 ### From Python
 
 `python/` holds a Python module, built with [PyO3](https://pyo3.rs/) and
@@ -374,4 +383,5 @@ forthling needs Rust 1.85 or newer. CI (`.github/workflows/ci.yml`) checks forma
 clippy lints and runs all tests, the test suite included, on Rust 1.85 and on the latest
 stable Rust on Linux and Windows. It also builds the Python module and runs its tests
 (`python -m unittest discover -s python/tests`, after `pip install ./python`) and checks
-and tests the SQLite words (`cargo test --manifest-path sqlite/Cargo.toml`).
+and tests the SQLite words (`cargo test --manifest-path sqlite/Cargo.toml`) and the MCP
+server (`cargo test --manifest-path mcp/Cargo.toml`, also with `--no-default-features`).

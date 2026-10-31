@@ -1,6 +1,7 @@
 /target
 /python/target/
 /sqlite/target/
+/mcp/target/
 __pycache__/
 # Forth-2012 test suite, cloned separately (see ROADMAP.md)
 /tests/forth2012-test-suite/

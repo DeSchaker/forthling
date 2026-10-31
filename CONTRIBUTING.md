@@ -44,6 +44,10 @@ latest stable Rust, on Linux and Windows.
   `pip install ./python` and `python -m unittest discover -s python/tests`.
 - `sqlite/`: the SQLite words, likewise a crate of its own (rusqlite), with the program
   `forthling-sqlite`; check and test it with `--manifest-path sqlite/Cargo.toml`.
+- `mcp/`: the MCP server `forthling-mcp`, a crate of its own (serde_json); the protocol
+  is in `src/lib.rs` (`Server::handle`, one message at a time), stdio in `src/main.rs`.
+  Test it with `--manifest-path mcp/Cargo.toml`, also with `--no-default-features`. Keep
+  its tools free of arguments that could change the sandbox.
 - `src/cli.rs`: the forthling program (options, config file, REPL), in the library so
   that a program with extensions calls `forthling::cli::main(&[&Extension])`.
 - `src/tests.rs`: the unit tests; `tests/suite.rs` runs the files of the test suite.

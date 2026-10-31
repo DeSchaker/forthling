@@ -130,6 +130,19 @@ impl Forth {
         self.stack.len()
     }
 
+    /// The float stack, the top last.
+    pub fn fstack(&self) -> &[f64] {
+        &self.fstack
+    }
+
+    /// The names of the words the program defined, the latest first, each
+    /// once; not those of the system or of extensions.
+    pub fn program_words(&self) -> Vec<&str> {
+        let mut seen = HashSet::new();
+        let words = self.dict[self.fence..].iter().rev().filter(|w| !w.hidden);
+        words.map(|w| w.name.as_str()).filter(|name| seen.insert(*name)).collect()
+    }
+
     /// The data stack, the top last.
     pub fn stack(&self) -> &[Cell] {
         &self.stack

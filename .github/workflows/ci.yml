@@ -90,3 +90,27 @@ jobs:
       - run: cargo fmt --manifest-path sqlite/Cargo.toml -- --check
       - run: cargo clippy --manifest-path sqlite/Cargo.toml --all-targets -- -D warnings
       - run: cargo test --manifest-path sqlite/Cargo.toml
+
+  # The MCP server in mcp/, a crate of its own (serde_json), with and
+  # without the SQLite words.
+  mcp:
+    strategy:
+      matrix:
+        include:
+          - { os: ubuntu-latest, rust: "1.85" }
+          - { os: ubuntu-latest, rust: stable }
+          - { os: windows-latest, rust: stable }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: mcp
+      - run: cargo fmt --manifest-path mcp/Cargo.toml -- --check
+      - run: cargo clippy --manifest-path mcp/Cargo.toml --all-targets -- -D warnings
+      - run: cargo test --manifest-path mcp/Cargo.toml
+      - run: cargo test --manifest-path mcp/Cargo.toml --no-default-features

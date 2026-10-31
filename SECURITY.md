@@ -13,6 +13,11 @@ growing past the limits. Words that a host program adds in Rust or Python
 run with the rights of that program; the sandbox cannot restrict them, so a host that
 offers them to untrusted code should check `Forth::permits` as the SQLite words do.
 
+The MCP server `forthling-mcp` always runs in the sandbox and has no option to leave it.
+It protects against the Forth code an AI agent sends, not against an agent that also has
+other tools, such as a shell: such an agent can start another program. See
+[mcp/README.md](mcp/README.md#the-sandbox).
+
 A vulnerability is also, for example, a way to make forthling read or write memory outside
 its own Forth memory, run other programs, or touch files without a FILE or BLOCK word
 asking for it. forthling has no `unsafe` code and no dependencies, so a memory problem

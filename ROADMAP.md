@@ -118,9 +118,32 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
 
 ### Next session: resume here
 
-- **Next step:** step 6 of the revised order, the MCP server. All word sets are there
-  (except `;CODE ASSEMBLER CODE EDITOR`), as are the statement of section 4.1, the host
-  API, the Python module, the SQLite words, the sandbox and the JSON words.
+- **Next step:** step 7 of the revised order, WebAssembly and a playground in the
+  browser (for robbertwesterink.nl). All word sets are there (except
+  `;CODE ASSEMBLER CODE EDITOR`), as are the statement of section 4.1, the host API, the
+  Python module, the SQLite words, the sandbox, the JSON words and the MCP server.
+- **MCP server (2026-10-31):** step 6 of the revised order is done, in `mcp/`: a crate
+  `forthling-mcp` (own `[workspace]`), built by hand on `serde_json` without `rmcp`, so
+  without tokio, at the maintainer's request; synchronous, one session per process, with
+  SQLite (feature `sqlite`, default on). `Server::handle(line) -> Option<String>` in
+  `src/lib.rs` answers one JSON-RPC message (`initialize`, `ping`, `tools/list`,
+  `tools/call`; notifications and answers from the client get none; -32700, -32600,
+  -32601, -32602 for the rest); `main.rs` reads stdin line by line in a thread with a
+  64 MiB stack. Protocol versions: the client's when known (`PROTOCOL_VERSIONS`), else
+  `LATEST` 2025-06-18. Tools `forth_eval {code}`, `forth_stack`, `forth_words`,
+  `forth_reset`, each with an `outputSchema`; results as REPL text plus
+  `structuredContent` (`output stack fstack compiling error{code message detail
+  location}`), a Forth error as `isError: true`. `instructions` tell the model the basics
+  and the limits. The sandbox at the maintainer's request is not to be got around:
+  always on, never files, no `none`; the options can only set limits up to ceilings
+  (`MAX_MEMORY` 64M, `MAX_STEPS` 10^9, `MAX_TIME` 60 s, `MAX_OUTPUT` 16M, `MAX_SPACE`
+  64M); tools refuse unknown arguments; the terminal input is empty, so `KEY` cannot read
+  the protocol. The core gained `Forth::fstack`, `Forth::program_words`, public
+  `Throw::message/detail/location` and public `cli::parse_size/parse_bytes/parse_duration`.
+  mcp/README.md explains what enforces the sandbox: the server, not the model; an agent
+  with a shell can go around it, which only the agent's permissions (Claude Code
+  settings) or a container stop. Tests: `mcp/tests/mcp.rs` (also over real stdio); CI job
+  `mcp` (1.85 and stable on Linux, stable on Windows, with and without SQLite).
 - **JSON (2026-10-31):** step 5 of the revised order is done, in `src/json.rs`, in the
   core at the maintainer's request (no dependency is needed), as the extension
   `forthling::Json` (word list `JSON`, `FORTHLING-JSON`). `Forth::new()` stays plain
@@ -701,7 +724,7 @@ environment that returns the stack after every line makes up for that.
    - Through the host API, and as options of the program.
 5. ✅ **JSON words.** The language agents and tools speak: parse JSON into Forth data, and
    give the stack and values back as JSON.
-6. **An MCP server** (`forthling-mcp`): tools such as `forth_eval` (a session that keeps its
+6. ✅ **An MCP server** (`forthling-mcp`): tools such as `forth_eval` (a session that keeps its
    state between calls), `forth_stack` and `forth_reset`, so any agent can use forthling
    directly. Together with 4 and 5, a safe, persistent calculator and scripting language
    for agents. With it, machine-readable output: errors, the stack and `SEE` as structured

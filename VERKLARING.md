@@ -579,6 +579,11 @@ Python-programma toevoegt, komen in `FORTH-WORDLIST` of in een woordenlijst die 
 Een Python-exceptie in zo'n woord gooit -257, wat `CATCH` vangt; ongevangen krijgt het
 Python-programma de exceptie zelf terug.
 
+De MCP-server (`mcp/`, het programma `forthling-mcp`) draait elke sessie in de zandbak,
+met de JSON- en SQLite-woorden; zijn eigen limieten kunnen niet boven vaste plafonds, en
+hij heeft geen optie voor bestanden. Hij leest geen terminalinvoer: `KEY` en `ACCEPT` zien
+het einde van de invoer.
+
 De SQLite-woorden (`sqlite/`, in het programma `forthling-sqlite`) installeren
 `FORTHLING-SQLITE` (versie 1) en de woordenlijst `SQLITE`. Ze volgen de FILE-wordset:
 databases en statements zijn handles, fouten zijn een ior (-260 voor een fout van SQLite,

@@ -560,6 +560,10 @@ adds go into `FORTH-WORDLIST` or into a word list it names. A Python exception i
 word throws -257, which `CATCH` catches; uncaught, the Python program gets the exception
 itself back.
 
+The MCP server (`mcp/`, the program `forthling-mcp`) runs every session in the sandbox
+with the JSON and SQLite words; its own limits cannot pass fixed ceilings, and it has no
+option for files. It reads no terminal input: `KEY` and `ACCEPT` see the end of the input.
+
 The SQLite words (`sqlite/`, in the program `forthling-sqlite`) install `FORTHLING-SQLITE`
 (version 1) and the word list `SQLITE`. They follow the FILE word set: databases and
 statements are handles, errors are an ior (-260 for an error of SQLite, with its message
