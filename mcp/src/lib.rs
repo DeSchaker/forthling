@@ -6,7 +6,9 @@
 //! take only Forth code, no Forth word can change the limits or the
 //! permissions, and no setting of the server opens files or lifts a limit.
 
-use forthling::{DEFAULT_MEMORY, Extension, Forth, Limits, Permission, Throw, TraceEntry};
+use forthling::{
+    DEFAULT_MEMORY, ErrorContext, Extension, Forth, Limits, Permission, Resume, Throw, TraceEntry,
+};
 use serde_json::{Map, Value, json};
 use std::cell::RefCell;
 use std::io;
@@ -27,6 +29,17 @@ pub const MAX_SPACE: usize = 64 << 20;
 
 /// The most words a trace of forth_eval holds; the rest are counted.
 pub const MAX_TRACE: usize = 1000;
+
+/// The most BREAKs a result of forth_eval shows; the rest are counted.
+pub const MAX_BREAKS: usize = 100;
+
+/// What the program looked like at each BREAK of a call, and how many more
+/// there were.
+#[derive(Default)]
+struct Breaks {
+    seen: Vec<ErrorContext>,
+    dropped: usize,
+}
 
 /// What the server runs Forth with: always every limit, never files.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -94,12 +107,13 @@ pub struct Server {
     settings: Settings,
     forth: Forth,
     data: Rc<RefCell<Vec<u8>>>, // the latest data of forth_eval, which DATA gives
+    breaks: Rc<RefCell<Breaks>>, // the BREAKs of the current call
 }
 
 impl Server {
     pub fn new(settings: Settings) -> Self {
-        let data = Rc::default();
-        Server { settings, forth: sandbox(&settings, &data), data }
+        let (data, breaks) = (Rc::default(), Rc::default());
+        Server { settings, forth: sandbox(&settings, &data, &breaks), data, breaks }
     }
 
     /// Answers one message; None for a notification, which gets no answer.
@@ -189,6 +203,7 @@ impl Server {
                 self.forth.record_trace(None);
                 let dropped = self.forth.trace_dropped();
                 let entries = self.forth.take_trace();
+                let breaks = std::mem::take(&mut *self.breaks.borrow_mut());
                 let output = String::from_utf8_lossy(&self.forth.take_output()).into_owned();
                 let mut answer = state(&self.forth, &output, result.err());
                 let content = &mut answer["structuredContent"];
@@ -199,6 +214,14 @@ impl Server {
                     content["trace_dropped"] = json!(dropped);
                     let text = &mut answer["content"][0]["text"];
                     let lines = trace_text(&entries, dropped);
+                    *text = json!(format!("{lines}{}", text.as_str().unwrap_or_default()));
+                }
+                if !breaks.seen.is_empty() {
+                    let content = &mut answer["structuredContent"];
+                    content["breaks"] = breaks.seen.iter().map(context_json).collect();
+                    content["breaks_dropped"] = json!(breaks.dropped);
+                    let text = &mut answer["content"][0]["text"];
+                    let lines = breaks_text(&breaks);
                     *text = json!(format!("{lines}{}", text.as_str().unwrap_or_default()));
                 }
                 Ok(answer)
@@ -218,7 +241,7 @@ impl Server {
             }
             _ => {
                 self.data.borrow_mut().clear();
-                self.forth = sandbox(&self.settings, &self.data);
+                self.forth = sandbox(&self.settings, &self.data, &self.breaks);
                 Ok(state(&self.forth, "", None))
             }
         }
@@ -227,7 +250,11 @@ impl Server {
 
 /// A Forth system in the sandbox, with the JSON words, the word DATA and,
 /// with the feature `sqlite`, the SQLite words for databases in memory.
-fn sandbox(settings: &Settings, data: &Rc<RefCell<Vec<u8>>>) -> Forth {
+fn sandbox(
+    settings: &Settings,
+    data: &Rc<RefCell<Vec<u8>>>,
+    breaks: &Rc<RefCell<Breaks>>,
+) -> Forth {
     let mut f = Forth::with_memory(settings.memory);
     f.set_limits(settings.limits());
     f.permit(Permission::Files, false);
@@ -235,6 +262,18 @@ fn sandbox(settings: &Settings, data: &Rc<RefCell<Vec<u8>>>) -> Forth {
     f.set_input(Box::new(io::Cursor::new(Vec::new())));
     f.install(&forthling::Json);
     f.install(&forthling::Debugger);
+    // BREAK does not stop the program, which no one is watching: it records
+    // what the program looked like, for the result.
+    let breaks = Rc::clone(breaks);
+    f.set_debugger(Some(Box::new(move |_, pause| {
+        let mut breaks = breaks.borrow_mut();
+        if breaks.seen.len() < MAX_BREAKS {
+            breaks.seen.push(pause.context.clone());
+        } else {
+            breaks.dropped += 1;
+        }
+        Ok(Resume::Continue)
+    })));
     #[cfg(feature = "sqlite")]
     f.install(&forthling_sqlite::Sqlite);
     f.install(&Data(Rc::clone(data)));
@@ -371,6 +410,45 @@ fn trace_text(entries: &[TraceEntry], dropped: usize) -> String {
     text + "end of trace\n"
 }
 
+/// The state at an error or a BREAK, as JSON.
+fn context_json(c: &ErrorContext) -> Value {
+    json!({
+        "stack": c.stack,
+        "fstack": c.fstack,
+        "words": c.words,
+        "source": c.source,
+        "line": c.line,
+        "column": c.column,
+        "token": c.token,
+    })
+}
+
+/// The BREAKs as text: a line each, with where and the stacks.
+fn breaks_text(breaks: &Breaks) -> String {
+    let mut text = String::new();
+    for (i, c) in breaks.seen.iter().enumerate() {
+        let stack: Vec<String> = c.stack.iter().map(i64::to_string).collect();
+        text += &format!(
+            "break {}: in {}, at {}, line {}, column {}: stack <{}> {}\n",
+            i + 1,
+            c.words.join(" > "),
+            c.source,
+            c.line,
+            c.column,
+            stack.len(),
+            stack.join(" ")
+        );
+        if !c.fstack.is_empty() {
+            let floats: Vec<String> = c.fstack.iter().map(|r| format!("{r:E}")).collect();
+            text += &format!("  float stack: {}\n", floats.join(" "));
+        }
+    }
+    if breaks.dropped > 0 {
+        text += &format!("... and {} more breaks\n", breaks.dropped);
+    }
+    text
+}
+
 /// The schema of `state`.
 fn state_schema() -> Value {
     json!({
@@ -415,6 +493,23 @@ fn state_schema() -> Value {
                 },
             },
             "trace_dropped": { "type": "integer", "description": "forth_eval with trace only: the words past the first 1000, which the trace leaves out" },
+            "breaks": {
+                "type": "array",
+                "description": "forth_eval only, when BREAK ran: what the program looked like at each BREAK (ALSO DEBUG), at most 100; BREAK does not stop the program",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "stack": { "type": "array", "items": { "type": "integer" } },
+                        "fstack": { "type": "array", "items": { "type": ["number", "null"] } },
+                        "words": { "type": "array", "items": { "type": "string" }, "description": "the words that were running, outermost first, ending in BREAK" },
+                        "source": { "type": "string" },
+                        "line": { "type": "integer" },
+                        "column": { "type": "integer" },
+                        "token": { "type": "string" },
+                    },
+                },
+            },
+            "breaks_dropped": { "type": "integer", "description": "the BREAKs past the first 100" },
         },
         "required": ["output", "stack", "fstack", "compiling", "error"],
     })
@@ -487,7 +582,7 @@ fn instructions(s: &Settings) -> String {
          the like work only inside a definition; `S\" text\"` gives ( c-addr u ) and TYPE prints \
          it. For more than two or three values, name them with locals rather than juggling \
          them with ROT, PICK and ROLL: `: HYP2 {{: a b -- c :}} a a * b b * + ;` (the last \
-         name gets the top). An error empties the stacks, but the result shows them as they were at the error, with where it happened and the words that were running. To see what code does word by word, pass `trace: true` to forth_eval: the result then lists each word that ran with the data stack when it started. A line of code, and so a string in `S\" \"`, is at most \
+         name gets the top). An error empties the stacks, but the result shows them as they were at the error, with where it happened and the words that were running. To see what code does word by word, pass `trace: true` to forth_eval: the result then lists each word that ran with the data stack when it started. Or put BREAK (after `ALSO DEBUG`) where you want to look: the result then shows the stacks and the running words at each BREAK. A line of code, and so a string in `S\" \"`, is at most \
          1024 characters: give larger input, such as a JSON document, as the `data` argument of \
          forth_eval, and read it in the code with `DATA ( -- c-addr u )`, an ALLOCATEd copy. \
          `ALSO JSON` gives JSON words: `JSON@` reads a path such \

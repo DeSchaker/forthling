@@ -105,7 +105,8 @@ over the modules and are `pub(crate)`, except the public API in `lib.rs` and `ho
 | `sandbox.rs` | `Limits`, `Permission`, the budget of an evaluation (`evaluation`, `step`), `emit_bytes`/`emit_memory`, `sleep` |
 | `report.rs` | `ErrorContext`: the stacks, the running words and the place of an error that reaches the host |
 | `typed.rs` | typed words: the macro `forth_word!`, the traits `FromForth` and `IntoForth` |
-| `trace.rs` | tracing: the extension `Debugger` (`TRACE-ON`, `TRACE-OFF`), `record_trace`/`take_trace`, `TraceEntry` |
+| `trace.rs` | tracing: the extension `Debugger` (`TRACE-ON`, `TRACE-OFF`, `BREAK`), `watch`, `record_trace`/`take_trace`, `TraceEntry` |
+| `debug.rs` | the debugger: `set_debugger`, `Pause`, `Reason`, `Resume`, stepping |
 | `host.rs` | the host API: `Extension`, `wordlist`, `add_word`, `state`, `pop_bytes`/`push_bytes`, `memory`, `stack`, `take_output` (tested from outside in `tests/host.rs`) |
 | `float.rs` | the float stack (`fpush`, `fpop`), `F@`/`F!` in memory, text to float (`to_float`) and float to text (`represent`, `fixed`, `scientific`) |
 | `xchar.rs` | UTF-8: encoding, decoding and column width of xchars, `XKEY` and `PARSE` with an xchar |
@@ -121,10 +122,36 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
 
 ### Next session: resume here
 
-- **Next step:** step 11 of the revised order, stepping and breakpoints, on the same
-  hook in `invoke` that tracing now uses (step 12 was done first, at the maintainer's
-  choice). The website (robbertwesterink.nl, private repo
-  `DeSchaker/website`) links to the playground since 2026-10-31.
+- **Next step:** step 13 of the revised order, a virtual file system; or step 16,
+  publishing `forthling-mcp` in the MCP Registry, which needs a choice of package first.
+  The website (robbertwesterink.nl, private repo `DeSchaker/website`) links to the
+  playground since 2026-10-31.
+- **Stepping and breakpoints (2026-10-31):** step 11 is done, in `src/debug.rs`, but not
+  as planned: a run cannot pause and resume across calls of the host, because `CATCH`,
+  `EVALUATE`, `INCLUDE`, `LOAD`, `TRAVERSE-WORDLIST` and the outer interpreter run Forth
+  inside Rust calls. The maintainer chose a way per host. The core: `BREAK` (in the word
+  list `DEBUG` of `Debugger`) calls the host's function, `set_debugger(Some(Box<DebugHook>))`,
+  with a `Pause` (`reason` Break or Step, `word`, `depth`, and `context`, an
+  `ErrorContext` made by `report.rs`'s `context(first_line)`; `interpret` now keeps
+  `first_line`). It answers a `Resume`: `Step` stops at the next word, `Over` at the next
+  word nested no deeper, `Out` at the next nested less deep (once the word this one is
+  in has finished), `Continue` at the next BREAK; or an error, which is thrown. The
+  stops go through the same `watch` as tracing (`tracing` became `watching`, which also
+  holds while a stop is set), so stepping passes over what tracing passes over; it also
+  passes over the system's immediate words of the input (`\ ( [IF]`), for both. The
+  stop ends with the evaluation. Time in the function moves the deadline on
+  (`extend_deadline`). The program (`cli.rs`): a debugger in the terminal, `s` (or an
+  empty line) step, `n` over, `f` out, `c` continue, `q` quit with -28 (named
+  `USER_INTERRUPT` now); tested as a process in `tests/cli.rs`. MCP: BREAK records its
+  `ErrorContext` and continues; `forth_eval` gives `breaks` (at most 100, `MAX_BREAKS`)
+  and `breaks_dropped`, and the text a line per break. Web: `fl_record(max)` and
+  `forth.eval(code, { trace })` add the trace to the answer; the playground's **Step
+  through** records up to 10000 words and plays them back (first, back, step, over, out,
+  next BREAK, arrow keys), with the stack before and after each word and the changed
+  cells marked; tested in headless Chrome. Speed: `invoke` now sends the watched case to
+  a cold `invoke_watched`, but `27 FIB` stayed about 2-3% slower than the commit before
+  (medians 153 and 157 ms over 31 runs each, taken in turn; the loop of 30 million 255
+  and 256 ms); the cause was not found.
 - **Hints for undefined words (2026-10-31):** outside the order, after the maintainer
   got -13 for `TRACE-ON` without `ALSO DEBUG` in the playground. `Throw` has a field
   `hint` (public `hint()`, appended to the message in parentheses); `undefined(name)` in
@@ -849,10 +876,13 @@ positioning and what agents need. The old step 8 (debugging and tracing) became 
     the output limit holds; and `trace: true` in `forth_eval`, giving the trace as data
     (`{word, depth, stack}`, with a maximum of entries). Built on the same frames as the
     chain of words in step 9. When off, it may cost no more than one test.
-11. **Stepping and breakpoints:** `BREAK`, step, over and continue; in the program at
+11. ✅ **Stepping and breakpoints:** `BREAK`, step, over and continue; in the program at
     once, in MCP and wasm by pausing and resuming `run` (possible, since it works with
     explicit frames, not the Rust stack). With a stack visualizer in the playground,
-    where the cells move with each step.
+    where the cells move with each step. *As built (2026-10-31):* pausing and resuming
+    across calls turned out not to be possible without a large rebuild, since `CATCH`,
+    `EVALUATE`, `INCLUDE`, `LOAD` and the outer interpreter run Forth inside Rust calls;
+    the maintainer chose a way per host instead (see "Next session").
 12. ✅ **A `forth_word!` macro** (`macro_rules!`, no dependencies) on top of `add_word`, so
     that Rust programs add words without writing `pop` and `push`:
     `forth_word!(forth, wid, "SQ", (x: i64) -> i64 { x * x })`. It makes forthling as an

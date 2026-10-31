@@ -56,6 +56,29 @@
   .hint { color: var(--muted); font-size: 14px; margin-left: auto; }
   footer { margin-top: 28px; color: var(--muted); font-size: 14px; }
   footer code { background: var(--code); padding: 1px 4px; border-radius: 4px; }
+  #stepper {
+    margin: 0 0 16px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--panel);
+  }
+  #stepper[hidden] { display: none; }
+  .step-head { display: flex; align-items: baseline; gap: 12px; }
+  .step-head #step-close { margin-left: auto; padding: 2px 10px; }
+  #step-where { margin: 6px 0 8px; overflow-x: auto; white-space: nowrap; }
+  #step-where b { color: var(--accent); }
+  .row { display: flex; align-items: center; gap: 10px; margin: 4px 0; min-height: 34px; }
+  .row > b { width: 52px; flex: none; font-weight: 600; color: var(--muted); font-size: 14px; }
+  .cells { display: flex; flex-wrap: wrap; gap: 4px; }
+  .cell {
+    min-width: 34px; padding: 3px 8px; text-align: center; border: 1px solid var(--line);
+    border-radius: 5px; background: var(--code);
+  }
+  .cell.changed {
+    border-color: var(--accent); color: var(--accent); font-weight: 600;
+    animation: arrive 0.25s ease-out;
+  }
+  .cell.more, .cell.none { border-style: dashed; color: var(--muted); background: none; }
+  @keyframes arrive { from { transform: translateY(-8px); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .cell.changed { animation: none; } }
 </style>
 </head>
 <body>
@@ -67,10 +90,31 @@
   <pre id="transcript" class="mono" aria-live="polite"></pre>
   <div id="stack" class="mono"><b>stack</b> <span id="cells">starting…</span></div>
 
+  <section id="stepper" hidden aria-label="Step through">
+    <div class="step-head">
+      <strong>Step through</strong>
+      <span id="step-pos" class="hint" style="margin:0"></span>
+      <button id="step-close" aria-label="Close">×</button>
+    </div>
+    <div id="step-where" class="mono"></div>
+    <div class="row mono"><b>before</b><span id="step-before" class="cells"></span></div>
+    <div class="row mono"><b>after</b><span id="step-after" class="cells"></span></div>
+    <div class="bar">
+      <button id="step-first" title="Back to the first word">⏮</button>
+      <button id="step-back" title="The word before (←)">◀ Back</button>
+      <button id="step-into" class="primary" title="The next word, also inside this one (→)">Step ▶</button>
+      <button id="step-over" title="The next word, past what this one calls">Over</button>
+      <button id="step-out" title="On until the word this one is in has finished">Out</button>
+      <button id="step-break" title="On to the next BREAK">Next BREAK</button>
+      <span id="step-note" class="hint"></span>
+    </div>
+  </section>
+
   <label for="code" class="hint" style="margin:0">Forth code</label>
   <textarea id="code" class="mono" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
   <div class="bar">
     <button id="run" class="primary" disabled>Run</button>
+    <button id="debug" disabled title="Run, then follow each word and its stack">Step through</button>
     <select id="examples" aria-label="Examples">
       <option value="">Examples…</option>
     </select>
@@ -83,6 +127,8 @@
     Words you define stay until you start over. Each run may take 10 million steps and print 1 MiB;
     there is no file access. Try <code>WORDS</code>, <code>SEE SQUARE</code>, <code>ALSO JSON</code> for the JSON words, or
     <code>ALSO DEBUG TRACE-ON</code> to see each word run (<code>TRACE-OFF</code> stops it).
+    <em>Step through</em> runs the code, then lets you follow it word by word, forwards and back,
+    with the stack before and after each word; <code>BREAK</code> (after <code>ALSO DEBUG</code>) marks a place to jump to.
   </footer>
 </main>
 
@@ -95,12 +141,14 @@ const examples = {
   "Floating point": "2E0 FSQRT F.  1E0 FEXP F.\n: HYPOT ( F: a b -- c ) FDUP F* FSWAP FDUP F* F+ FSQRT ;\n3E0 4E0 HYPOT F.",
   "JSON": "ALSO JSON\n: DOC  S\\\" {\\\"name\\\": \\\"Ada\\\", \\\"langs\\\": [\\\"en\\\", \\\"fr\\\"]}\" ;\nDOC S\" langs[1]\" JSON@ DROP TYPE CR\nJSON{ S\" sum\" JSON-KEY 1 2 + JSON-NUMBER S\" ok\" JSON-KEY -1 JSON-FLAG JSON}",
   "Trace": "\\ Each word that runs, with the stack when it starts\nALSO DEBUG\n: SQUARE ( n -- n*n ) DUP * ;\n: SUM-SQUARES ( a b -- n ) SQUARE SWAP SQUARE + ;\nTRACE-ON 3 4 SUM-SQUARES . TRACE-OFF",
+  "Step through": "\\ Press \"Step through\" to follow each word and its stack;\n\\ BREAK marks a place that \"Next BREAK\" jumps to\nALSO DEBUG\n: SQUARE ( n -- n*n ) DUP * ;\n: SUM-SQUARES ( a b -- n ) SQUARE SWAP BREAK SQUARE + ;\n3 4 SUM-SQUARES .",
   "The sandbox":"\\ An endless loop: the sandbox stops it\n: FOREVER BEGIN AGAIN ; FOREVER",
 };
 
 const $ = (id) => document.getElementById(id);
 const transcript = $("transcript"), code = $("code"), cells = $("cells");
-const buttons = [$("run"), $("words"), $("reset")];
+const buttons = [$("run"), $("debug"), $("words"), $("reset")];
+const MAX_TRACE = 10000; // words recorded for Step through
 for (const name of Object.keys(examples)) $("examples").add(new Option(name, name));
 
 let worker, waiting = null, watchdog, nextId = 0;
@@ -161,10 +209,10 @@ function start() {
   };
 }
 
-function ask(action, code, done) {
+function ask(action, code, done, trace = 0) {
   waiting = { id: ++nextId, done };
   busy(true);
-  worker.postMessage({ id: waiting.id, action, code });
+  worker.postMessage({ id: waiting.id, action, code, trace });
   // The sandbox counts steps; this is a last resort if something still runs on.
   watchdog = setTimeout(() => {
     waiting = null;
@@ -173,7 +221,7 @@ function ask(action, code, done) {
   }, 15000);
 }
 
-function run() {
+function run(trace = 0) {
   const text = code.value;
   if (!text.trim() || waiting) return;
   show(text.replace(/\n?$/, "\n"), "in");
@@ -182,10 +230,115 @@ function run() {
     if (answer.error) show((answer.output && !answer.output.endsWith("\n") ? "\n" : "") + errorText(answer.error), "err");
     else show(answer.compiling ? " compiled\n" : " ok\n", "ok");
     showStack(answer);
-  });
+    if (trace) openStepper(answer);
+  }, trace);
 }
 
-$("run").onclick = run;
+// Step through: the run is recorded word by word and played back here. The
+// sandbox makes a run come out the same each time, so the record is faithful.
+let replay = null; // { trace, end, at }
+
+function openStepper(answer) {
+  const end = answer.error ? (answer.error.stack ?? []) : answer.stack;
+  replay = { trace: answer.trace, end: { stack: end, stack_depth: end.length }, at: 0 };
+  $("stepper").hidden = false;
+  let note = answer.trace_dropped ? `Only the first ${MAX_TRACE} words were recorded.` : "";
+  if (answer.error) note += (note ? " " : "") + "The run ended in an error; the last state is at the error.";
+  $("step-note").textContent = note;
+  render();
+}
+
+// The first word after the current one that `ok` accepts, or -1.
+function seek(ok) {
+  const t = replay.trace;
+  for (let j = replay.at + 1; j < t.length; j++) if (ok(t[j], t[replay.at])) return j;
+  return -1;
+}
+
+// The stack once the word at `i` has finished: at the next word nested no
+// deeper, or at the end.
+function after(i) {
+  const t = replay.trace;
+  for (let j = i + 1; j < t.length; j++) if (t[j].depth <= t[i].depth) return t[j];
+  return replay.end;
+}
+
+// The words running at `i`, outermost first, from the depths before it.
+function chain(i) {
+  const t = replay.trace;
+  const words = [t[i].word];
+  for (let k = i - 1, d = t[i].depth; k >= 0 && d > 0; k--) {
+    if (t[k].depth === d - 1) { words.unshift(t[k].word); d--; }
+  }
+  return words;
+}
+
+// The cells of a stack; with `other`, those that differ from it stand out.
+function cellsOf(state, other) {
+  const box = document.createDocumentFragment();
+  const hidden = state.stack_depth - state.stack.length;
+  const add = (text, cls) => {
+    const span = document.createElement("span");
+    span.className = "cell " + cls;
+    span.textContent = text;
+    box.append(span);
+  };
+  if (hidden > 0) add(`… ${hidden} more`, "more");
+  state.stack.forEach((n, k) => {
+    // The same place, counted from the bottom, in the other stack.
+    const at = other ? hidden + k - (other.stack_depth - other.stack.length) : -1;
+    const same = other && at >= 0 && at < other.stack.length && other.stack[at] === n;
+    add(String(n), other && !same ? "changed" : "");
+  });
+  if (state.stack_depth === 0) add("empty", "none");
+  return box;
+}
+
+function render() {
+  const t = replay.trace, i = replay.at;
+  if (!t.length) {
+    $("step-pos").textContent = "no words ran";
+    $("step-where").replaceChildren();
+    $("step-before").replaceChildren();
+    $("step-after").replaceChildren();
+  } else {
+    $("step-pos").textContent = `word ${i + 1} of ${t.length}`;
+    const words = chain(i);
+    const b = document.createElement("b");
+    b.textContent = words.at(-1);
+    $("step-where").replaceChildren(words.slice(0, -1).map((w) => w + " > ").join(""), b);
+    $("step-before").replaceChildren(cellsOf(t[i], null));
+    $("step-after").replaceChildren(cellsOf(after(i), t[i]));
+  }
+  $("step-first").disabled = $("step-back").disabled = i === 0;
+  $("step-into").disabled = i >= t.length - 1;
+  $("step-over").disabled = seek((w, c) => w.depth <= c.depth) < 0;
+  $("step-out").disabled = seek((w, c) => w.depth < c.depth) < 0;
+  $("step-break").disabled = seek((w) => w.word === "BREAK") < 0;
+}
+
+function go(j) {
+  if (replay && j >= 0 && j < replay.trace.length) {
+    replay.at = j;
+    render();
+  }
+}
+
+$("step-first").onclick = () => go(0);
+$("step-back").onclick = () => go(replay.at - 1);
+$("step-into").onclick = () => go(replay.at + 1);
+$("step-over").onclick = () => go(seek((w, c) => w.depth <= c.depth));
+$("step-out").onclick = () => go(seek((w, c) => w.depth < c.depth));
+$("step-break").onclick = () => go(seek((w) => w.word === "BREAK"));
+$("step-close").onclick = () => { $("stepper").hidden = true; replay = null; };
+document.addEventListener("keydown", (e) => {
+  if (!replay || e.target === code || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === "ArrowRight") go(replay.at + 1);
+  else if (e.key === "ArrowLeft") go(replay.at - 1);
+});
+
+$("run").onclick = () => run();
+$("debug").onclick = () => run(MAX_TRACE);
 code.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
     e.preventDefault();

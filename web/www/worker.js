@@ -5,10 +5,10 @@ import { load } from "./forthling.js";
 
 const forth = await load(new URL("forthling.wasm", import.meta.url));
 
-onmessage = ({ data: { id, action, code } }) => {
+onmessage = ({ data: { id, action, code, trace } }) => {
   let answer;
   try {
-    if (action === "eval") answer = forth.eval(code);
+    if (action === "eval") answer = forth.eval(code, { trace });
     else if (action === "reset") answer = forth.reset();
     else answer = forth.words();
   } catch (e) {

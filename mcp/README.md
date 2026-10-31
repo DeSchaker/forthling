@@ -96,6 +96,16 @@ and the JSON has `"trace": [{"word": "F", "depth": 0, "stack": [], "stack_depth"
 trace of a call that fails shows how it got to the error. In the code itself,
 `ALSO DEBUG TRACE-ON … TRACE-OFF` prints the same lines as output.
 
+`BREAK` (also `ALSO DEBUG`) marks a place to look at. It does not stop the program, since
+no one could answer in the middle of a call; instead the result has `breaks`, what the
+program looked like at each `BREAK` (at most 100; `breaks_dropped` counts the rest), with
+the same fields as an error: `stack`, `fstack`, `words`, `source`, `line`, `column` and
+`token`. The text starts with a line for each:
+
+```
+break 1: in F > BREAK, at input, line 1, column 3: stack <2> 7 9
+```
+
 The JSON words are installed (`ALSO JSON`), and the SQLite words for databases in memory
 (`ALSO SQLITE`, only `:memory:`, which SQL stops when the time is up and which cannot
 grow larger than the Forth memory); without the Cargo feature `sqlite`

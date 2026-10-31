@@ -575,8 +575,10 @@ half geschreven was vergeten), en -59 als de strings tussen `<JSON` en `JSON>`, 
 geneste samen, groter zouden worden dan het geheugen. `JSON-NUMBER`
 schrijft decimaal, wat `BASE` ook is, `JSON-FLOAT` schrijft `null` voor oneindig of NaN,
 en tekst die geen UTF-8 is, wordt geschreven met U+FFFD. De tweede zijn de tracewoorden
-(`FORTHLING-DEBUG`, versie 1, woordenlijst `DEBUG`: `TRACE-ON` en `TRACE-OFF`; zie de
-README); hun regels zijn uitvoer, net als die van `.S`. `Forth::new()` installeert niets.
+(`FORTHLING-DEBUG`, versie 1, woordenlijst `DEBUG`: `TRACE-ON`, `TRACE-OFF` en `BREAK`;
+zie de README); hun regels zijn uitvoer, net als die van `.S`. `BREAK` geeft het
+programma aan de debugger van de host, als die er een heeft; het programma forthling
+vraagt dan in de terminal hoe verder, en stoppen daar gooit -28 (user interrupt). `Forth::new()` installeert niets.
 De Python-module (`python/`)
 installeert `FORTHLING-PYTHON` (versie 1), zonder eigen woorden: de woorden die een
 Python-programma toevoegt, komen in `FORTH-WORDLIST` of in een woordenlijst die het noemt.

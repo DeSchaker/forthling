@@ -7,6 +7,9 @@
 // Each answer is { output, stack, fstack, compiling, error }, where error is
 // null or { code, message, detail, text }. One module is one session: words
 // defined in one eval stay for the next, until reset().
+//
+//   forth.eval(code, { trace: 10000 })   // also records the words that ran:
+//   // trace: [{ word, depth, stack, stack_depth }, ...], trace_dropped
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -18,12 +21,21 @@ export class Forth {
     this.#wasm = instance.exports;
   }
 
-  /** Runs Forth code; returns the answer. */
-  eval(code) {
+  /**
+   * Runs Forth code; returns the answer. With `trace`, a number, the answer
+   * also has the first that many words that ran, each with how deep it was
+   * nested and the data stack when it started (the top 8 cells).
+   */
+  eval(code, { trace = 0 } = {}) {
     const bytes = encoder.encode(code);
     const at = this.#wasm.fl_input(bytes.length);
     new Uint8Array(this.#wasm.memory.buffer, at, bytes.length).set(bytes);
-    return this.#answer(this.#wasm.fl_eval(Date.now() / 1000));
+    this.#wasm.fl_record(trace);
+    try {
+      return this.#answer(this.#wasm.fl_eval(Date.now() / 1000));
+    } finally {
+      this.#wasm.fl_record(0);
+    }
   }
 
   /** The state, without running anything. */

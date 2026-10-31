@@ -38,7 +38,8 @@ pub(crate) struct Tracer {
     off: Option<usize>,       // the xt of TRACE-OFF, which gets no line
 }
 
-/// The extension with the word list DEBUG: `TRACE-ON` and `TRACE-OFF`.
+/// The extension with the word list DEBUG: `TRACE-ON`, `TRACE-OFF` and
+/// `BREAK` (see debug.rs).
 /// ENVIRONMENT? knows it as FORTHLING-DEBUG.
 pub struct Debugger;
 
@@ -55,16 +56,18 @@ impl Extension for Debugger {
         // TRACE-ON ( -- ): from the next word on, print a trace line for each.
         add(f, "TRACE-ON", |f| {
             f.tracer.print = true;
-            f.update_tracing();
+            f.update_watching();
             Ok(())
         });
         // TRACE-OFF ( -- ): no more trace lines.
         add(f, "TRACE-OFF", |f| {
             f.tracer.print = false;
-            f.update_tracing();
+            f.update_watching();
             Ok(())
         });
         f.tracer.off = Some(f.dict.len() - 1);
+        // BREAK ( -- ): stops the program for the host's debugger, if it has one.
+        add(f, "BREAK", |f| f.pause(Reason::Break, "BREAK".to_string()));
     }
 }
 
@@ -75,7 +78,7 @@ impl Forth {
     /// print; TRACE-ON in the program does, independently.
     pub fn record_trace(&mut self, max: Option<usize>) {
         self.tracer.record = max;
-        self.update_tracing();
+        self.update_watching();
     }
 
     /// The trace recorded so far, which the system then forgets, as it
@@ -91,28 +94,52 @@ impl Forth {
         self.tracer.dropped
     }
 
-    fn update_tracing(&mut self) {
-        self.tracing = self.tracer.print || self.tracer.record.is_some();
+    /// Whether `invoke` calls `watch` for each word: when tracing, or when
+    /// the debugger is to stop at a coming word.
+    pub(crate) fn update_watching(&mut self) {
+        self.watching =
+            self.tracer.print || self.tracer.record.is_some() || self.debug.stop.is_some();
     }
 
-    /// Traces the word `xt` that is about to run. The insides of the
-    /// system's own words (such as `/`, defined in Forth) are not traced,
-    /// nor are the immediate words that run while a definition is compiled.
+    /// The name of a word as a trace or a pause shows it.
+    pub(crate) fn word_name(&self, xt: usize) -> Option<String> {
+        match self.dict.get(xt) {
+            Some(w) if w.name.is_empty() => Some(":NONAME".to_string()),
+            Some(w) => Some(w.name.clone()),
+            None => None,
+        }
+    }
+
+    /// The word `xt` is about to run: traces it and lets the debugger stop
+    /// at it. The insides of the system's own words (such as `/`, defined in
+    /// Forth) are passed over, as are the immediate words that run while a
+    /// definition is compiled, the system's immediate words in the input
+    /// (such as \ ( [IF], which read the input rather than run the
+    /// program), and TRACE-OFF.
     #[cold]
     #[inline(never)]
-    pub(crate) fn trace(&mut self, xt: usize) {
+    pub(crate) fn watch(&mut self, xt: usize) -> Res {
         let caller = self.frames.last().map(|f| f.xt);
+        let reads_input =
+            caller.is_none() && xt < self.fence && self.dict.get(xt).is_some_and(|w| w.immediate);
         if caller.is_some_and(|c| c < self.fence)
             || caller.is_none() && self.current.is_some()
+            || reads_input
             || Some(xt) == self.tracer.off
         {
-            return;
+            return Ok(());
         }
-        let word = match self.dict.get(xt) {
-            Some(w) if w.name.is_empty() => ":NONAME".to_string(),
-            Some(w) => w.name.clone(),
-            None => return,
+        let Some(word) = self.word_name(xt) else {
+            return Ok(());
         };
+        if self.tracer.print || self.tracer.record.is_some() {
+            self.trace(word.clone());
+        }
+        self.step_into(word)
+    }
+
+    /// Prints or records a trace line for `word`.
+    fn trace(&mut self, word: String) {
         let depth = self.frames.len();
         let stack_depth = self.stack.len();
         let shown = stack_depth.saturating_sub(TRACE_CELLS);

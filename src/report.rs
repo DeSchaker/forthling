@@ -37,12 +37,14 @@ impl Forth {
     /// of the terminal source before the host's text began.
     pub(crate) fn report(&self, mut e: Throw, first: usize) -> Throw {
         if e.context.is_none() {
-            e.context = Some(Box::new(self.error_context(first)));
+            e.context = Some(Box::new(self.context(first)));
         }
         e
     }
 
-    fn error_context(&self, first: usize) -> ErrorContext {
+    /// The state now: the stacks, the running words and the place in the
+    /// input; for an error, and for a pause of the debugger.
+    pub(crate) fn context(&self, first: usize) -> ErrorContext {
         let s = self.sources.last().unwrap();
         let bytes = &self.mem[s.buf..s.buf + s.len];
         let to_in = usize::try_from(self.get(IN_ADDR)).unwrap_or(0).min(bytes.len());

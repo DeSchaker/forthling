@@ -100,10 +100,23 @@ impl Forth {
     }
 
     /// Runs a primitive directly, or pushes a frame for compiled code.
-    pub(crate) fn invoke(&mut self, mut xt: usize) -> Res {
-        if self.tracing {
-            self.trace(xt);
+    #[inline]
+    pub(crate) fn invoke(&mut self, xt: usize) -> Res {
+        if self.watching {
+            return self.invoke_watched(xt);
         }
+        self.invoke_word(xt)
+    }
+
+    /// invoke while tracing or stepping: kept out of the way of the fast path.
+    #[cold]
+    #[inline(never)]
+    fn invoke_watched(&mut self, xt: usize) -> Res {
+        self.watch(xt)?;
+        self.invoke_word(xt)
+    }
+
+    fn invoke_word(&mut self, mut xt: usize) -> Res {
         // A deferred word runs its action; follow chains of them in a loop,
         // so a DEFER that refers to itself cannot overflow the Rust stack.
         let mut hops = 0;

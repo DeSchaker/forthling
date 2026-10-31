@@ -557,8 +557,10 @@ is forgotten), and -59 when the strings written between `<JSON` and `JSON>`, all
 ones together, would be larger than the memory. `JSON-NUMBER` writes in
 decimal whatever `BASE` is, `JSON-FLOAT` writes `null` for an infinity or a NaN, and text
 that is no UTF-8 is written with U+FFFD. The second is the trace words
-(`FORTHLING-DEBUG`, version 1, word list `DEBUG`: `TRACE-ON` and `TRACE-OFF`; see the
-README); their lines are output, like that of `.S`. `Forth::new()` installs nothing. The Python module (`python/`) installs
+(`FORTHLING-DEBUG`, version 1, word list `DEBUG`: `TRACE-ON`, `TRACE-OFF` and `BREAK`;
+see the README); their lines are output, like that of `.S`. `BREAK` hands the program to
+the host's debugger, if there is one; the forthling program asks in the terminal how to
+go on, and quitting there throws -28 (user interrupt). `Forth::new()` installs nothing. The Python module (`python/`) installs
 `FORTHLING-PYTHON` (version 1), without words of its own: the words that a Python program
 adds go into `FORTH-WORDLIST` or into a word list it names. A Python exception in such a
 word throws -257, which `CATCH` catches; uncaught, the Python program gets the exception

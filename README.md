@@ -293,11 +293,57 @@ F <0>
 ```
 
 The insides of the system's own words (such as `/` and `.`, written in Forth) are not
-traced, nor are the words that run while a definition is compiled. The lines are output,
+traced, nor are the words that run while a definition is compiled, nor the system's words
+that read the input, such as `\`, `(` and `[IF]`. The lines are output,
 so the output limit of the sandbox holds for them. A host records the same as data:
 `record_trace(Some(max))` and then `take_trace()`, a `TraceEntry` per word (`word`,
 `depth`, `stack`, `stack_depth`); `forth_eval` of the MCP server does this with
 `trace: true`. When no trace is on, it costs one test per word.
+
+### Debugging
+
+`BREAK`, also in the word list `DEBUG`, stops the program where it stands. The forthling
+program then shows the words that are running and the stack, and asks how to go on: `s`
+(or an empty line) steps to the next word, `n` steps over the words this one calls, `f`
+runs on until the word this one is in has finished, `c` continues to the next `BREAK`, and
+`q` quits with -28 (user interrupt). A file `debug.fs`:
+
+```
+ALSO DEBUG
+: SQ  DUP * ;
+: F  3 SQ 1+ ;
+: MAIN  BREAK F 2 SQ + ;
+MAIN .
+```
+
+and `forthling debug.fs` in a terminal, with the answers typed after the prompts:
+
+```
+break: MAIN > BREAK  <0>
+s step, n over, f out, c continue, q quit> s
+step: MAIN > F  <0>
+s step, n over, f out, c continue, q quit> s
+step: MAIN > F > SQ  <1> 3
+s step, n over, f out, c continue, q quit> f
+step: MAIN > SQ  <2> 10 2
+s step, n over, f out, c continue, q quit> c
+14
+```
+
+A host decides what a pause does with `set_debugger`: a function that gets the system
+and a `Pause` (why it stopped, the word, its depth, and the stacks, the running words and
+the place in the input, as for an error) and returns a `Resume` (`Step`, `Over`, `Out`,
+`Continue`) or an error to throw. The time spent in it does not count towards the time
+limit. Without a debugger, `BREAK` does nothing.
+
+The MCP server and the playground cannot wait in the middle of a run, as the program
+waits for the terminal: `CATCH`, `EVALUATE` and `INCLUDE` run Forth inside Rust calls, so
+a run can only stop while its host function runs. So they do it differently. In
+`forth_eval`, `BREAK` does not stop: the result shows the stacks and the running words at
+each `BREAK`. In the playground, **Step through** runs the code while it records each
+word, then plays the run back: forwards and back, step, over, out and on to the next
+`BREAK`, with the stack before and after each word. Since the sandbox makes a run come out
+the same each time, the record is what happened.
 
 ### In the browser
 

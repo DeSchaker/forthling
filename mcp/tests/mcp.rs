@@ -190,6 +190,32 @@ fn the_tools_take_only_their_arguments() {
 }
 
 #[test]
+fn break_shows_the_state_without_stopping() {
+    let mut s = server();
+    eval(&mut s, "ALSO DEBUG : SQ DUP * ; : F 3 SQ BREAK 1+ ;");
+    let r = eval(&mut s, "7 F");
+    let content = &r["structuredContent"];
+    assert_eq!(content["stack"], json!([7, 10]));
+    assert_eq!(content["breaks_dropped"], 0);
+    assert_eq!(
+        content["breaks"][0],
+        json!({ "stack": [7, 9], "fstack": [], "words": ["F", "BREAK"], "source": "input",
+                "line": 1, "column": 3, "token": "F" })
+    );
+    assert!(
+        text(&r).starts_with("break 1: in F > BREAK, at input, line 1, column 3: stack <2> 7 9\n"),
+        "{}",
+        text(&r)
+    );
+    // none without BREAK; at most 100
+    assert!(eval(&mut s, "1 DROP")["structuredContent"].get("breaks").is_none());
+    let r = eval(&mut s, ": B 150 0 DO BREAK LOOP ; B");
+    assert_eq!(r["structuredContent"]["breaks"].as_array().unwrap().len(), 100);
+    assert_eq!(r["structuredContent"]["breaks_dropped"], 50);
+    assert!(text(&r).contains("... and 50 more breaks\n"));
+}
+
+#[test]
 fn a_trace_on_request() {
     let mut s = server();
     eval(&mut s, ": SQ DUP * ; : F 3 SQ 1+ ;");

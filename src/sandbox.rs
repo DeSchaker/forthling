@@ -183,6 +183,9 @@ impl Forth {
         self.budget.depth += 1;
         let result = run(self);
         self.budget.depth -= 1;
+        if self.budget.depth == 0 {
+            self.end_stepping();
+        }
         // Output past the limit is dropped; the evaluation still fails.
         match self.budget.spent {
             Some(what) if result.is_ok() => Err(limit_reached(what)),
@@ -272,6 +275,15 @@ impl Forth {
     #[cfg(not(target_arch = "wasm32"))]
     pub fn deadline(&self) -> Option<Instant> {
         self.budget.deadline
+    }
+
+    /// Moves the time limit of the evaluation on by `time`, the time that
+    /// a pause of the debugger took.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn extend_deadline(&mut self, time: Duration) {
+        if let Some(deadline) = &mut self.budget.deadline {
+            *deadline += time;
+        }
     }
 
     #[cfg(not(target_arch = "wasm32"))]

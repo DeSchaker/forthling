@@ -24,6 +24,7 @@ pub(crate) const UNSUPPORTED: Cell = -21;
 pub(crate) const CONTROL_MISMATCH: Cell = -22;
 pub(crate) const INVALID_ARGUMENT: Cell = -24;
 pub(crate) const NO_LOOP: Cell = -26;
+pub(crate) const USER_INTERRUPT: Cell = -28;
 pub(crate) const COMPILER_NESTING: Cell = -29;
 pub(crate) const NOT_CREATED: Cell = -31;
 pub(crate) const INVALID_NAME: Cell = -32;
@@ -147,6 +148,7 @@ impl Throw {
             CONTROL_MISMATCH => "control structure mismatch",
             INVALID_ARGUMENT => "invalid numeric argument",
             NO_LOOP => "loop parameters unavailable",
+            USER_INTERRUPT => "user interrupt",
             COMPILER_NESTING => "compiler nesting",
             NOT_CREATED => ">BODY used on non-CREATEd definition",
             INVALID_NAME => "invalid name argument",

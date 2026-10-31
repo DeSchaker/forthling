@@ -28,7 +28,9 @@ impl Forth {
     /// Interprets text line by line, as if typed at the terminal.
     pub fn interpret(&mut self, src: &str) -> Res {
         let first = self.sources[0].line;
+        let outer = std::mem::replace(&mut self.first_line, first);
         let result = self.evaluation(|f| f.interpret_lines(src)).map_err(|e| self.report(e, first));
+        self.first_line = outer;
         if let Err(e) = &result {
             // QUIT leaves the data stack alone; every other error empties it.
             self.reset(e.code != QUIT);

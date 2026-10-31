@@ -72,6 +72,16 @@ test("what WebAssembly lacks is handled", async () => {
   forth.reset();
   assert.equal(forth.eval("ALSO DEBUG : SQ DUP * ; 3 TRACE-ON SQ TRACE-OFF").output,
     "SQ <1> 3\n  DUP <1> 3\n  * <2> 3 3\n");
+  // A run can be recorded word by word, for Step through; BREAK is in it.
+  const traced = forth.eval(": F SQ BREAK 1+ ; 4 F", { trace: 3 });
+  assert.deepEqual(traced.stack, [9, 17]);
+  assert.deepEqual(traced.trace, [
+    { word: ":", depth: 0, stack: [9], stack_depth: 1 },
+    { word: "F", depth: 0, stack: [9, 4], stack_depth: 2 },
+    { word: "SQ", depth: 1, stack: [9, 4], stack_depth: 2 },
+  ]);
+  assert.equal(traced.trace_dropped, 4); // DUP, *, BREAK, 1+
+  assert.equal(forth.eval("1 DROP").trace, undefined);
   // Floats, double cells and big numbers come through.
   assert.equal(forth.eval("2E0 FSQRT F. 1. 2. D+ D. -9223372036854775808 .").output,
     "1.4142135623731 3 -9223372036854775808 "); // as natively

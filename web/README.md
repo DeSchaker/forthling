@@ -51,6 +51,13 @@ running, such as `["MAIN", "STEP", "/"]`. `hint` says how to put it right, such 
 `ALSO DEBUG` that `TRACE-ON` needs, or is null. `steps` and `max_depth` tell what the run took. One module is one
 session; the words stay until `reset()`.
 
+`forth.eval(code, { trace: n })` also records the first `n` words that ran: `trace` is a
+list of `{ word, depth, stack, stack_depth }` (the stack when the word started, at most
+its top 8 cells) and `trace_dropped` counts the rest. The playground's **Step through**
+plays such a record back, word by word, forwards and back, with the stack before and after
+each word and jumps to each `BREAK`; WebAssembly cannot wait in the middle of a run, but
+the sandbox makes a run come out the same each time, so the record is what happened.
+
 ## In WebAssembly
 
 - The sandbox: no file access, no terminal input, at most 10 million steps and 1 MiB of
@@ -60,8 +67,9 @@ session; the words stay until `reset()`.
   (`Forth::set_clock`).
 - The memory is 1 MiB, as natively; the most it can be is 1 GiB (`MAX_MEMORY` on a
   32-bit target).
-- The JSON words are installed (`ALSO JSON`), and the trace words (`ALSO DEBUG`,
-  `TRACE-ON`, `TRACE-OFF`); SQLite is not.
+- The JSON words are installed (`ALSO JSON`), and the debug words (`ALSO DEBUG`,
+  `TRACE-ON`, `TRACE-OFF`, `BREAK`, which does nothing there but shows in a record);
+  SQLite is not.
 
 ## Testing
 

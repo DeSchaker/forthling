@@ -7,7 +7,7 @@
 //! The answer has the same shape as a result of the MCP server: `output`,
 //! `stack`, `fstack`, `compiling` and `error`.
 
-use forthling::{Debugger, Forth, Json, Throw};
+use forthling::{Debugger, Forth, Json, Throw, TraceEntry};
 use std::cell::{Cell, RefCell};
 
 thread_local! {
@@ -15,6 +15,7 @@ thread_local! {
     static INPUT: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
     static ANSWER: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
     static NOW: Cell<u64> = const { Cell::new(0) }; // seconds since 1970, from the page
+    static RECORD: Cell<usize> = const { Cell::new(0) }; // trace entries to record, 0 for none
 }
 
 /// A new session: the sandbox (no files, no terminal input, 10 million
@@ -44,20 +45,36 @@ pub extern "C" fn fl_input(len: usize) -> *mut u8 {
     })
 }
 
+/// Records a trace of at most `max` words in the next evaluations, or none
+/// for 0; the answer then has `trace` and `trace_dropped`.
+#[unsafe(no_mangle)]
+pub extern "C" fn fl_record(max: usize) {
+    RECORD.with(|r| r.set(max));
+}
+
 /// Runs the input as Forth code, with the time of the page (seconds since
 /// 1970); returns the length of the answer.
 #[unsafe(no_mangle)]
 pub extern "C" fn fl_eval(now: f64) -> usize {
     NOW.with(|n| n.set(now.max(0.0) as u64));
     let code = INPUT.with(|i| String::from_utf8_lossy(&i.borrow()).into_owned());
+    let record = RECORD.with(Cell::get);
     let answer = with_session(|f| {
+        f.record_trace((record > 0).then_some(record));
         let result = f.interpret(&code);
+        f.record_trace(None);
+        let dropped = f.trace_dropped();
+        let trace = f.take_trace();
         let output = String::from_utf8_lossy(&f.take_output()).into_owned();
         let mut answer = state(f, &output, result.err());
         // What the run took: its steps and the deepest stack.
         answer.pop();
-        answer += &format!(",\"steps\":{},\"max_depth\":{}}}", f.steps_used(), f.max_depth());
-        answer
+        answer += &format!(",\"steps\":{},\"max_depth\":{}", f.steps_used(), f.max_depth());
+        if record > 0 {
+            let entries: Vec<String> = trace.iter().map(entry).collect();
+            answer += &format!(",\"trace\":[{}],\"trace_dropped\":{dropped}", entries.join(","));
+        }
+        answer + "}"
     });
     set_answer(answer)
 }
@@ -140,6 +157,18 @@ pub fn state(f: &Forth, output: &str, error: Option<Throw>) -> String {
         floats.join(","),
         f.in_definition(),
         error,
+    )
+}
+
+/// A trace entry in JSON.
+fn entry(e: &TraceEntry) -> String {
+    let cells: Vec<String> = e.stack.iter().map(i64::to_string).collect();
+    format!(
+        "{{\"word\":{},\"depth\":{},\"stack\":[{}],\"stack_depth\":{}}}",
+        quoted(&e.word),
+        e.depth,
+        cells.join(","),
+        e.stack_depth
     )
 }
 

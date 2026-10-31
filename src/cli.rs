@@ -237,6 +237,44 @@ pub fn parse_bytes(s: &str) -> Result<usize, String> {
     n.checked_mul(1 << shift).ok_or_else(invalid)
 }
 
+/// The debugger in the terminal: shows where the program stopped and its
+/// stacks, then asks how to go on. An empty line steps; the end of the input
+/// continues.
+fn debugger(f: &mut Forth, pause: &Pause) -> Res<Resume> {
+    use std::io::Write;
+    // On a line of its own, also after output such as that of `.`.
+    if f.output().last().is_some_and(|&b| b != b'\n') {
+        f.emit_bytes(b"\n");
+    }
+    f.flush();
+    let c = &pause.context;
+    let mut cells = format!("<{}>", c.stack.len());
+    for n in &c.stack {
+        cells += &format!(" {n}");
+    }
+    let what = if pause.reason == Reason::Break { "break" } else { "step" };
+    println!("{what}: {}  {cells}", c.words.join(" > "));
+    if !c.fstack.is_empty() {
+        let floats: Vec<String> = c.fstack.iter().map(|r| format!("{r:E}")).collect();
+        println!("float stack: {}", floats.join(" "));
+    }
+    loop {
+        print!("s step, n over, f out, c continue, q quit> ");
+        io::stdout().flush().ok();
+        let Some(line) = f.read_line() else {
+            return Ok(Resume::Continue);
+        };
+        match String::from_utf8_lossy(&line).trim() {
+            "" | "s" => return Ok(Resume::Step),
+            "n" => return Ok(Resume::Over),
+            "f" => return Ok(Resume::Out),
+            "c" => return Ok(Resume::Continue),
+            "q" => return Err(Throw::new(USER_INTERRUPT)),
+            _ => {}
+        }
+    }
+}
+
 /// Runs the files, or else the REPL; returns the exit code.
 fn run_forth(run: Run, extensions: Extensions) -> i32 {
     let mut forth = Forth::with_memory(run.memory);
@@ -251,6 +289,7 @@ fn run_forth(run: Run, extensions: Extensions) -> i32 {
     forth.permit(Permission::Files, !run.sandbox);
     forth.set_limits(run.limits);
     forth.set_interactive(true);
+    forth.set_debugger(Some(Box::new(debugger)));
     if !run.files.is_empty() {
         for path in &run.files {
             let result = forth.include(path);

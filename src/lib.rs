@@ -9,6 +9,7 @@
 mod blocks;
 pub mod cli;
 mod compiler;
+mod debug;
 mod dictionary;
 mod files;
 mod float;
@@ -32,6 +33,7 @@ mod xchar;
 #[cfg(test)]
 mod tests;
 
+pub use debug::{DebugHook, Pause, Reason, Resume};
 pub use host::Extension;
 pub use json::Json;
 pub use memory::{DEFAULT_MEMORY, MAX_MEMORY, MIN_MEMORY};
@@ -46,6 +48,7 @@ pub use typed::{FromForth, IntoForth};
 // modules, and the std items most of them need, available everywhere.
 pub(crate) use blocks::*;
 pub(crate) use compiler::*;
+pub(crate) use debug::*;
 pub(crate) use dictionary::*;
 pub(crate) use files::*;
 pub(crate) use float::*;
@@ -122,7 +125,9 @@ pub struct Forth {
     budget: Budget,                      // what is left of them in this evaluation
     denied: HashSet<Permission>,         // what the program may not do
     clock: Option<Box<dyn Fn() -> u64>>, // seconds since 1970 for TIME&DATE (set_clock)
-    tracing: bool,                       // whether to call trace() for each word (trace.rs)
+    watching: bool,                      // whether invoke calls watch() for each word (trace.rs)
+    debug: Debugging,                    // the debugger (debug.rs)
+    first_line: usize,                   // the terminal line before the text of interpret began
     tracer: Tracer,
     space: usize,        // the dictionary and the REPLACES texts outside Forth memory
     system_space: usize, // the part of the space that is the system's own
@@ -194,7 +199,9 @@ impl Forth {
             budget: Budget::default(),
             denied: HashSet::new(),
             clock: None,
-            tracing: false,
+            watching: false,
+            debug: Debugging::default(),
+            first_line: 0,
             tracer: Tracer::default(),
             space: 0,
             system_space: 0,
