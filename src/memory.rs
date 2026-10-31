@@ -2,23 +2,28 @@
 
 use crate::*;
 
-// Memory map: system variables at the bottom, then the data space that
-// HERE grows through, the heap growing down from DATA_END to meet it (see
-// heap.rs), then transient buffers and the input buffers on top.
-pub(crate) const MEM_SIZE: usize = 1 << 20;
+// Memory map: system variables at the bottom, then the input buffers and
+// the transient buffers, all at fixed addresses. Above them is the data
+// space that HERE grows through, and the heap grows down from the top of
+// memory to meet it (see heap.rs). Only the top depends on the size.
 pub(crate) const BASE_ADDR: usize = 0;
 pub(crate) const STATE_ADDR: usize = 8;
 pub(crate) const IN_ADDR: usize = 16;
-pub(crate) const DICT_START: usize = 64;
 pub(crate) const LINE_MAX: usize = 1024; // longest input line
 pub(crate) const MAX_SOURCES: usize = 16; // the terminal plus nested INCLUDEs
-pub(crate) const SOURCE_AREA: usize = MEM_SIZE - MAX_SOURCES * LINE_MAX;
-pub(crate) const SQ_BUFS: usize = SOURCE_AREA - 2 * LINE_MAX; // two alternating S" buffers
-pub(crate) const WORD_BUF: usize = SQ_BUFS - 264; // counted string, trailing space, padding
-pub(crate) const PAD_ADDR: usize = WORD_BUF - 256;
-// <# #> builds its string downwards from here, down to DATA_END
-pub(crate) const HOLD_END: usize = PAD_ADDR;
-pub(crate) const DATA_END: usize = PAD_ADDR - 256;
+pub(crate) const SOURCE_AREA: usize = 64;
+pub(crate) const SQ_BUFS: usize = SOURCE_AREA + MAX_SOURCES * LINE_MAX; // two alternating S" buffers
+pub(crate) const WORD_BUF: usize = SQ_BUFS + 2 * LINE_MAX; // counted string, trailing space, padding
+                                                           // <# #> builds its string downwards from HOLD_END, down to HOLD_START
+pub(crate) const HOLD_START: usize = WORD_BUF + 264;
+pub(crate) const HOLD_END: usize = HOLD_START + 256;
+pub(crate) const PAD_ADDR: usize = HOLD_END;
+pub(crate) const DICT_START: usize = PAD_ADDR + 256;
+
+/// The default size of Forth memory, and the sizes `Forth::with_memory` accepts.
+pub const DEFAULT_MEMORY: usize = 1 << 20;
+pub const MIN_MEMORY: usize = 64 << 10;
+pub const MAX_MEMORY: usize = 4 << 30;
 
 impl Forth {
     /// Reads a cell at an address the system itself controls.
@@ -33,7 +38,7 @@ impl Forth {
     /// Validates a program-supplied address range of `n` bytes.
     pub(crate) fn check(&self, a: Cell, n: Cell) -> Res<usize> {
         let end = a.checked_add(n).unwrap_or(-1);
-        if a >= 0 && n >= 0 && end >= 0 && end as usize <= MEM_SIZE {
+        if a >= 0 && n >= 0 && end >= 0 && end as usize <= self.mem.len() {
             Ok(a as usize)
         } else {
             Err(Throw::with(-9, a.to_string()))

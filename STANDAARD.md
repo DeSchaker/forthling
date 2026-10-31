@@ -62,7 +62,8 @@ her-exporteert de items van alle modules, zodat ze overal beschikbaar zijn. De m
 
 | Bestand | Inhoud |
 |---|---|
-| `lib.rs` | `struct Forth`, `Forth::new`, de publieke API (`interpret`, `include`, `set_input`, `output`, …) |
+| `main.rs` | de REPL, het draaien van bestanden, de opties (`--memory`) en het config-bestand |
+| `lib.rs` | `struct Forth`, `Forth::new`/`with_memory`, de publieke API (`interpret`, `include`, `set_input`, `output`, …) |
 | `throw.rs` | `Throw` en de foutcodetabel |
 | `stack.rs` | data stack, return stack, hulpjes voor dubbele cellen |
 | `memory.rs` | geheugenindeling (constanten), `get`/`set`/`check`/`reserve`, strings in het geheugen |
@@ -91,6 +92,15 @@ Een nieuwe wordset krijgt zijn eigen `words/<naam>.rs` met een `install(f)`, aan
   voor `reserve`, `ALLOT` en `UNUSED`. `ALLOCATE` neemt het eerste gat dat past, anders
   zakt de heap verder. `RESIZE` groeit ter plekke als de ruimte erna vrij is, anders
   verhuist het blok. Iors: `-59 -60 -61`. `MARKER` raakt de heap niet.
+- **Geheugengrootte (2026-10-31):** standaard 1 MiB (`DEFAULT_MEMORY`), in te stellen met
+  `-m`/`--memory 4M` of met `memory = 4M` in `forthling/forthling.conf` in de
+  config-map (`%APPDATA%`, `$XDG_CONFIG_HOME` of `~/.config`); de vlag wint. Toegestaan:
+  64K tot 4G, een veelvoud van 8. Daarvoor staan alle buffers nu op vaste adressen
+  onderin (`SOURCE_AREA` vanaf 64, dan `SQ_BUFS WORD_BUF HOLD_START…HOLD_END PAD_ADDR`) en
+  begint de data space bij `DICT_START` daarboven; alleen de bovenkant van de heap hangt
+  van de grootte af. Opties en config staan in `main.rs`, de library kent alleen
+  `Forth::with_memory`.
+- **Besloten (2026-10-31):** `TIME&DATE` blijft UTC.
 - **FACILITY:** structuren, `EKEY EKEY? EMIT? EKEY>CHAR EKEY>FKEY` en de `K-…`-constanten
   staan in `prelude.fs`; `KEY? MS TIME&DATE AT-XY PAGE` in `words/facility.rs`. De terminal
   (`terminal.rs`) is nu een trait `Input` (een `BufRead` met `ready()`); standaardinvoer
@@ -179,7 +189,8 @@ Wat er gebouwd is:
 - **Geheugen**: 1 MiB, adresseerbaar per byte, cellen van 8 bytes (little-endian).
   `CREATE` aligneert. Geheugenindeling (`src/memory.rs`, bovenaan): systeemvariabelen
   (`BASE`, `STATE`, `>IN`) vanaf adres 0, data space vanaf 64, tijdelijke buffers en
-  invoerbuffers bovenin.
+  invoerbuffers bovenin. (Sinds 2026-10-31 staan de buffers onderin en de heap bovenin;
+  zie "Geheugengrootte".)
 - **Invoer**: elke invoerbron (terminal, en per geneste `INCLUDE`) heeft een eigen regelbuffer
   in het geheugen. `>IN` wordt na een geneste bron teruggezet. De parser leest `>IN` bij elk
   woord opnieuw, zodat een programma de positie zelf kan verzetten. Na een woord wordt ook de

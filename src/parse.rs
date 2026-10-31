@@ -170,7 +170,7 @@ impl Forth {
 
     /// Adds a character in front of the pictured numeric output string.
     pub(crate) fn hold(&mut self, c: u8) -> Res {
-        if self.hld <= DATA_END {
+        if self.hld <= HOLD_START {
             return Err(Throw::new(-17));
         }
         self.hld -= 1;

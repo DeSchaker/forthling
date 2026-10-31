@@ -573,3 +573,15 @@ fn heap_shares_free_space_with_data_space() {
     assert_eq!(run("UNUSED ALLOT 8 ALLOCATE . DROP"), "-59 ");
     assert_eq!(err("ALIGN UNUSED 8 - ALLOCATE 2DROP 16 ALLOT").code, -8);
 }
+
+#[test]
+fn memory_size_is_configurable() {
+    let mut small = Forth::with_memory(MIN_MEMORY);
+    let mut large = Forth::with_memory(4 << 20);
+    small.interpret("UNUSED . HERE .").unwrap();
+    large.interpret("UNUSED . HERE .").unwrap();
+    let (small, large) = (output(small), output(large));
+    let unused = |s: &str| s.split(' ').next().unwrap().parse::<usize>().unwrap();
+    assert_eq!(unused(&large) - unused(&small), (4 << 20) - MIN_MEMORY);
+    assert_eq!(err("1 ALLOCATE DROP 2000000 ALLOT").code, -8);
+}

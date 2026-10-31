@@ -22,6 +22,7 @@ mod words;
 #[cfg(test)]
 mod tests;
 
+pub use memory::{DEFAULT_MEMORY, MAX_MEMORY, MIN_MEMORY};
 pub use terminal::Input;
 pub use throw::{Throw, QUIT};
 
@@ -92,15 +93,29 @@ pub(crate) fn flag(b: bool) -> Cell {
 }
 
 impl Forth {
+    /// A system with the default memory size (1 MiB).
     pub fn new() -> Self {
+        Forth::with_memory(DEFAULT_MEMORY)
+    }
+
+    /// A system with `size` bytes of memory, shared by data space and the
+    /// heap.
+    ///
+    /// # Panics
+    ///
+    /// When `size` is not between `MIN_MEMORY` and `MAX_MEMORY`, or not a
+    /// whole number of cells (8 bytes).
+    pub fn with_memory(size: usize) -> Self {
+        let valid = (MIN_MEMORY..=MAX_MEMORY).contains(&size) && size % CELL == 0;
+        assert!(valid, "invalid memory size: {size}");
         let mut f = Forth {
             stack: Vec::new(),
             rstack: Vec::new(),
             loops: Vec::new(),
             frames: Vec::new(),
-            mem: vec![0; MEM_SIZE],
+            mem: vec![0; size],
             here: DICT_START,
-            heap: Heap::default(),
+            heap: Heap::new(size),
             dict: Vec::new(),
             current: None,
             code: Vec::new(),

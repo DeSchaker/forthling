@@ -69,8 +69,8 @@ pub(crate) fn install(f: &mut Forth) {
         let query = f.text(i, n.max(0) as usize).to_ascii_uppercase();
         match query.as_str() {
             "/COUNTED-STRING" => f.push(255),
-            "/HOLD" => f.push((HOLD_END - DATA_END) as Cell),
-            "/PAD" => f.push((WORD_BUF - PAD_ADDR) as Cell),
+            "/HOLD" => f.push((HOLD_END - HOLD_START) as Cell),
+            "/PAD" => f.push((DICT_START - PAD_ADDR) as Cell),
             "ADDRESS-UNIT-BITS" => f.push(8),
             "FLOORED" => f.push(-1),
             "MAX-CHAR" => f.push(255),

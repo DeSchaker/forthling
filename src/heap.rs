@@ -1,21 +1,26 @@
 //! The heap of ALLOCATE, FREE and RESIZE. It lives in Forth memory and
-//! grows down from DATA_END towards HERE, so data space and heap share the
+//! grows down from the top towards HERE, so data space and heap share the
 //! free space between them.
 
 use crate::*;
 use std::collections::BTreeMap;
 
 /// The allocated blocks: start address to size in bytes, a whole number of
-/// cells. Free space is whatever lies between them.
-#[derive(Default)]
+/// cells. Free space is whatever lies between them and below `top`.
 pub(crate) struct Heap {
     blocks: BTreeMap<usize, usize>,
+    top: usize,
 }
 
 impl Heap {
+    /// An empty heap that ends at `top`, the end of memory.
+    pub(crate) fn new(top: usize) -> Self {
+        Heap { blocks: BTreeMap::new(), top }
+    }
+
     /// The lowest address in use by the heap; data space ends here.
     pub(crate) fn floor(&self) -> usize {
-        self.blocks.keys().next().copied().unwrap_or(DATA_END)
+        self.blocks.keys().next().copied().unwrap_or(self.top)
     }
 
     /// An aligned block of at least n bytes, at or above `limit` (HERE).
@@ -36,7 +41,7 @@ impl Heap {
         }
         let a = match (gap_start, prev_end) {
             (Some(a), _) => a,
-            (None, Some(end)) if DATA_END - end >= size => end,
+            (None, Some(end)) if self.top - end >= size => end,
             _ => {
                 let a = self.floor().checked_sub(size)?;
                 if a < limit {
@@ -65,7 +70,7 @@ impl Heap {
         let Some(size) = n.max(1).checked_add(CELL - 1).map(|s| s & !(CELL - 1)) else {
             return false;
         };
-        let next = self.blocks.range(a + 1..).next().map_or(DATA_END, |(&s, _)| s);
+        let next = self.blocks.range(a + 1..).next().map_or(self.top, |(&s, _)| s);
         if a + size > next {
             return false;
         }
@@ -100,9 +105,9 @@ mod tests {
 
     #[test]
     fn blocks() {
-        let mut h = Heap::default();
+        let mut h = Heap::new(1000);
         let a = h.allocate(10, 0).unwrap();
-        assert_eq!((a, h.size(a)), (DATA_END - 16, Some(16)));
+        assert_eq!((a, h.size(a)), (984, Some(16)));
         let b = h.allocate(0, 0).unwrap();
         assert_eq!(b, a - 8);
         assert_eq!(h.floor(), b);
@@ -112,7 +117,7 @@ mod tests {
         assert!(!h.resize_in_place(b, 9));
         assert!(h.resize_in_place(a, 16) && h.resize_in_place(a, 3));
         assert_eq!(h.size(a), Some(8));
-        assert_eq!(h.allocate(DATA_END, 0), None);
+        assert_eq!(h.allocate(1000, 0), None);
         assert_eq!(h.allocate(usize::MAX, 0), None);
         assert_eq!(h.allocate(100, b - 50), None);
     }

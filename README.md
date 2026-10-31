@@ -21,6 +21,22 @@ forthling — WORDS shows the dictionary, BYE quits.
 
 Run a file: `cargo run --release -- examples/demo.fs`
 
+### Options
+
+```
+forthling [options] [file ...]
+  -m, --memory SIZE  memory for data space and heap, such as 4M (default 1M)
+  -h, --help         show this help
+```
+
+`SIZE` is a number of bytes with an optional `K`, `M` or `G` (binary units), from 64K up
+to 4G. To change the default, put a line `memory = 16M` in the config file
+`forthling/forthling.conf` in your config directory: `%APPDATA%` on Windows, otherwise
+`$XDG_CONFIG_HOME` or `~/.config`. `--help` shows the exact path. Lines starting with `#`
+are comments. The command line wins over the config file.
+
+A program that embeds forthling picks the size with `Forth::with_memory(size)`.
+
 ## Features
 
 - A REPL and file execution (nested with `INCLUDE`, `INCLUDED` and `REQUIRE`)
@@ -90,8 +106,10 @@ come with the SEARCH word set. Next up is LOCALS.
   never occur.
 - `TIME&DATE` gives the time in UTC. `AT-XY` and `PAGE` write ANSI escape sequences, which
   current terminals, Windows Terminal included, understand.
-- Memory is 1 MiB. The heap of `ALLOCATE` grows down towards `HERE`, so data space and
-  heap share the free space: `UNUSED` is what lies between them, and allocating lowers it.
+- Memory is 1 MiB unless set otherwise (see Options). The input buffers, the `S"` and
+  `WORD` buffers, the pictured numeric output buffer and `PAD` sit at fixed addresses at
+  the bottom, followed by data space. The heap of `ALLOCATE` grows down from the top
+  towards `HERE`, so data space and heap share the free space: `UNUSED` is what lies between them, and allocating lowers it.
   Allocated blocks are cell-aligned and a whole number of cells. A failing `ALLOCATE`
   returns `-59`, `FREE` of an address that `ALLOCATE` did not return gives `-60` (and
   changes nothing), and a failing `RESIZE` gives `-61` and leaves the block as it was.
