@@ -867,6 +867,27 @@ positioning and what agents need. The old step 8 (debugging and tracing) became 
     but dependencies and risks, so separate extensions, under the capabilities of step 4.
 15. **Later, as hobby projects:** graphics, Windows words and the FFI (as designed above),
     and editor support (an LSP with stack effects on hover), once there are users.
+16. **Publish `forthling-mcp` in the MCP Registry** (added 2026-10-31, at the
+    maintainer's wish), so that agents and MCP clients find it. The official registry
+    (https://registry.modelcontextprotocol.io) lists a server by a reverse-DNS name, such
+    as `io.github.deschaker/forthling`, in a `server.json`, and points to a package it
+    does not host itself. Publishing goes from GitHub Actions on a version tag (`v*`),
+    signed in through GitHub OIDC (`id-token: write`), with the registry's own
+    `mcp-publisher` or an action such as `OtherVibes/mcp-publish-action`
+    (https://github.com/marketplace/actions/publish-mcp-server; third party, not
+    certified by GitHub). The catch: the registry knows packages from npm, PyPI, NuGet,
+    OCI (container images) and MCPB (a bundle downloaded from a URL), not from
+    crates.io. For a Rust binary that leaves:
+    - **MCPB:** build `forthling-mcp` per platform in a release workflow, pack each as an
+      `.mcpb` bundle on the GitHub release, with its SHA-256 in `server.json`. No other
+      registry needed; closest to "download and run".
+    - **OCI:** a small image on ghcr.io (`FROM scratch` plus the static binary); needs
+      Docker on the user's side.
+    - **PyPI:** a wheel with the binary (as maturin can build); then `uvx forthling-mcp`.
+
+    To decide first: which of these, versioning and release tags (there are no releases
+    yet), and whether `forthling-mcp` also goes to crates.io for `cargo install`.
+    Independent of the other steps; it can come any time.
 
 Considered, not planned (2026-10-31):
 - **A prefix or S-expression layer** (`(+ (* 3 4) 2)` compiled to threaded code), for
