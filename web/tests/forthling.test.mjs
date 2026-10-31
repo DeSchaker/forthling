@@ -66,6 +66,10 @@ test("what WebAssembly lacks is handled", async () => {
   const deep = forth.eval(nest);
   assert.deepEqual([deep.error, deep.output], [null, "0 "]);
   assert.equal(forth.eval("ALSO JSON S\" [1,[2,3]]\" S\" [1][0]\" JSON@ DROP TYPE").output, "2");
+  // The trace words are installed.
+  forth.reset();
+  assert.equal(forth.eval("ALSO DEBUG : SQ DUP * ; 3 TRACE-ON SQ TRACE-OFF").output,
+    "SQ <1> 3\n  DUP <1> 3\n  * <2> 3 3\n");
   // Floats, double cells and big numbers come through.
   assert.equal(forth.eval("2E0 FSQRT F. 1. 2. D+ D. -9223372036854775808 .").output,
     "1.4142135623731 3 -9223372036854775808 "); // as natively

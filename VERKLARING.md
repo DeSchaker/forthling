@@ -563,8 +563,8 @@ blijven daarbij zoals ze zijn:
   `FORTHLING-SQLITE`, en geeft dan haar versie en waar. `[DEFINED]` test op één woord.
 - De woorden van een extensie horen bij het systeem: `FORGET` gooit er -15 voor.
 
-Het programma forthling installeert één extensie die bij forthling zelf hoort: de
-JSON-woorden (`FORTHLING-JSON`, versie 1, woordenlijst `JSON`; zie de README). Een
+Het programma forthling installeert twee extensies die bij forthling zelf horen. De
+eerste zijn de JSON-woorden (`FORTHLING-JSON`, versie 1, woordenlijst `JSON`; zie de README). Een
 JSON-waarde is haar tekst in het geheugen; de leeswoorden geven stukken daarvan terug, de
 strings van `JSON>STRING` en `JSON-NAME` zijn ge-`ALLOCATE`d. Ze lezen arrays en objecten
 tot 512 diep genest; dieper is voor hen geen geldige JSON. Schrijven gooit -22 bij een
@@ -572,7 +572,9 @@ structuur die niet klopt of dieper dan 512 nest, ook met `<JSON` (en na een fout
 half geschreven was vergeten), en -59 als de strings tussen `<JSON` en `JSON>`, alle
 geneste samen, groter zouden worden dan het geheugen. `JSON-NUMBER`
 schrijft decimaal, wat `BASE` ook is, `JSON-FLOAT` schrijft `null` voor oneindig of NaN,
-en tekst die geen UTF-8 is, wordt geschreven met U+FFFD. `Forth::new()` installeert niets.
+en tekst die geen UTF-8 is, wordt geschreven met U+FFFD. De tweede zijn de tracewoorden
+(`FORTHLING-DEBUG`, versie 1, woordenlijst `DEBUG`: `TRACE-ON` en `TRACE-OFF`; zie de
+README); hun regels zijn uitvoer, net als die van `.S`. `Forth::new()` installeert niets.
 De Python-module (`python/`)
 installeert `FORTHLING-PYTHON` (versie 1), zonder eigen woorden: de woorden die een
 Python-programma toevoegt, komen in `FORTH-WORDLIST` of in een woordenlijst die het noemt.

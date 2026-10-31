@@ -28,7 +28,7 @@ it beforehand; a test keeps the limits in both the same.
 
 | Tool | Arguments | |
 |---|---|---|
-| `forth_eval` | `code`, `data` | runs Forth code; returns the output, the data and float stacks, and the error if there was one |
+| `forth_eval` | `code`, `data`, `trace` | runs Forth code; returns the output, the data and float stacks, and the error if there was one |
 | `forth_stack` | | the stacks, without running anything |
 | `forth_words` | | the words defined in this session, the latest first |
 | `forth_reset` | | a new session: every definition, stack value and the data are gone |
@@ -70,6 +70,29 @@ and as JSON: `"error": {"code": -10, "message": "division by zero", "stack": [5,
 "fstack": [], "words": ["MAIN", "STEP", "/"], "source": "input", "line": 2, "column": 3,
 "token": "MAIN", …}`, with `isError` true. A word that took its arguments before it
 failed, such as `/` here, has taken them.
+
+With `"trace": true`, `forth_eval` also returns a trace: each word that ran, with how deep
+it was nested and the data stack when it started (at most its top 8 cells), at most 1000
+words; `trace_dropped` counts the rest. The insides of the system's own words are left
+out. The text starts with it, indented the way `TRACE-ON` prints it:
+
+```
+trace:
+F <0>
+  SQ <1> 3
+    DUP <1> 3
+    * <2> 3 3
+  1+ <1> 9
+. <1> 10
+end of trace
+10  ok
+stack: empty
+```
+
+and the JSON has `"trace": [{"word": "F", "depth": 0, "stack": [], "stack_depth": 0},
+{"word": "SQ", "depth": 1, "stack": [3], "stack_depth": 1}, …], "trace_dropped": 0`. The
+trace of a call that fails shows how it got to the error. In the code itself,
+`ALSO DEBUG TRACE-ON … TRACE-OFF` prints the same lines as output.
 
 The JSON words are installed (`ALSO JSON`), and the SQLite words for databases in memory
 (`ALSO SQLITE`, only `:memory:`, which SQL stops when the time is up and which cannot

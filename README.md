@@ -235,6 +235,38 @@ how deep the data stack went, the words of the system it ran (such as `.`, writt
 Forth) included. The MCP server, the playground and the Python module pass
 all of this on.
 
+### Tracing
+
+To see what code does word by word, switch on a trace. `TRACE-ON` and `TRACE-OFF` are in
+the word list `DEBUG` (`ALSO DEBUG`), installed by the forthling program, the MCP server
+and the playground. Each word that runs gets a line: indented by how deep it is nested,
+then its name and the data stack when it starts, as `.S` shows it (at most the top 8
+cells):
+
+```
+ALSO DEBUG
+: SQ  DUP * ;
+: F  3 SQ 1+ ;
+TRACE-ON F . TRACE-OFF
+```
+
+```
+F <0>
+  SQ <1> 3
+    DUP <1> 3
+    * <2> 3 3
+  1+ <1> 9
+. <1> 10
+10
+```
+
+The insides of the system's own words (such as `/` and `.`, written in Forth) are not
+traced, nor are the words that run while a definition is compiled. The lines are output,
+so the output limit of the sandbox holds for them. A host records the same as data:
+`record_trace(Some(max))` and then `take_trace()`, a `TraceEntry` per word (`word`,
+`depth`, `stack`, `stack_depth`); `forth_eval` of the MCP server does this with
+`trace: true`. When no trace is on, it costs one test per word.
+
 ### In the browser
 
 `web/` compiles forthling to WebAssembly (about 420 KB, no dependencies, no wasm-bindgen)

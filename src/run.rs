@@ -101,6 +101,9 @@ impl Forth {
 
     /// Runs a primitive directly, or pushes a frame for compiled code.
     pub(crate) fn invoke(&mut self, mut xt: usize) -> Res {
+        if self.tracing {
+            self.trace(xt);
+        }
         // A deferred word runs its action; follow chains of them in a loop,
         // so a DEFER that refers to itself cannot overflow the Rust stack.
         let mut hops = 0;

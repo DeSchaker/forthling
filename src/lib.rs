@@ -24,6 +24,7 @@ mod sandbox;
 mod stack;
 mod terminal;
 mod throw;
+mod trace;
 mod words;
 mod xchar;
 
@@ -37,6 +38,7 @@ pub use report::ErrorContext;
 pub use sandbox::{Limits, Permission};
 pub use terminal::Input;
 pub use throw::{LIMIT_EXCEEDED, NOT_PERMITTED, QUIT, Throw};
+pub use trace::{Debugger, TRACE_CELLS, TraceEntry};
 
 // Every module starts with `use crate::*;`, so these make the items of all
 // modules, and the std items most of them need, available everywhere.
@@ -58,6 +60,7 @@ pub(crate) use std::io::{self, BufRead};
 pub(crate) use std::rc::Rc;
 pub(crate) use terminal::*;
 pub(crate) use throw::*;
+pub(crate) use trace::*;
 pub(crate) use xchar::*;
 
 pub type Cell = i64;
@@ -117,6 +120,8 @@ pub struct Forth {
     budget: Budget,                      // what is left of them in this evaluation
     denied: HashSet<Permission>,         // what the program may not do
     clock: Option<Box<dyn Fn() -> u64>>, // seconds since 1970 for TIME&DATE (set_clock)
+    tracing: bool,                       // whether to call trace() for each word (trace.rs)
+    tracer: Tracer,
     space: usize,        // the dictionary and the REPLACES texts outside Forth memory
     system_space: usize, // the part of the space that is the system's own
 }
@@ -187,6 +192,8 @@ impl Forth {
             budget: Budget::default(),
             denied: HashSet::new(),
             clock: None,
+            tracing: false,
+            tracer: Tracer::default(),
             space: 0,
             system_space: 0,
         };

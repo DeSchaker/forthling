@@ -6,7 +6,7 @@
 //! take only Forth code, no Forth word can change the limits or the
 //! permissions, and no setting of the server opens files or lifts a limit.
 
-use forthling::{DEFAULT_MEMORY, Extension, Forth, Limits, Permission, Throw};
+use forthling::{DEFAULT_MEMORY, Extension, Forth, Limits, Permission, Throw, TraceEntry};
 use serde_json::{Map, Value, json};
 use std::cell::RefCell;
 use std::io;
@@ -24,6 +24,9 @@ pub const MAX_STEPS: u64 = 1_000_000_000;
 pub const MAX_TIME: Duration = Duration::from_secs(60);
 pub const MAX_OUTPUT: usize = 16 << 20;
 pub const MAX_SPACE: usize = 64 << 20;
+
+/// The most words a trace of forth_eval holds; the rest are counted.
+pub const MAX_TRACE: usize = 1000;
 
 /// What the server runs Forth with: always every limit, never files.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -151,7 +154,7 @@ impl Server {
             Some(_) => return Err((INVALID_PARAMS, "arguments must be an object".into())),
         };
         let allowed: &[&str] = match name {
-            "forth_eval" => &["code", "data"],
+            "forth_eval" => &["code", "data", "trace"],
             "forth_stack" | "forth_words" | "forth_reset" => &[],
             _ => return Err((INVALID_PARAMS, format!("unknown tool {name}"))),
         };
@@ -176,12 +179,28 @@ impl Server {
                     }
                     Some(_) => return Err((INVALID_PARAMS, "data must be a string".into())),
                 }
+                let trace = match args.get("trace") {
+                    None | Some(Value::Bool(false)) => false,
+                    Some(Value::Bool(true)) => true,
+                    Some(_) => return Err((INVALID_PARAMS, "trace must be a boolean".into())),
+                };
+                self.forth.record_trace(trace.then_some(MAX_TRACE));
                 let result = self.forth.interpret(code);
+                self.forth.record_trace(None);
+                let dropped = self.forth.trace_dropped();
+                let entries = self.forth.take_trace();
                 let output = String::from_utf8_lossy(&self.forth.take_output()).into_owned();
                 let mut answer = state(&self.forth, &output, result.err());
                 let content = &mut answer["structuredContent"];
                 content["steps"] = json!(self.forth.steps_used());
                 content["max_depth"] = json!(self.forth.max_depth());
+                if trace {
+                    content["trace"] = entries.iter().map(trace_json).collect();
+                    content["trace_dropped"] = json!(dropped);
+                    let text = &mut answer["content"][0]["text"];
+                    let lines = trace_text(&entries, dropped);
+                    *text = json!(format!("{lines}{}", text.as_str().unwrap_or_default()));
+                }
                 Ok(answer)
             }
             "forth_stack" => Ok(state(&self.forth, "", None)),
@@ -215,6 +234,7 @@ fn sandbox(settings: &Settings, data: &Rc<RefCell<Vec<u8>>>) -> Forth {
     // Terminal input would be the protocol itself; KEY and ACCEPT get none.
     f.set_input(Box::new(io::Cursor::new(Vec::new())));
     f.install(&forthling::Json);
+    f.install(&forthling::Debugger);
     #[cfg(feature = "sqlite")]
     f.install(&forthling_sqlite::Sqlite);
     f.install(&Data(Rc::clone(data)));
@@ -325,6 +345,31 @@ fn state(f: &Forth, output: &str, error: Option<Throw>) -> Value {
     })
 }
 
+fn trace_json(e: &TraceEntry) -> Value {
+    json!({ "word": e.word, "depth": e.depth, "stack": e.stack, "stack_depth": e.stack_depth })
+}
+
+/// The trace as text, a line per word as TRACE-ON prints it (indented by the
+/// depth, in decimal), and a line for the words that did not fit.
+fn trace_text(entries: &[TraceEntry], dropped: usize) -> String {
+    let mut text = String::from("trace:\n");
+    for e in entries {
+        text += &"  ".repeat(e.depth.min(16));
+        text += &format!("{} <{}>", e.word, e.stack_depth);
+        if e.stack.len() < e.stack_depth {
+            text += " ...";
+        }
+        for n in &e.stack {
+            text += &format!(" {n}");
+        }
+        text.push('\n');
+    }
+    if dropped > 0 {
+        text += &format!("... and {dropped} more words\n");
+    }
+    text + "end of trace\n"
+}
+
 /// The schema of `state`.
 fn state_schema() -> Value {
     json!({
@@ -353,6 +398,21 @@ fn state_schema() -> Value {
             },
             "steps": { "type": "integer", "description": "forth_eval only: the steps this call took, of its limit" },
             "max_depth": { "type": "integer", "description": "forth_eval only: the deepest the data stack was during this call" },
+            "trace": {
+                "type": "array",
+                "description": "forth_eval with trace only: a word per entry, in the order they ran",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "word": { "type": "string" },
+                        "depth": { "type": "integer", "description": "0 for a word of the code, 1 for a word it calls, and so on" },
+                        "stack": { "type": "array", "items": { "type": "integer" }, "description": "the data stack when the word started, the top last; at most the top 8 cells" },
+                        "stack_depth": { "type": "integer", "description": "the number of cells on the data stack then" },
+                    },
+                    "required": ["word", "depth", "stack", "stack_depth"],
+                },
+            },
+            "trace_dropped": { "type": "integer", "description": "forth_eval with trace only: the words past the first 1000, which the trace leaves out" },
         },
         "required": ["output", "stack", "fstack", "compiling", "error"],
     })
@@ -369,6 +429,7 @@ fn tools() -> Value {
                 "type": "object",
                 "properties": {
                     "code": { "type": "string", "description": "Forth source; it may have several lines, each at most 1024 characters" },
+                    "trace": { "type": "boolean", "description": "If true, the result also gives a trace: each word that ran (not inside the built-in words), with how deep it was nested and the data stack when it started; at most 1000 words. For finding where code goes wrong." },
                     "data": { "type": "string", "description": "Text for the word DATA ( -- c-addr u ), which gives a copy in ALLOCATEd memory (FREE it); without a line limit, for large input such as JSON. It stays for later calls until another call sends data." },
                 },
                 "required": ["code"],
@@ -424,7 +485,7 @@ fn instructions(s: &Settings) -> String {
          the like work only inside a definition; `S\" text\"` gives ( c-addr u ) and TYPE prints \
          it. For more than two or three values, name them with locals rather than juggling \
          them with ROT, PICK and ROLL: `: HYP2 {{: a b -- c :}} a a * b b * + ;` (the last \
-         name gets the top). An error empties the stacks, but the result shows them as they were at the error, with where it happened and the words that were running. A line of code, and so a string in `S\" \"`, is at most \
+         name gets the top). An error empties the stacks, but the result shows them as they were at the error, with where it happened and the words that were running. To see what code does word by word, pass `trace: true` to forth_eval: the result then lists each word that ran with the data stack when it started. A line of code, and so a string in `S\" \"`, is at most \
          1024 characters: give larger input, such as a JSON document, as the `data` argument of \
          forth_eval, and read it in the code with `DATA ( -- c-addr u )`, an ALLOCATEd copy. \
          `ALSO JSON` gives JSON words: `JSON@` reads a path such \

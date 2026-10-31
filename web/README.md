@@ -59,7 +59,8 @@ session; the words stay until `reset()`.
   (`Forth::set_clock`).
 - The memory is 1 MiB, as natively; the most it can be is 1 GiB (`MAX_MEMORY` on a
   32-bit target).
-- The JSON words are installed (`ALSO JSON`); SQLite is not.
+- The JSON words are installed (`ALSO JSON`), and the trace words (`ALSO DEBUG`,
+  `TRACE-ON`, `TRACE-OFF`); SQLite is not.
 
 ## Testing
 

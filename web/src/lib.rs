@@ -7,7 +7,7 @@
 //! The answer has the same shape as a result of the MCP server: `output`,
 //! `stack`, `fstack`, `compiling` and `error`.
 
-use forthling::{Forth, Json, Throw};
+use forthling::{Debugger, Forth, Json, Throw};
 use std::cell::{Cell, RefCell};
 
 thread_local! {
@@ -19,10 +19,11 @@ thread_local! {
 
 /// A new session: the sandbox (no files, no terminal input, 10 million
 /// steps and 1 MiB of output per run; WebAssembly has no clock for a time
-/// limit), the JSON words, and the time of the page for TIME&DATE.
+/// limit), the JSON words, TRACE-ON and TRACE-OFF, and the time of the page for TIME&DATE.
 fn session() -> Forth {
     let mut f = Forth::sandboxed();
     f.install(&Json);
+    f.install(&Debugger);
     f.set_clock(|| NOW.with(Cell::get));
     f
 }

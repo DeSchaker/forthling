@@ -184,6 +184,45 @@ fn the_tools_take_only_their_arguments() {
 }
 
 #[test]
+fn a_trace_on_request() {
+    let mut s = server();
+    eval(&mut s, ": SQ DUP * ; : F 3 SQ 1+ ;");
+    let r = call(&mut s, "forth_eval", json!({ "code": "F .", "trace": true }));
+    let content = &r["structuredContent"];
+    assert_eq!(content["output"], "10 ");
+    assert_eq!(content["trace_dropped"], 0);
+    assert_eq!(
+        content["trace"][1],
+        json!({ "word": "SQ", "depth": 1, "stack": [3], "stack_depth": 1 })
+    );
+    let words: Vec<_> = content["trace"].as_array().unwrap().iter().map(|e| &e["word"]).collect();
+    assert_eq!(words, ["F", "SQ", "DUP", "*", "1+", "."]);
+    assert!(text(&r).starts_with("trace:\nF <0>\n  SQ <1> 3\n    DUP <1> 3\n"), "{}", text(&r));
+    assert!(text(&r).contains("end of trace\n10  ok"), "{}", text(&r));
+    // Without trace, none; a long run is cut off at 1000 words.
+    assert!(eval(&mut s, "F")["structuredContent"].get("trace").is_none());
+    let r = call(
+        &mut s,
+        "forth_eval",
+        json!({ "code": ": L 2000 0 DO I DROP LOOP ; L", "trace": true }),
+    );
+    assert_eq!(r["structuredContent"]["trace"].as_array().unwrap().len(), 1000);
+    // `:`, L, and I and DROP 2000 times: 4002 words.
+    assert_eq!(r["structuredContent"]["trace_dropped"], 3002);
+    assert!(text(&r).contains("... and 3002 more words\n"));
+    // The trace of a failing call shows how it got there.
+    eval(&mut s, ": D 0 / ; : M 1 D ;");
+    let r = call(&mut s, "forth_eval", json!({ "code": "M", "trace": true }));
+    assert_eq!(r["isError"], true);
+    assert_eq!(r["structuredContent"]["trace"].as_array().unwrap().len(), 3);
+    // The program can print a trace itself.
+    let r = eval(&mut s, "ALSO DEBUG TRACE-ON F TRACE-OFF DROP");
+    assert!(r["structuredContent"]["output"].as_str().unwrap().starts_with("F <0>\n  SQ <1> 3\n"));
+    let not_bool = json!({ "name": "forth_eval", "arguments": { "code": "1", "trace": "yes" } });
+    assert_eq!(error_code(&ask(&mut s, "tools/call", not_bool)), -32602);
+}
+
+#[test]
 fn settings_have_ceilings() {
     assert_eq!(Settings::default().check(), Ok(()));
     let too_many = Settings { steps: MAX_STEPS + 1, ..Settings::default() };

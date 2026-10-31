@@ -103,6 +103,8 @@ over the modules and are `pub(crate)`, except the public API in `lib.rs` and `ho
 | `heap.rs` | the heap of `ALLOCATE FREE RESIZE` (`Heap`), `data_end()` |
 | `json.rs` | the JSON words (`Json: Extension`): reading in place (`whole`, `entries`, `follow`, `unescape`), writing (`Writers`, `<JSON JSON>`) |
 | `sandbox.rs` | `Limits`, `Permission`, the budget of an evaluation (`evaluation`, `step`), `emit_bytes`/`emit_memory`, `sleep` |
+| `report.rs` | `ErrorContext`: the stacks, the running words and the place of an error that reaches the host |
+| `trace.rs` | tracing: the extension `Debugger` (`TRACE-ON`, `TRACE-OFF`), `record_trace`/`take_trace`, `TraceEntry` |
 | `host.rs` | the host API: `Extension`, `wordlist`, `add_word`, `state`, `pop_bytes`/`push_bytes`, `memory`, `stack`, `take_output` (tested from outside in `tests/host.rs`) |
 | `float.rs` | the float stack (`fpush`, `fpop`), `F@`/`F!` in memory, text to float (`to_float`) and float to text (`represent`, `fixed`, `scientific`) |
 | `xchar.rs` | UTF-8: encoding, decoding and column width of xchars, `XKEY` and `PARSE` with an xchar |
@@ -118,9 +120,30 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
 
 ### Next session: resume here
 
-- **Next step:** step 10 of the revised order (revised again on 2026-10-31), tracing,
-  on the frames that step 9 now gives a word. The website (robbertwesterink.nl, private
-  repo `DeSchaker/website`) links to the playground since 2026-10-31.
+- **Next step:** step 11 of the revised order, stepping and breakpoints, on the same
+  hook in `invoke` that tracing now uses. Step 12 (the `forth_word!` macro) is small and
+  independent, and can come first. The website (robbertwesterink.nl, private repo
+  `DeSchaker/website`) links to the playground since 2026-10-31.
+- **Tracing (2026-10-31):** step 10 is done, in `src/trace.rs`. `invoke` starts with
+  `if self.tracing { self.trace(xt) }`, one test when off; measured against the commit
+  before (release, seven runs each): the loop of 30 million 205 ms before and 206 ms
+  after (medians), `27 FIB` 134 ms both, so no difference to measure. `trace` (cold) skips
+  the insides of the system's own words (caller below `fence`, as the chain of step 9
+  does), immediate words that run while a definition is compiled, and `TRACE-OFF`
+  itself. The extension `Debugger` (`FORTHLING-DEBUG`, word list `DEBUG`) has `TRACE-ON`
+  and `TRACE-OFF`, which print a line per word through `emit_bytes` (so the output limit
+  holds): two spaces per level of nesting, at most 16 levels, then `NAME <n>` and the top
+  8 cells (`TRACE_CELLS`) in BASE, `...` before them when there are more; a line starts
+  on a fresh line when the output does not end in one (after `.`). The host API:
+  `record_trace(Some(max))`, `take_trace()` (`TraceEntry { word, depth, stack,
+  stack_depth }`) and `trace_dropped()`; recording and TRACE-ON are independent. The
+  program, the MCP server and the playground install `Debugger`; `Forth::new()` and the
+  Python module do not. MCP: `forth_eval` takes `trace: true` and then returns `trace`
+  (at most 1000 entries, `MAX_TRACE`) and `trace_dropped`, and the text starts with the
+  trace lines between `trace:` and `end of trace`; the instructions and `llms.txt` say
+  so. The trace of a failing call is kept, so it shows how the code got to the error.
+  Chosen names: `TRACE-ON`/`TRACE-OFF` rather than one `TRACE` with a flag, and the word
+  list `DEBUG`, so that step 11 can add its words there.
 - **Error reports (2026-10-31):** step 9 is done, in `src/report.rs`. A `Throw` that
   leaves `interpret` or `include_lines` (while the file is still open) gets an
   `ErrorContext` (public, `Throw::context()`, boxed so `Res` stays small): the data and
@@ -800,7 +823,7 @@ positioning and what agents need. The old step 8 (debugging and tracing) became 
    not in a file), the chain of words that was running (such as `MAIN > STEP > /`, from
    the frames), and the steps used and the deepest stack reached. The aim: an agent can
    correct itself in one round.
-10. **Tracing:** `TRACE` on and off (an extension word list, so `Forth::new()` stays
+10. ✅ **Tracing:** `TRACE` on and off (an extension word list, so `Forth::new()` stays
     standard), a line per word with the depth and the stack, through `emit_bytes` so
     the output limit holds; and `trace: true` in `forth_eval`, giving the trace as data
     (`{word, depth, stack}`, with a maximum of entries). Built on the same frames as the

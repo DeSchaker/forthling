@@ -545,8 +545,8 @@ standard words as they are:
   and then gives its version and true. `[DEFINED]` tests for a single word.
 - The words of an extension belong to the system: `FORGET` throws -15 for them.
 
-The forthling program installs one extension that is part of forthling itself: the JSON
-words (`FORTHLING-JSON`, version 1, word list `JSON`; see the README). A JSON value is
+The forthling program installs two extensions that are part of forthling itself. The
+first is the JSON words (`FORTHLING-JSON`, version 1, word list `JSON`; see the README). A JSON value is
 its text in memory; the reading words return pieces of it, the strings of `JSON>STRING`
 and `JSON-NAME` are `ALLOCATE`d. They read arrays and objects nested up to 512 deep;
 deeper is no valid JSON for them. Writing throws -22 for a structure that does not fit or
@@ -554,7 +554,9 @@ that nests deeper than 512, also with `<JSON` (and after an error, what was half
 is forgotten), and -59 when the strings written between `<JSON` and `JSON>`, all nested
 ones together, would be larger than the memory. `JSON-NUMBER` writes in
 decimal whatever `BASE` is, `JSON-FLOAT` writes `null` for an infinity or a NaN, and text
-that is no UTF-8 is written with U+FFFD. `Forth::new()` installs nothing. The Python module (`python/`) installs
+that is no UTF-8 is written with U+FFFD. The second is the trace words
+(`FORTHLING-DEBUG`, version 1, word list `DEBUG`: `TRACE-ON` and `TRACE-OFF`; see the
+README); their lines are output, like that of `.S`. `Forth::new()` installs nothing. The Python module (`python/`) installs
 `FORTHLING-PYTHON` (version 1), without words of its own: the words that a Python program
 adds go into `FORTH-WORDLIST` or into a word list it names. A Python exception in such a
 word throws -257, which `CATCH` catches; uncaught, the Python program gets the exception
