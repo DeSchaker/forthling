@@ -120,6 +120,7 @@ impl Forth {
         }
         match word.kind.clone() {
             Kind::Prim(f) => f(self),
+            Kind::Host(f) => f(self),
             Kind::Colon(code) => self.enter(code, 0),
             Kind::Constant(v) => {
                 self.push(v);

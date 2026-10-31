@@ -75,7 +75,7 @@ tests voor de Extended-Character-wordset, dus forthling heeft eigen tests:
 - **Langste naam van een definitie** (3.3.1.2): forthling stelt zelf geen grens; de
   invoerregel (1024 tekens) is de grens.
 - **Langste string voor `ENVIRONMENT?`**: geen grens; een string die geen bekende vraag
-  is, geeft onwaar.
+  is, geeft onwaar. De naam van een geïnstalleerde extensie is ook een vraag (zie Extensies).
 - **Kiezen van het invoerapparaat** (3.2.4.1): de terminal is de standaardinvoer, dus die
   kies je bij het starten van forthling, door invoer om te leiden of te pipen. Bestanden
   op de opdrachtregel worden uitgevoerd in plaats van de REPL.
@@ -433,7 +433,8 @@ Keuzes van de implementatie:
   genummerde regel per gecompileerde instructie (een woord, een getal, een sprong met zijn
   doel), dan `;` en `IMMEDIATE` als het woord dat is. Andere woorden krijgen één regel,
   zoals `DUP is a primitive`, `IF is a compile-only primitive IMMEDIATE`, `5 CONSTANT X`
-  of `CREATE BUF ( address 27464 )`.
+  of `CREATE BUF ( address 27464 )`; een woord van een extensie toont als
+  `NAME is a host word`.
 
 Ambigue situaties:
 
@@ -517,3 +518,18 @@ Ambigue situaties:
 - **Een xchar buiten de toegestane codepunten**: een xchar boven $10FFFF schrijven
   (`XEMIT`, `XC!+`, `XC,`, `XHOLD`) schrijft U+FFFD, het vervangteken.
 - **`XHOLD` buiten `<#` en `#>`**: zoals bij `HOLD` (zie Core).
+
+## Extensies
+
+Een Rust-programma dat forthling inbouwt, kan eigen woorden toevoegen via de host-API
+(`Extension`, `Forth::wordlist` en `Forth::add_word`; zie de README). De standaardwoorden
+blijven daarbij zoals ze zijn:
+
+- Een extensie zet haar woorden in een eigen woordenlijst, die een programma doorzoekt met
+  `ALSO NAAM`. Het enige woord dat ze aan `FORTH-WORDLIST` toevoegt, is `NAAM`, dat net als
+  `FORTH` de eerste woordenlijst van de zoekvolgorde door die lijst vervangt.
+- `ENVIRONMENT?` kent elke geïnstalleerde extensie bij haar naam, zoals
+  `FORTHLING-SQLITE`, en geeft dan haar versie en waar. `[DEFINED]` test op één woord.
+- De woorden van een extensie horen bij het systeem: `FORGET` gooit er -15 voor.
+
+Het programma forthling zelf installeert geen extensies.

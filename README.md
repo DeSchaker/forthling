@@ -94,6 +94,24 @@ forth.interpret(": SQUARE DUP * ; 7 SQUARE .")?;
 assert_eq!(forth.output(), b"49 ");
 ```
 
+Such a program can also add words of its own, written in Rust. A word is a closure that
+works on the stacks (`push`, `pop`, `fpush`, `fpop`, `pop_bytes`, `push_bytes`); it can
+keep state in `Forth::state`. An `Extension` bundles words in a word list of its own and
+makes its name known to `ENVIRONMENT?`, so standard programs never meet them by accident
+(see [Extensions](COMPLIANCE.md#extensions)):
+
+```rust
+let mut forth = forthling::Forth::new();
+let wid = forth.wordlist("MATHS"); // also defines MATHS, for ALSO MATHS
+forth.add_word(wid, "CUBE", |f| {
+    let n = f.pop()?;
+    f.push(n * n * n);
+    Ok(())
+})?;
+forth.interpret("ALSO MATHS 3 CUBE .")?;
+assert_eq!(forth.output(), b"27 ");
+```
+
 ## Standard compliance
 
 [`ROADMAP.md`](ROADMAP.md) holds the roadmap to Forth-2012 and the

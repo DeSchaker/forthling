@@ -84,7 +84,7 @@ Cleanups, done on 2026-10-31:
 The interpreter is a library crate (`src/lib.rs`) with a thin binary (`src/main.rs`: the
 REPL and running files). Every module starts with `use crate::*;`; `lib.rs` re-exports the
 items of all modules, so they are available everywhere. The methods of `Forth` are spread
-over the modules and are `pub(crate)`.
+over the modules and are `pub(crate)`, except the public API in `lib.rs` and `host.rs`.
 
 | File | Contents |
 |---|---|
@@ -99,6 +99,7 @@ over the modules and are `pub(crate)`.
 | `terminal.rs` | the trait `Input` and `Stdin` (standard input through a thread, for `KEY?`) |
 | `blocks.rs` | the block file and the block buffers (`Blocks`), `LOAD` and `LIST` |
 | `heap.rs` | the heap of `ALLOCATE FREE RESIZE` (`Heap`), `data_end()` |
+| `host.rs` | the host API: `Extension`, `wordlist`, `add_word`, `state`, `pop_bytes`/`push_bytes`, `memory` (tested from outside in `tests/host.rs`) |
 | `float.rs` | the float stack (`fpush`, `fpop`), `F@`/`F!` in memory, text to float (`to_float`) and float to text (`represent`, `fixed`, `scientific`) |
 | `xchar.rs` | UTF-8: encoding, decoding and column width of xchars, `XKEY` and `PARSE` with an xchar |
 | `files.rs` | file ids, `INCLUDED`/`REQUIRED`, helpers for the FILE words |
@@ -113,10 +114,20 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
 
 ### Next session: resume here
 
-- **Next step:** open. All word sets are there (except `;CODE ASSEMBLER CODE EDITOR`), as
-  are the statement of section 4.1, the cleanups, the behaviour points and the community
-  standards. Candidates: the ideas under "Later: assembler and editor" and the design under
-  "Later: extensions", which starts with a host API in the core.
+- **Next step:** step 2 of "Later: extensions", the Python module, or the ideas under
+  "Later: assembler and editor". All word sets are there (except
+  `;CODE ASSEMBLER CODE EDITOR`), as are the statement of section 4.1 and the host API.
+- **Host API (2026-10-31):** step 1 of "Later: extensions" is done, in `src/host.rs`. A
+  word added from Rust is `Kind::Host(Rc<dyn Fn(&mut Forth) -> Res>)`: `Fn`, not `FnMut`,
+  so a word may run itself again (through `interpret`) without a `RefCell` panicking;
+  mutable state goes in `Forth::state::<T>()` (a map from `TypeId` to `Box<dyn Any>`) or
+  in the closure's own `Cell`/`RefCell`. `Forth::wordlist(name)` makes a named word list
+  (or returns the existing one) and defines `NAME` in FORTH-WORDLIST, which acts like
+  `FORTH`. `Forth::install(&dyn Extension)` adds the words, records name and version for
+  `ENVIRONMENT?` (which then gives `version true`) and moves the FORGET fence up. Public
+  now: `push pop fpush fpop pop_str`, `Throw::new`/`with` and `Res`; new: `depth
+  pop_bytes push_bytes memory memory_mut`. Host words are never immediate; the THROW
+  constants stay crate-private, so an extension uses the numbers.
 - **Roadmap in English (2026-10-31):** this file used to be the Dutch `STANDAARD.md`; at the
   maintainer's request it is now in English only.
 - **Community standards (2026-10-31):** `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1;
@@ -505,7 +516,7 @@ That keeps the promises of the core true: no dependencies, no `unsafe` (see `SEC
 and Rust 1.74. An extension may require a newer Rust. CI tests the core on its own and
 also with all extensions enabled.
 
-### Key: a host API in the core
+### Key: a host API in the core ✅ done (2026-10-31, `src/host.rs`)
 
 All extensions depend on a public way to add words. Now a primitive is an
 `fn(&mut Forth) -> Res` without state of its own, and the methods are `pub(crate)`. Needed
@@ -555,7 +566,7 @@ uses the same API.
 
 ### Proposed order
 
-1. **The host API.** Everything depends on it, and it is cleanup work in the core without
+1. ✅ **The host API.** Everything depends on it, and it is cleanup work in the core without
    dependencies.
 2. **The Python module.** Small, and it tests the host API from the outside right away.
 3. **SQLite.** A clear API in FILE style and easy to test.

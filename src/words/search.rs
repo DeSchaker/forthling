@@ -144,6 +144,10 @@ impl Forth {
     /// Pops a word list id and checks it.
     pub(crate) fn pop_wid(&mut self) -> Res<usize> {
         let wid = self.pop()?;
+        self.valid_wid(wid)
+    }
+
+    pub(crate) fn valid_wid(&self, wid: Cell) -> Res<usize> {
         match usize::try_from(wid) {
             Ok(w) if (1..=self.wordlists.len()).contains(&w) => Ok(w),
             _ => Err(Throw::with(INVALID_ARGUMENT, format!("invalid word list {wid}"))),
@@ -159,7 +163,7 @@ impl Forth {
     }
 
     /// Replaces the first word list of the search order.
-    fn set_first(&mut self, wid: usize) {
+    pub(crate) fn set_first(&mut self, wid: usize) {
         match self.order.first_mut() {
             Some(first) => *first = wid,
             None => self.order.push(wid),

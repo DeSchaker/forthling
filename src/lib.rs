@@ -12,6 +12,7 @@ mod dictionary;
 mod files;
 mod float;
 mod heap;
+mod host;
 mod interpreter;
 mod memory;
 mod parse;
@@ -25,6 +26,7 @@ mod xchar;
 #[cfg(test)]
 mod tests;
 
+pub use host::Extension;
 pub use memory::{DEFAULT_MEMORY, MAX_MEMORY, MIN_MEMORY};
 pub use terminal::Input;
 pub use throw::{Throw, QUIT};
@@ -37,6 +39,7 @@ pub(crate) use dictionary::*;
 pub(crate) use files::*;
 pub(crate) use float::*;
 pub(crate) use heap::*;
+pub(crate) use host::*;
 pub(crate) use interpreter::*;
 pub(crate) use memory::*;
 pub(crate) use parse::*;
@@ -50,7 +53,8 @@ pub(crate) use throw::*;
 pub(crate) use xchar::*;
 
 pub type Cell = i64;
-pub(crate) type Res<T = ()> = Result<T, Throw>;
+/// The result of a Forth operation: a value, or the exception it threw.
+pub type Res<T = ()> = Result<T, Throw>;
 pub(crate) type Prim = fn(&mut Forth) -> Res;
 
 pub(crate) const CELL: usize = 8;
@@ -97,6 +101,8 @@ pub struct Forth {
     files: Vec<Option<OpenFile>>, // open files, indexed by file id - 1
     blocks: Blocks,        // the block file and the block buffers
     included: HashSet<String>, // files INCLUDED so far, for REQUIRED
+    extensions: HashMap<String, Cell>, // installed extensions: version by upper-case name
+    host_state: HashMap<std::any::TypeId, Box<dyn std::any::Any>>, // see Forth::state
     out: Vec<u8>,
     bye: bool,
 }
@@ -163,6 +169,8 @@ impl Forth {
             files: Vec::new(),
             blocks: Blocks::new("blocks.fb".into()),
             included: HashSet::new(),
+            extensions: HashMap::new(),
+            host_state: HashMap::new(),
             out: Vec::new(),
             bye: false,
         };
@@ -181,7 +189,8 @@ impl Default for Forth {
 }
 
 /// The interface for programs that embed the interpreter, such as the REPL
-/// in main.rs. `interpret`, `include`, `read_line` and `flush` are public too.
+/// in main.rs. `interpret`, `include`, `read_line` and `flush` are public too,
+/// and host.rs has the API for adding words.
 impl Forth {
     /// Flushes the output before waiting for terminal input, as a REPL should.
     pub fn set_interactive(&mut self, interactive: bool) {

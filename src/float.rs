@@ -156,7 +156,8 @@ pub(crate) fn round_even(r: f64) -> f64 {
 }
 
 impl Forth {
-    pub(crate) fn fpush(&mut self, r: f64) -> Res {
+    /// Pushes a float; throws -44 when the float stack is full.
+    pub fn fpush(&mut self, r: f64) -> Res {
         if self.fstack.len() >= FSTACK_FLOATS {
             return Err(Throw::new(FSTACK_OVERFLOW));
         }
@@ -164,7 +165,8 @@ impl Forth {
         Ok(())
     }
 
-    pub(crate) fn fpop(&mut self) -> Res<f64> {
+    /// Pops a float; throws -45 when the float stack is empty.
+    pub fn fpop(&mut self) -> Res<f64> {
         self.fstack.pop().ok_or(Throw::new(FSTACK_UNDERFLOW))
     }
 

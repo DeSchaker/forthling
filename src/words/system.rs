@@ -87,10 +87,13 @@ pub(crate) fn install(f: &mut Forth) {
                 f.push(n as Cell);
             }
             "XCHAR-MAXMEM" => f.push(XCHAR_MAXMEM as Cell),
-            _ => {
-                f.push(0); // unknown query
-                return Ok(());
-            }
+            _ => match f.extensions.get(&query) {
+                Some(&version) => f.push(version),
+                None => {
+                    f.push(0); // unknown query
+                    return Ok(());
+                }
+            },
         }
         f.push(-1);
         Ok(())

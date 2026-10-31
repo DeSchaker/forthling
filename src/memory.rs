@@ -94,10 +94,9 @@ impl Forth {
         Ok(())
     }
 
-    /// A copy of the string at a with length n.
     /// Pops a string ( c-addr u ) and checks it; returns its index in memory
     /// and its length. A negative length counts as zero.
-    pub(crate) fn pop_str(&mut self) -> Res<(usize, usize)> {
+    pub fn pop_str(&mut self) -> Res<(usize, usize)> {
         let (a, n) = self.pop2()?;
         let n = n.max(0);
         Ok((self.check(a, n)?, n as usize))
@@ -116,6 +115,7 @@ impl Forth {
         }
     }
 
+    /// A copy of the string at a with length n.
     pub(crate) fn bytes(&self, a: Cell, n: Cell) -> Res<Vec<u8>> {
         let n = n.max(0);
         let i = self.check(a, n)?;

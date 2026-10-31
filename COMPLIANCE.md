@@ -77,7 +77,7 @@ Extended-Character word set, so forthling has its own:
 - **Maximum size of a definition name** (3.3.1.2): forthling sets no limit of its own;
   the input line (1024 characters) is the limit.
 - **Maximum string length for `ENVIRONMENT?`**: no limit; a string that names no known
-  query gives false.
+  query gives false. The name of an installed extension is a query too (see Extensions).
 - **Selecting the user input device** (3.2.4.1): the terminal is standard input, so it is
   chosen when starting forthling, by redirecting or piping into it. Files given on the
   command line are run instead of the REPL.
@@ -421,7 +421,7 @@ Implementation-defined options:
   numbered line per compiled instruction (a word, a number, a branch with its target),
   then `;` and `IMMEDIATE` if it is. Other words get one line, such as `DUP is a
   primitive`, `IF is a compile-only primitive IMMEDIATE`, `5 CONSTANT X` or
-  `CREATE BUF ( address 27464 )`.
+  `CREATE BUF ( address 27464 )`; a word of an extension shows as `NAME is a host word`.
 
 Ambiguous conditions:
 
@@ -501,3 +501,18 @@ Ambiguous conditions:
 - **An xchar outside the allowed code points**: writing an xchar above $10FFFF (`XEMIT`,
   `XC!+`, `XC,`, `XHOLD`) writes U+FFFD, the replacement character.
 - **`XHOLD` outside `<#` and `#>`**: as for `HOLD` (see Core).
+
+## Extensions
+
+A Rust program that embeds forthling can add words of its own through the host API
+(`Extension`, `Forth::wordlist` and `Forth::add_word`; see the README). This leaves the
+standard words as they are:
+
+- An extension puts its words in a word list of its own, which a program searches with
+  `ALSO NAME`. The only word it adds to `FORTH-WORDLIST` is `NAME`, which replaces the
+  first word list of the search order with it, as `FORTH` does.
+- `ENVIRONMENT?` knows each installed extension by its name, such as `FORTHLING-SQLITE`,
+  and then gives its version and true. `[DEFINED]` tests for a single word.
+- The words of an extension belong to the system: `FORGET` throws -15 for them.
+
+The forthling program itself installs no extensions.

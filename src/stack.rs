@@ -6,11 +6,13 @@ pub(crate) const STACK_CELLS: usize = 1 << 16; // data stack size, reported by E
 pub(crate) const RSTACK_CELLS: usize = 1 << 16; // return stack size, idem
 
 impl Forth {
-    pub(crate) fn push(&mut self, v: Cell) {
+    /// Pushes a cell on the data stack.
+    pub fn push(&mut self, v: Cell) {
         self.stack.push(v);
     }
 
-    pub(crate) fn pop(&mut self) -> Res<Cell> {
+    /// Pops a cell from the data stack; throws -4 when it is empty.
+    pub fn pop(&mut self) -> Res<Cell> {
         self.stack.pop().ok_or(Throw::new(STACK_UNDERFLOW))
     }
 

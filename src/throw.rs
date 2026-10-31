@@ -74,11 +74,13 @@ pub struct Throw {
 }
 
 impl Throw {
-    pub(crate) fn new(code: Cell) -> Self {
+    /// An exception with a THROW code, such as -24 (invalid numeric argument).
+    pub fn new(code: Cell) -> Self {
         Throw { code, detail: None, location: None }
     }
 
-    pub(crate) fn with(code: Cell, detail: impl Into<String>) -> Self {
+    /// An exception with a THROW code and a detail for the message.
+    pub fn with(code: Cell, detail: impl Into<String>) -> Self {
         Throw { detail: Some(detail.into()), ..Throw::new(code) }
     }
 

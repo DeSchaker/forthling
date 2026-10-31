@@ -34,6 +34,8 @@ latest stable Rust, on Linux and Windows.
 - `src/words/*.rs`: the primitives, one file per word set. Each file has an `install`
   function, called from `src/words/mod.rs`.
 - `src/prelude.fs`: the words that are defined in Forth itself.
+- `src/host.rs`: the public API for adding words from Rust (`Extension`, `add_word`);
+  `tests/host.rs` uses it from the outside.
 - `src/tests.rs`: the unit tests; `tests/suite.rs` runs the files of the test suite.
 - `COMPLIANCE.md`: the system documentation that the standard asks for (section 4.1).
 

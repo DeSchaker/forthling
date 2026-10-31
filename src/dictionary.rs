@@ -8,6 +8,7 @@ pub(crate) const MAX_ORDER: usize = 16; // word lists in the search order
 #[derive(Clone)]
 pub(crate) enum Kind {
     Prim(Prim),
+    Host(Rc<HostWord>), // a word added through the host API (host.rs)
     Colon(Rc<Vec<Instr>>),
     Constant(Cell),
     Created {
@@ -145,6 +146,7 @@ impl Forth {
         let mut text = match &w.kind {
             Kind::Prim(_) if w.compile_only => format!("{} is a compile-only primitive", w.name),
             Kind::Prim(_) => format!("{} is a primitive", w.name),
+            Kind::Host(_) => format!("{} is a host word", w.name),
             Kind::Constant(v) => format!("{v} CONSTANT {}", w.name),
             Kind::Created { addr, does } => format!(
                 "CREATE {} ( address {addr} ){}",
