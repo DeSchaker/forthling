@@ -118,9 +118,18 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
 
 ### Next session: resume here
 
-- **Next step:** link to the playground from the website (the private repo
-  `DeSchaker/website`, plain static HTML and CSS); then step 8 of the revised order,
-  debugging and tracing.
+- **Next step:** step 9 of the revised order (revised again on 2026-10-31), error
+  reports for agents. The website (robbertwesterink.nl, private repo `DeSchaker/website`)
+  links to the playground since 2026-10-31.
+- **Positioning (2026-10-31):** step 8 is done. The README opens with what sets
+  forthling apart, in a short list (standard, small, sandbox, JSON, agents, anywhere).
+  `llms.txt` in the root (format of llmstxt.org) sums up for language models how to
+  write Forth for forthling; every example in it was run. The Pages workflow copies it
+  beside the playground (https://deschaker.github.io/forthling/llms.txt) and also runs
+  when it changes. The MCP instructions advise locals for more than two or three values,
+  with an example. The MCP test `the_instructions_and_llms_txt_agree` runs that example
+  and checks that the instructions and `llms.txt` name the same limits, so the two
+  cannot drift apart where it matters.
 - **GitHub Pages (2026-10-31):** the playground is published at
   https://deschaker.github.io/forthling/ by `.github/workflows/pages.yml`: on a push to
   `main` that touches `web/`, `src/` or `Cargo.toml` (or by hand), it builds
@@ -751,15 +760,57 @@ environment that returns the stack after every line makes up for that.
    (FILE and BLOCK words give an ior, later perhaps a file system in memory or
    localStorage). The sandbox of step 4 keeps a `BEGIN AGAIN` from freezing the
    visitor's tab.
-8. **Debugging and tracing:** stepping with the stack after each word, breakpoints,
-   `TRACE` on and off. Helps people and agents alike.
-9. **Practical glue:** an HTTP client, regular expressions, starting processes. Useful,
-   but dependencies and risks, so separate extensions, under the capabilities of step 4.
-10. **Later, as hobby projects:** graphics, Windows words and the FFI (as designed above),
+Steps 8 to 15 were revised on 2026-10-31, after a brainstorm by the maintainer about
+positioning and what agents need. The old step 8 (debugging and tracing) became steps
+10 and 11, and it builds on the error reports of step 9; the old steps 9 and 10 became
+14 and 15.
+
+8. ✅ **Positioning:** a README introduction that says what sets forthling apart (a
+   Forth-2012 runtime in Rust with no dependencies in the core, a sandbox with a step
+   limit that gives the same result on every machine, JSON, MCP, the browser) in the
+   plain tone of the rest; an `llms.txt` in the root of the repository (also on the
+   Pages site) with the idioms, the sandbox rules, the JSON words and the MCP tools; and
+   advice in the MCP instructions to use locals (`{: a b -- c :}`) rather than `ROT`,
+   `PICK` and `ROLL` for more than two or three values.
+9. **Error reports for agents:** an error now empties the stacks, so an agent does not
+   see what went wrong. `forth_eval` (and the playground) then report the stacks at the
+   moment of the error, where it happened (line, column and token, also for code that is
+   not in a file), the chain of words that was running (such as `MAIN > STEP > /`, from
+   the frames), and the steps used and the deepest stack reached. The aim: an agent can
+   correct itself in one round.
+10. **Tracing:** `TRACE` on and off (an extension word list, so `Forth::new()` stays
+    standard), a line per word with the depth and the stack, through `emit_bytes` so
+    the output limit holds; and `trace: true` in `forth_eval`, giving the trace as data
+    (`{word, depth, stack}`, with a maximum of entries). Built on the same frames as the
+    chain of words in step 9. When off, it may cost no more than one test.
+11. **Stepping and breakpoints:** `BREAK`, step, over and continue; in the program at
+    once, in MCP and wasm by pausing and resuming `run` (possible, since it works with
+    explicit frames, not the Rust stack). With a stack visualizer in the playground,
+    where the cells move with each step.
+12. **A `forth_word!` macro** (`macro_rules!`, no dependencies) on top of `add_word`, so
+    that Rust programs add words without writing `pop` and `push`:
+    `forth_word!(forth, wid, "SQ", (x: i64) -> i64 { x * x })`. It makes forthling as an
+    embedded DSL in Rust programs (a safe configuration or rule language, the niche of
+    Lua) easy; that needed no step of its own before, since the host API is there and
+    step 4 makes it safe. Independent of the rest; it can come earlier.
+13. **A virtual file system:** a trait that the host implements (in memory, a SQLite
+    blob, localStorage in the browser) behind the standard FILE words, so that code in
+    the sandbox can read and write files safely, and the playground and MCP can
+    `INCLUDE`. `Permission::Files` then means "files through the host's VFS".
+14. **Practical glue:** an HTTP client, regular expressions, starting processes. Useful,
+    but dependencies and risks, so separate extensions, under the capabilities of step 4.
+15. **Later, as hobby projects:** graphics, Windows words and the FFI (as designed above),
     and editor support (an LSP with stack effects on hover), once there are users.
 
-forthling as an embedded DSL in Rust programs (a safe configuration or rule language, the
-niche of Lua) needs no step of its own: the host API is there, and step 4 makes it safe.
+Considered, not planned (2026-10-31):
+- **A prefix or S-expression layer** (`(+ (* 3 4) 2)` compiled to threaded code), for
+  agents that find postfix hard. Against it: forthling's value for agents is that it is
+  standard Forth, which LLMs know from their training; a dialect of our own they do not
+  know. Locals already make longer code readable, and the real weakness (keeping track
+  of the stack) is better met with feedback (steps 9 to 11) than with another syntax.
+- **A benchmark against Python or Docker** (token footprint, start-up time). Apples and
+  oranges, and "token footprint" is vague. Instead, honest numbers of our own where they
+  help: the start-up time of `forthling-mcp`, the size of the `.wasm`, steps per second.
 
 ---
 

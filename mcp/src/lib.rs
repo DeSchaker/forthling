@@ -379,7 +379,9 @@ fn instructions(s: &Settings) -> String {
          shows the output and the data stack (the top last). Words are not case sensitive; `.` \
          prints and drops the top of the stack; `: NAME ... ;` defines a word; IF, DO, BEGIN and \
          the like work only inside a definition; `S\" text\"` gives ( c-addr u ) and TYPE prints \
-         it. An error empties the stacks. A line of code, and so a string in `S\" \"`, is at most \
+         it. For more than two or three values, name them with locals rather than juggling \
+         them with ROT, PICK and ROLL: `: HYP2 {{: a b -- c :}} a a * b b * + ;` (the last \
+         name gets the top). An error empties the stacks. A line of code, and so a string in `S\" \"`, is at most \
          1024 characters: give larger input, such as a JSON document, as the `data` argument of \
          forth_eval, and read it in the code with `DATA ( -- c-addr u )`, an ALLOCATEd copy. \
          `ALSO JSON` gives JSON words: `JSON@` reads a path such \

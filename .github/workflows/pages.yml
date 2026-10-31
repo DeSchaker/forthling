@@ -1,7 +1,7 @@
 name: Pages
 
 # Publishes the playground (web/www/ with a freshly built forthling.wasm) on
-# GitHub Pages: https://deschaker.github.io/forthling/
+# GitHub Pages: https://deschaker.github.io/forthling/, with llms.txt beside it.
 on:
   push:
     branches: [main]
@@ -9,6 +9,7 @@ on:
       - "web/**"
       - "src/**"
       - "Cargo.toml"
+      - "llms.txt"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -39,6 +40,7 @@ jobs:
       - run: cargo build --release --manifest-path web/Cargo.toml --target wasm32-unknown-unknown
       - run: node --test web/tests/forthling.test.mjs
       - run: cp web/target/wasm32-unknown-unknown/release/forthling_web.wasm web/www/forthling.wasm
+      - run: cp llms.txt web/www/llms.txt
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

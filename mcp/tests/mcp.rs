@@ -239,6 +239,32 @@ fn data_for_large_input() {
     assert!(init["result"]["instructions"].as_str().unwrap().contains("1024 characters"));
 }
 
+/// The example of locals in the instructions runs, and `llms.txt` in the
+/// root of the repository names the same limits as the server.
+#[test]
+fn the_instructions_and_llms_txt_agree() {
+    let mut s = server();
+    let init = ask(&mut s, "initialize", json!({}));
+    let instructions = init["result"]["instructions"].as_str().unwrap().to_string();
+    let start = instructions.find("`: HYP2").expect("an example of locals") + 1;
+    let example = &instructions[start..start + instructions[start..].find('`').unwrap()];
+    let r = eval(&mut s, &format!("{example} 3 4 HYP2"));
+    assert_eq!(r["structuredContent"]["stack"], json!([25]), "{r}");
+
+    let llms = include_str!("../../llms.txt");
+    for fact in [
+        "10000000 steps",
+        "5000 ms",
+        "1048576 bytes of output",
+        "4194304 bytes in all",
+        "1024 characters",
+        "DATA ( -- c-addr u )",
+    ] {
+        assert!(instructions.contains(fact), "the instructions lack {fact:?}");
+        assert!(llms.contains(fact), "llms.txt lacks {fact:?}");
+    }
+}
+
 #[test]
 fn sql_stops_in_time() {
     let mut s = Server::new(Settings { time: Duration::from_millis(300), ..Settings::default() });

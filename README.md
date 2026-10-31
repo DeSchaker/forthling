@@ -7,10 +7,23 @@
 > 1. A diminutive creature thriving on a two-stack diet.
 > 2. A lean, extensible Forth system built from the ground up.
 
-A small Forth interpreter in Rust, working towards the
-[Forth-2012 standard](https://forth-standard.org/). The core has no dependencies and no
-`unsafe`; extensions (Python, SQLite, an MCP server for AI agents, WebAssembly for the
-browser) live in crates of their own.
+A small [Forth-2012](https://forth-standard.org/) system in Rust, made to run code you do
+not trust, from a person or an AI agent:
+
+- **Standard Forth.** Every word set of Forth-2012 is there, and its tests in the
+  Forth-2012 test suite pass; only four words of TOOLS EXT are missing (no assembler or
+  editor). See [Standard compliance](#standard-compliance).
+- **Small.** The core has no dependencies and no `unsafe`, and its memory is bounded.
+- **A sandbox.** A limit on steps (which gives the same result on every machine), on time
+  and on output, and no file access. See [Sandbox](#sandbox).
+- **JSON** words in the core; **SQLite** as an extension.
+- **For AI agents**: an [MCP server](#for-ai-agents-mcp) that keeps a session and returns
+  the stacks after every call, and [`llms.txt`](llms.txt), a summary for language models.
+- **Anywhere**: as a program, embedded in Rust or [Python](#from-python), or
+  [in the browser](https://deschaker.github.io/forthling/) through WebAssembly.
+
+The extensions (Python, SQLite, MCP, WebAssembly) live in crates of their own. MIT
+licence.
 
 ```
 $ cargo run --release
@@ -202,6 +215,9 @@ without file access. With Claude Code: `claude mcp add forthling -- forthling-mc
 tools are `forth_eval`, `forth_stack`, `forth_words` and `forth_reset`; each result has
 the output and the stacks as text and as JSON. See [mcp/README.md](mcp/README.md), also
 for what enforces the sandbox when a user asks the AI to get around it.
+[`llms.txt`](llms.txt) (also at https://deschaker.github.io/forthling/llms.txt) sums up
+for a language model how to write Forth for forthling: the idioms, locals rather than
+`ROT` and `PICK`, the JSON words and the limits.
 
 ### From Python
 

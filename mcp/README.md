@@ -19,6 +19,11 @@ claude mcp add forthling -- forthling-mcp
 
 Other clients start it the same way: the command `forthling-mcp`, over stdio.
 
+When a client connects, the server tells the model the basics in its instructions: the
+idioms that trip models up, locals rather than `ROT`, `PICK` and `ROLL`, the JSON words and
+the limits. [`llms.txt`](../llms.txt) says the same at more length, for a model that reads
+it beforehand; a test keeps the limits in both the same.
+
 ## Tools
 
 | Tool | Arguments | |

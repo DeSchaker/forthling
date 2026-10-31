@@ -1,0 +1,70 @@
+# forthling
+
+> A Forth-2012 runtime in Rust, for people and AI agents. The core has no dependencies and no `unsafe`; untrusted code runs in a sandbox with a limit on steps (the same result on every machine), time and output, and without file access. It has JSON words, SQLite in memory, an MCP server (`forthling-mcp`) and a playground in the browser (WebAssembly). MIT licence.
+
+This file is for language models that write Forth for forthling, mostly through the MCP server. Everything here was run in forthling.
+
+## Using the MCP server
+
+- `forth_eval` runs code (`code`, and optionally `data`); `forth_stack` shows the stacks; `forth_words` lists the words defined in the session; `forth_reset` starts over.
+- The session keeps its definitions, variables and stacks between calls. Define words in one call and use them in the next.
+- Each result has the output, the data stack (the top last), the float stack, whether a definition is still open (`compiling`), and the error if there was one: `{"code": -13, "message": "undefined word", "detail": "FOO"}`.
+- An error empties the stacks. Run small pieces, look at the stack, then go on.
+- A line of code, and so a string in `S" "`, is at most 1024 characters. Give larger input, such as a JSON document, as the `data` argument, and read it with `DATA ( -- c-addr u )`, an `ALLOCATE`d copy (`FREE` it). It stays for later calls until another call sends data.
+- Each call may take at most 10000000 steps, 5000 ms and 1048576 bytes of output; the session's definitions and the like at most 4194304 bytes in all. A limit reached throws -258 (detail `steps`, `time` or `output`); `CATCH` cannot go on after it. There is no file access (-259).
+
+## Forth in a few lines
+
+- Words are separated by spaces and are not case sensitive. Numbers go on the data stack; words take them off and put results back. `.` prints and drops the top; `.S` shows the stack without changing it.
+- `: NAME ... ;` defines a word. `IF ELSE THEN`, `DO LOOP`, `?DO`, `BEGIN UNTIL`, `BEGIN WHILE REPEAT`, `CASE OF ENDOF ENDCASE` work only inside a definition.
+- `10 0 DO I . LOOP` counts from 0 to 9: the limit first, then the start. Use `?DO` when the count may be 0.
+- Flags: true is -1, false is 0. `1 2 < .` prints -1.
+- Strings: `S" text"` gives `( c-addr u )`, and `TYPE` prints it. `." text"` prints, but only inside a definition; outside one use `.( text)`. `S\" a \"quote\"\n"` takes escapes.
+- Cells are 64 bits. `123.` (with a dot) is a double-cell number, not a float; a float is `1.5e0` or `3e0`, on the float stack, printed with `F.`.
+- `VARIABLE X  5 X !  X @ .` and `5 VALUE N  7 TO N  N .` and `42 CONSTANT ANSWER`.
+- Errors: `THROW` with a code, `CATCH` to catch it: `' WORD CATCH` gives 0 or the code. `1 0 /` throws -10.
+- Comments: `\ to the end of the line` and `( inside parentheses )`.
+
+## Use locals for more than two or three values
+
+Keeping track of the stack in your head goes wrong easily. Instead of `ROT`, `PICK`, `ROLL` and long chains of `SWAP` and `OVER`, name the inputs:
+
+```forth
+: HYP2  {: a b -- c :}  a a *  b b * + ;
+3 4 HYP2 .                \ 25
+: COUNT-UP  {: n -- :}  n 0 ?DO I . LOOP ;
+3 COUNT-UP                \ 0 1 2
+```
+
+`{: a b | tmp -- out :}`: the names before `|` take their values from the stack (the last name gets the top), the names after it start at 0, and what follows `--` is only a comment. `x TO a` assigns. Locals work only inside a definition.
+
+## JSON
+
+`ALSO JSON` makes the JSON words visible. A JSON value is its text, `( c-addr u )`; the reading words give back pieces of it. A missing key or a value of the wrong kind gives the flag 0, not an error.
+
+```forth
+ALSO JSON
+: DOC  S\" {\"users\": [{\"name\": \"Ada\", \"born\": 1815}]}" ;
+DOC S" users[0].born" JSON@ DROP JSON>NUMBER DROP .          \ 1815
+DOC S" users[0].name" JSON@ DROP JSON>STRING DROP TYPE       \ Ada (ALLOCATEd)
+DOC S" users" JSON@ DROP JSON-LENGTH .                        \ 1
+JSON{ S" sum" JSON-KEY 6 JSON-NUMBER S" ok" JSON-KEY -1 JSON-FLAG JSON}
+\ prints {"sum":6,"ok":true}
+<JSON JSON[ 1 JSON-NUMBER 2 JSON-NUMBER JSON] JSON>          \ ( c-addr u ) [1,2], ALLOCATEd
+```
+
+Reading: `JSON-VALID? ( json -- flag )`, `JSON-TYPE ( json -- n )` (0 null, 1 boolean, 2 number, 3 string, 4 array, 5 object, -1 no JSON), `JSON-GET ( json c-addr u -- json' flag )`, `JSON-NTH ( json n -- json' flag )`, `JSON-NAME ( json n -- c-addr u flag )`, `JSON-LENGTH ( json -- n )`, `JSON@ ( json c-addr u -- json' flag )` with a path such as `a.b[2]`, `JSON>NUMBER ( json -- n flag )`, `JSON>FLOAT ( json -- flag ) ( F: -- r )`, `JSON>FLAG ( json -- flag ok )`, `JSON>STRING ( json -- c-addr u flag )`.
+
+Writing goes to the output, or between `<JSON` and `JSON>` to a string; the commas come by themselves: `JSON{ JSON} JSON[ JSON]`, `JSON-KEY ( c-addr u -- )`, `JSON-STRING ( c-addr u -- )`, `JSON-NUMBER ( n -- )`, `JSON-FLOAT ( F: r -- )`, `JSON-FLAG ( flag -- )`, `JSON-NULL`, `JSON-RAW ( json -- )`.
+
+## SQLite
+
+`ALSO SQLITE` gives SQLite words, for databases in memory only: `S" :memory:" DB-OPEN THROW VALUE DB`, then `DB-PREPARE`, `DB-STEP`, `DB-COLUMN` and the like, with errors as an `ior` in the style of the FILE words.
+
+## Links
+
+- [README](https://github.com/DeSchaker/forthling/blob/main/README.md): features, the sandbox, standard compliance
+- [The MCP server](https://github.com/DeSchaker/forthling/blob/main/mcp/README.md): installing, tools, limits
+- [SQLite words](https://github.com/DeSchaker/forthling/blob/main/sqlite/README.md)
+- [Playground](https://deschaker.github.io/forthling/): Forth in the browser
+- [Forth-2012 standard](https://forth-standard.org/standard/words)
