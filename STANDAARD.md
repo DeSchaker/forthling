@@ -5,7 +5,7 @@ Eerst de verplichte CORE-wordset, daarna CORE EXT en daarna de optionele wordset
 
 ## Waar staan we nu
 
-*Bijgewerkt 2026-10-31: CORE, CORE EXT, EXCEPTION, TOOLS, STRING, FILE, DOUBLE, FACILITY, MEMORY, LOCALS en SEARCH zijn compleet; mijlpaal M5 is bereikt.*
+*Bijgewerkt 2026-10-31: CORE, CORE EXT, EXCEPTION, TOOLS, STRING, FILE, DOUBLE, FACILITY, MEMORY, LOCALS, SEARCH en BLOCK zijn compleet; mijlpaal M5 is bereikt.*
 
 | Wordset       | Aanwezig  | Ontbreekt |
 |---------------|----------:|----------:|
@@ -28,16 +28,19 @@ Eerst de verplichte CORE-wordset, daarna CORE EXT en daarna de optionele wordset
 | LOCALS EXT    | 2 / 2     | 0         |
 | SEARCH        | 9 / 9     | 0         |
 | SEARCH EXT    | 5 / 5     | 0         |
+| BLOCK         | 8 / 8     | 0         |
+| BLOCK EXT     | 6 / 6     | 0         |
 
 Ontbrekend in TOOLS EXT: `;CODE ASSEMBLER CODE EDITOR` (er is geen assembler en geen
 editor).
 
 Testsuite: in de volgorde van `runtests.fth` draaien `prelimtest.fth`, `tester.fr`, `core.fr`,
-`coreplustest.fth`, `utilities.fth`, `errorreport.fth`, `coreexttest.fth`, `doubletest.fth`,
+`coreplustest.fth`, `utilities.fth`, `errorreport.fth`, `coreexttest.fth`, `blocktest.fth`,
+`doubletest.fth`,
 `exceptiontest.fth`, `facilitytest.fth`, `filetest.fth`, `localstest.fth`, `memorytest.fth`,
 `searchordertest.fth`, `stringtest.fth` en `toolstest.fth`
 **foutloos**. `cargo test` draait ze allemaal vanuit `tests/suite.rs` (`suite_prelimtest`,
-`suite_core`, `suite_core_ext`, `suite_double`, `suite_exception`, `suite_facility`,
+`suite_core`, `suite_core_ext`, `suite_block`, `suite_double`, `suite_exception`, `suite_facility`,
 `suite_file_access`, `suite_locals`, `suite_memory`, `suite_search`, `suite_string`, `suite_tools`); een nieuwe wordset-test is één regel met de hulpfunctie `run_suite`, die ook
 meerdere bestanden neemt (`filetest.fth` heeft `coreexttest.fth` nodig). Sinds SEARCH
 draaien ook de SEARCH-delen van `toolstest.fth` en `localstest.fth`; `suite_tools` en
@@ -66,7 +69,7 @@ her-exporteert de items van alle modules, zodat ze overal beschikbaar zijn. De m
 
 | Bestand | Inhoud |
 |---|---|
-| `main.rs` | de REPL, het draaien van bestanden, de opties (`--memory`) en het config-bestand |
+| `main.rs` | de REPL, het draaien van bestanden, de opties (`--memory`, `--blocks`) en het config-bestand |
 | `lib.rs` | `struct Forth`, `Forth::new`/`with_memory`, de publieke API (`interpret`, `include`, `set_input`, `output`, …) |
 | `throw.rs` | `Throw` en de foutcodetabel |
 | `stack.rs` | data stack, return stack, hulpjes voor dubbele cellen |
@@ -75,11 +78,12 @@ her-exporteert de items van alle modules, zodat ze overal beschikbaar zijn. De m
 | `parse.rs` | parsen van de invoerbuffer, getallen, pictured numeric output |
 | `interpreter.rs` | buitenste interpreter, invoerbronnen (`Source`, `Origin`), lezen van de terminal |
 | `terminal.rs` | de trait `Input` en `Stdin` (standaardinvoer via een thread, voor `KEY?`) |
+| `blocks.rs` | het blockbestand en de blockbuffers (`Blocks`), `LOAD` en `LIST` |
 | `heap.rs` | de heap van `ALLOCATE FREE RESIZE` (`Heap`), `data_end()` |
 | `files.rs` | file ids, `INCLUDED`/`REQUIRED`, hulpfuncties voor de FILE-woorden |
 | `run.rs` | binnenste interpreter: `Instr`, frames, loops, `CATCH` |
 | `compiler.rs` | `Ctrl`, hulpjes voor definities en control flow, `TO`/`IS` |
-| `words/*.rs` | de primitieven per groep (`stack`, `double`, `memory`, `console`, `define`, `control`, `string`, `tools`, `system`, `file`, `facility`, `heap`, `locals`, `search`) |
+| `words/*.rs` | de primitieven per groep (`stack`, `double`, `memory`, `console`, `define`, `control`, `string`, `tools`, `system`, `file`, `facility`, `heap`, `locals`, `search`, `block`) |
 | `prelude.fs` | woorden die in Forth zelf geschreven zijn (`include_str!`) |
 | `tests.rs` | unit-tests (mogen bij de interne staat); de suites staan in `tests/suite.rs` |
 
@@ -88,8 +92,19 @@ Een nieuwe wordset krijgt zijn eigen `words/<naam>.rs` met een `install(f)`, aan
 
 ### Volgende sessie: hier verder
 
-- **Volgende stap:** BLOCK (`blocktest.fth`), daarna XCHAR en als laatste FLOATING
+- **Volgende stap:** XCHAR (geen testfile in de suite), daarna FLOATING (`fp/`)
   (voorgestelde volgorde, 2026-10-31; de gebruiker kiest).
+- **BLOCK:** `blocks.rs` en `words/block.rs`; `THRU` staat in de prelude. Het bestand is
+  standaard `blocks.fb` in de huidige map; `-b`/`--blocks` of `blocks = …` in het
+  config-bestand kiest een ander (op verzoek, 2026-10-31; in de library
+  `Forth::set_block_file`). Het wordt pas bij het eerste gebruik geopend of aangemaakt. 8 buffers (`BLOCK_BUFFERS`) op `BLOCK_BUFS`, vóór
+  `DICT_START`; LRU-vervanging via een teller. `BLK` en `SCR` zijn systeemvariabelen op
+  24 en 32. `LOAD` duwt een `Source` met `Origin::Block`; zijn `line` is het blocknummer,
+  dus `SAVE-INPUT` en `RESTORE-INPUT` werken vanzelf over blocks heen, en `refill()` laadt
+  het volgende block (`load_block`). `sync_blk()` zet `BLK` na elke wissel van bron
+  (push, pop, `CATCH`, `reset`). `\` springt in een block naar het eind van de regel van
+  64 tekens. Fouten: `-33 -34 -35`. De suites en unit-tests gebruiken een blockbestand in
+  de tempmap (`run_suite`, `run_blocks`); `blocks.fb` staat in `.gitignore`.
 - **SEARCH:** `words/search.rs`, met ook `TRAVERSE-WORDLIST NAME>STRING NAME>INTERPRET
   NAME>COMPILE`. Elk `Word` heeft een `wid`; `Forth::wordlists` (naam per wid - 1),
   `order` (eerst doorzocht vooraan) en `current_wid`. `FORTH_WID` is 1 en `MAX_ORDER` 16
@@ -122,8 +137,8 @@ Een nieuwe wordset krijgt zijn eigen `words/<naam>.rs` met een `install(f)`, aan
   64K tot 4G, een veelvoud van 8. Daarvoor staan alle buffers nu op vaste adressen
   onderin (`SOURCE_AREA` vanaf 64, dan `SQ_BUFS WORD_BUF HOLD_START…HOLD_END PAD_ADDR`) en
   begint de data space bij `DICT_START` daarboven; alleen de bovenkant van de heap hangt
-  van de grootte af. Opties en config staan in `main.rs`, de library kent alleen
-  `Forth::with_memory`.
+  van de grootte af. Opties en config staan in `main.rs` (`parse_args`, `parse_config`,
+  `Settings`, `Run`); de library kent alleen `Forth::with_memory` en `Forth::set_block_file`.
 - **Besloten (2026-10-31):** `TIME&DATE` blijft UTC.
 - **FACILITY:** structuren, `EKEY EKEY? EMIT? EKEY>CHAR EKEY>FKEY` en de `K-…`-constanten
   staan in `prelude.fs`; `KEY? MS TIME&DATE AT-XY PAGE` in `words/facility.rs`. De terminal
@@ -332,7 +347,7 @@ Gegroepeerd van makkelijk naar lastig:
 | 9 ✅ | SEARCH    | Wordlists: `WORDLIST GET-ORDER SET-ORDER DEFINITIONS …`, met de zoekvolgorde in `find()`. Klaar 2026-10-31. |
 | 10 | FLOATING | Aparte float-stack en `F+ F. F@ …` (groot, ongeveer 70 woorden). |
 | 11 | XCHAR    | UTF-8-bewuste tekenwoorden. Pas zinvol na 0.2. |
-| 12 | BLOCK    | Historisch. Alleen voor de volledigheid. |
+| 12 ✅ | BLOCK    | Blocks in een bestand, 8 buffers, `LOAD` als invoerbron. Klaar 2026-10-31. |
 
 ---
 
@@ -388,7 +403,7 @@ Core word set, the Core Extensions word set, the Exception word set, …"*.
 | M3 ✅ | Fase 1 | `core.fr` foutloos en alle CORE-woorden aanwezig → **CORE-compliant** (2026-10-30) |
 | M4 ✅ | Fase 2 | `coreexttest.fth` foutloos (2026-10-30) |
 | M5 ✅ | EXCEPTION + TOOLS + STRING | bijbehorende testfiles foutloos (2026-10-30) |
-| M6+ | overige wordsets naar behoefte (FILE, DOUBLE en FACILITY ✅ 2026-10-30, MEMORY, LOCALS en SEARCH ✅ 2026-10-31) | idem |
+| M6+ | overige wordsets naar behoefte (FILE, DOUBLE en FACILITY ✅ 2026-10-30, MEMORY, LOCALS, SEARCH en BLOCK ✅ 2026-10-31) | idem |
 
 M2 is de grootste en riskantste stap. Die doe je het best in één keer, met de huidige
 unit-tests als vangnet, voordat er nieuwe woorden bovenop komen.

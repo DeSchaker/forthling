@@ -642,3 +642,34 @@ fn forget() {
     assert_eq!(err(&format!("{src} W SET-CURRENT FORGET D")).code, -13);
     assert_eq!(err("FORGET DUP").code, -15);
 }
+
+/// Runs src with a block file of its own in the temp directory.
+fn run_blocks(name: &str, src: &str) -> Result<String, Throw> {
+    let path = env::temp_dir().join(format!("forthling-{}-{name}.fb", std::process::id()));
+    let mut f = Forth::new();
+    f.set_block_file(&path).unwrap();
+    let result = f.interpret(src);
+    fs::remove_file(&path).ok();
+    result.map(|_| output(f))
+}
+
+#[test]
+fn blocks() {
+    let write = ": W ( blk addr u -- ) ROT BUFFER DUP 1024 BL FILL SWAP MOVE UPDATE ; ";
+    let src = format!("{write} 3 S\" 1 2 + BLK @\" W FLUSH 3 LOAD . . BLK @ .");
+    assert_eq!(run_blocks("load", &src).unwrap(), "3 3 0 ");
+    // \ skips to the end of a 64-character line; REFILL moves to the next block
+    let src = format!(r#"{write} 1 S" 7 \ 8" W 1 BLOCK 64 + 1 CHARS 57 FILL UPDATE 1 LOAD .S"#);
+    assert_eq!(run_blocks("comment", &src).unwrap(), "<2> 7 9 ");
+    let src = format!("{write} 1 S\" 1 REFILL 2\" W 2 S\" 3\" W 1 LOAD .S");
+    assert_eq!(run_blocks("refill", &src).unwrap(), "<3> 1 -1 3 ");
+    // a block beyond the end of the file is blank; EMPTY-BUFFERS drops changes
+    let src = "5 BLOCK C@ . 5 BLOCK 65 SWAP C! UPDATE EMPTY-BUFFERS 5 BLOCK C@ .";
+    assert_eq!(run_blocks("empty", src).unwrap(), "32 32 ");
+    let out =
+        run_blocks("list", ": T 2 BLOCK 1024 BL FILL S\" hi\" 2 BLOCK SWAP MOVE ; T 2 LIST SCR ?");
+    assert!(out.as_ref().unwrap().starts_with("\nScreen 2\n 0 hi\n 1\n"), "{out:?}");
+    assert!(out.unwrap().ends_with("15\n2 "));
+    assert_eq!(run_blocks("zero", "0 BLOCK").unwrap_err().code, -35);
+    assert_eq!(run_blocks("thru", "1 BUFFER 1024 BL FILL UPDATE 1 1 THRU").unwrap(), "");
+}

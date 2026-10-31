@@ -71,7 +71,7 @@ pub(crate) fn install(f: &mut Forth) {
             "#LOCALS" => f.push(MAX_LOCALS as Cell),
             "/COUNTED-STRING" => f.push(255),
             "/HOLD" => f.push((HOLD_END - HOLD_START) as Cell),
-            "/PAD" => f.push((DICT_START - PAD_ADDR) as Cell),
+            "/PAD" => f.push((BLOCK_BUFS - PAD_ADDR) as Cell),
             "ADDRESS-UNIT-BITS" => f.push(8),
             "FLOORED" => f.push(-1),
             "MAX-CHAR" => f.push(255),

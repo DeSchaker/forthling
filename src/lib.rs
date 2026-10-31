@@ -6,6 +6,7 @@
 //! Forth program may inspect (BASE, STATE, >IN, the input buffers) lives in
 //! that memory, and errors are standard THROW codes.
 
+mod blocks;
 mod compiler;
 mod dictionary;
 mod files;
@@ -28,6 +29,7 @@ pub use throw::{Throw, QUIT};
 
 // Every module starts with `use crate::*;`, so these make the items of all
 // modules, and the std items most of them need, available everywhere.
+pub(crate) use blocks::*;
 pub(crate) use compiler::*;
 pub(crate) use dictionary::*;
 pub(crate) use files::*;
@@ -86,6 +88,7 @@ pub struct Forth {
     catches: usize,        // CATCHes in progress
     substitutions: HashMap<String, Vec<u8>>, // REPLACES texts, by upper-case name
     files: Vec<Option<OpenFile>>, // open files, indexed by file id - 1
+    blocks: Blocks,        // the block file and the block buffers
     included: HashSet<String>, // files INCLUDED so far, for REQUIRED
     out: Vec<u8>,
     bye: bool,
@@ -148,6 +151,7 @@ impl Forth {
             catches: 0,
             substitutions: HashMap::new(),
             files: Vec::new(),
+            blocks: Blocks::new("blocks.fb".into()),
             included: HashSet::new(),
             out: Vec::new(),
             bye: false,

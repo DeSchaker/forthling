@@ -9,6 +9,8 @@ use crate::*;
 pub(crate) const BASE_ADDR: usize = 0;
 pub(crate) const STATE_ADDR: usize = 8;
 pub(crate) const IN_ADDR: usize = 16;
+pub(crate) const BLK_ADDR: usize = 24;
+pub(crate) const SCR_ADDR: usize = 32;
 pub(crate) const LINE_MAX: usize = 1024; // longest input line
 pub(crate) const MAX_SOURCES: usize = 16; // the terminal plus nested INCLUDEs
 pub(crate) const SOURCE_AREA: usize = 64;
@@ -18,7 +20,8 @@ pub(crate) const WORD_BUF: usize = SQ_BUFS + 2 * LINE_MAX; // counted string, tr
 pub(crate) const HOLD_START: usize = WORD_BUF + 264;
 pub(crate) const HOLD_END: usize = HOLD_START + 256;
 pub(crate) const PAD_ADDR: usize = HOLD_END;
-pub(crate) const DICT_START: usize = PAD_ADDR + 256;
+pub(crate) const BLOCK_BUFS: usize = PAD_ADDR + 256; // BLOCK_BUFFERS buffers of a block each
+pub(crate) const DICT_START: usize = BLOCK_BUFS + BLOCK_BUFFERS * BLOCK_SIZE;
 
 /// The default size of Forth memory, and the sizes `Forth::with_memory` accepts.
 pub const DEFAULT_MEMORY: usize = 1 << 20;

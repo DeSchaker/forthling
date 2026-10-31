@@ -2,6 +2,7 @@
 
 use crate::*;
 
+mod block;
 mod console;
 mod control;
 mod define;
@@ -22,6 +23,8 @@ pub(crate) fn install(f: &mut Forth) {
     f.variable("BASE", BASE_ADDR);
     f.variable("STATE", STATE_ADDR);
     f.variable(">IN", IN_ADDR);
+    f.variable("BLK", BLK_ADDR);
+    f.variable("SCR", SCR_ADDR);
     stack::install(f);
     double::install(f);
     memory::install(f);
@@ -36,4 +39,5 @@ pub(crate) fn install(f: &mut Forth) {
     heap::install(f);
     locals::install(f);
     search::install(f);
+    block::install(f);
 }

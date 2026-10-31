@@ -13,7 +13,13 @@ pub(crate) fn install(f: &mut Forth) {
             }
         }
     });
+    // In a block, \ skips to the end of its line of 64 characters.
     f.imm("\\", |f| {
+        if let Origin::Block = f.sources.last().unwrap().origin {
+            let line_end = (f.get(IN_ADDR) as usize / BLOCK_LINE + 1) * BLOCK_LINE;
+            f.set(IN_ADDR, line_end.min(BLOCK_SIZE) as Cell);
+            return Ok(());
+        }
         let end = f.parse_area().1;
         f.set_in(end);
         Ok(())

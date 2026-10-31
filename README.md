@@ -26,16 +26,27 @@ Run a file: `cargo run --release -- examples/demo.fs`
 ```
 forthling [options] [file ...]
   -m, --memory SIZE  memory for data space and heap, such as 4M (default 1M)
+  -b, --blocks FILE  the block file (default blocks.fb in the current directory)
   -h, --help         show this help
 ```
 
 `SIZE` is a number of bytes with an optional `K`, `M` or `G` (binary units), from 64K up
-to 4G. To change the default, put a line `memory = 16M` in the config file
-`forthling/forthling.conf` in your config directory: `%APPDATA%` on Windows, otherwise
-`$XDG_CONFIG_HOME` or `~/.config`. `--help` shows the exact path. Lines starting with `#`
-are comments. The command line wins over the config file.
+to 4G. A relative block file name is relative to the current directory.
 
-A program that embeds forthling picks the size with `Forth::with_memory(size)`.
+To change the defaults, put lines like these in the config file
+`forthling/forthling.conf` in your config directory: `%APPDATA%` on Windows, otherwise
+`$XDG_CONFIG_HOME` or `~/.config` (`--help` shows the exact path):
+
+```
+# forthling settings
+memory = 16M
+blocks = C:/Users/me/forth/blocks.fb
+```
+
+Lines starting with `#` are comments. The command line wins over the config file.
+
+A program that embeds forthling picks the size with `Forth::with_memory(size)` and the
+block file with `Forth::set_block_file(path)`.
 
 ## Features
 
@@ -59,6 +70,8 @@ A program that embeds forthling picks the size with `Forth::with_memory(size)`.
   which `CATCH` can catch
 - Strings: `COMPARE SEARCH /STRING -TRAILING BLANK CMOVE CMOVE> SLITERAL`, and text
   substitution with `REPLACES SUBSTITUTE UNESCAPE`
+- Blocks: `BLOCK BUFFER UPDATE FLUSH SAVE-BUFFERS EMPTY-BUFFERS LOAD THRU LIST`, kept in
+  a block file
 - Word lists and the search order: `WORDLIST GET-ORDER SET-ORDER ALSO ONLY PREVIOUS
   DEFINITIONS ORDER SEARCH-WORDLIST`, and `TRAVERSE-WORDLIST NAME>STRING`
 - Programming tools: `.S ? DUMP SEE WORDS`, `[IF] [ELSE] [THEN]`, `[DEFINED] [UNDEFINED]`,
@@ -79,14 +92,14 @@ assert_eq!(forth.output(), b"49 ");
 ## Standard compliance
 
 [`STANDAARD.md`](STANDAARD.md) (in Dutch) holds the roadmap to Forth-2012 and the
-current status. The CORE, CORE EXT, DOUBLE, EXCEPTION, FACILITY, FILE, LOCALS, MEMORY,
-SEARCH, STRING and TOOLS word sets are complete, and their tests in the
+current status. The CORE, CORE EXT, BLOCK, DOUBLE, EXCEPTION, FACILITY, FILE, LOCALS,
+MEMORY, SEARCH, STRING and TOOLS word sets are complete, and their tests in the
 [Forth-2012 test suite](https://github.com/gerryjackson/forth2012-test-suite) pass (`core.fr`,
-`coreplustest.fth`, `coreexttest.fth`, `doubletest.fth`, `exceptiontest.fth`,
+`coreplustest.fth`, `coreexttest.fth`, `blocktest.fth`, `doubletest.fth`, `exceptiontest.fth`,
 `facilitytest.fth`, `filetest.fth`, `localstest.fth`, `memorytest.fth`,
 `searchordertest.fth`, `stringtest.fth` and `toolstest.fth`). Of TOOLS EXT, everything is
 present except `;CODE ASSEMBLER CODE EDITOR` (there is no assembler or editor). Next up is
-BLOCK.
+XCHAR.
 
 ### Implementation-defined choices
 
@@ -116,6 +129,20 @@ BLOCK.
   Allocated blocks are cell-aligned and a whole number of cells. A failing `ALLOCATE`
   returns `-59`, `FREE` of an address that `ALLOCATE` did not return gives `-60` (and
   changes nothing), and a failing `RESIZE` gives `-61` and leaves the block as it was.
+- Blocks are kept in the file `blocks.fb` in the current directory, unless `--blocks` or
+  the config file names another (see Options). The file is created the first time a
+  block is read or written.
+  Block numbers run from 1 to 1048576 (so the file stays below 1 GiB); any other number
+  throws `-35`. Block u is at byte offset (u - 1) × 1024. A block beyond the end of the
+  file reads as spaces, and writing one fills the gap with spaces. There are 8 block
+  buffers in Forth memory; when all are in use, the least recently used one is written
+  back (if updated) and reused. Read and write errors throw `-33` and `-34`.
+- `LOAD` copies the block into an input buffer of its own, so `SOURCE` does not return
+  the block buffer itself and changing the buffer during `LOAD` has no effect on the
+  text. In a block, `\` skips to the end of the current line of 64 characters, `REFILL`
+  moves on to the next block, and `SAVE-INPUT`/`RESTORE-INPUT` work across blocks.
+  `SOURCE-ID` is 0 while a block is loaded. `LIST` prints `Screen u` and then the 16
+  lines of 64 characters, numbered 0 to 15, without trailing spaces.
 - A word list id (wid) is a small number; `FORTH-WORDLIST` is 1 and `WORDLIST` hands out
   2, 3, …, without limit. The search order holds up to 16 word lists (`WORDLISTS`); more
   throws `-49`, and `PREVIOUS` or `ALSO` on an empty order throws `-50`. An invalid wid

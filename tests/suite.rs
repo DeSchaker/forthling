@@ -1,8 +1,8 @@
 //! The Forth-2012 test suite (tests/forth2012-test-suite, see STANDAARD.md).
 
 use forthling::Forth;
-use std::io;
 use std::path::{Path, PathBuf};
+use std::{env, fs, io, process};
 
 fn output(f: Forth) -> String {
     String::from_utf8(f.output().to_vec()).unwrap()
@@ -61,12 +61,13 @@ fn run_suite(test_files: &[&str]) -> Option<String> {
     let mut f = Forth::new();
     // core.fr's ACCEPT test asks for a line of input
     f.set_input(Box::new(io::Cursor::new(b"typed line\n".to_vec())));
-    for path in &paths {
-        let result = f.include(path);
-        let out = String::from_utf8_lossy(f.output()).into_owned();
-        result.unwrap_or_else(|e| panic!("{e}\n{out}"));
-    }
+    // blocktest.fth writes blocks; keep them out of the project directory
+    let blocks = env::temp_dir().join(format!("forthling-{}-{}.fb", process::id(), test_files[0]));
+    f.set_block_file(&blocks).unwrap();
+    let result = paths.iter().try_for_each(|path| f.include(path));
+    fs::remove_file(&blocks).ok();
     let out = output(f);
+    result.unwrap_or_else(|e| panic!("{e}\n{out}"));
     assert!(!out.contains("INCORRECT RESULT"), "{out}");
     assert!(!out.contains("WRONG NUMBER OF RESULTS"), "{out}");
     assert!(!out.contains("FIND returns a TRUE value"), "{out}");
@@ -131,6 +132,12 @@ fn suite_locals() {
 fn suite_search() {
     let Some(out) = run_suite(&["searchordertest.fth"]) else { return };
     assert!(out.contains("End of Search Order word tests"), "{out}");
+}
+
+#[test]
+fn suite_block() {
+    let Some(out) = run_suite(&["blocktest.fth"]) else { return };
+    assert!(out.contains("End of Block word tests"), "{out}");
 }
 
 #[test]

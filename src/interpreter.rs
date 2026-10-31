@@ -19,6 +19,9 @@ pub(crate) enum Origin {
     Evaluate,
     // A file being included: its file id and all its lines; REFILL loads the next one.
     File { fid: Cell, lines: Rc<Vec<String>> },
+    // A block being LOADed; the source's line number is the block number,
+    // and REFILL loads the next block.
+    Block,
 }
 
 impl Forth {
@@ -108,6 +111,7 @@ impl Forth {
     pub(crate) fn refill(&mut self) -> Res<bool> {
         let s = self.sources.last().unwrap();
         let line = match &s.origin {
+            Origin::Block => return self.load_block(s.line as Cell + 1).map(|_| true),
             Origin::Evaluate => None,
             Origin::File { lines, .. } => lines.get(s.line).cloned(),
             Origin::Terminal => self.read_line().map(|l| String::from_utf8_lossy(&l).into_owned()),
@@ -121,7 +125,7 @@ impl Forth {
     /// SOURCE-ID: 0 for the terminal, -1 for EVALUATE, else the file id.
     pub(crate) fn source_id(&self) -> Cell {
         match self.sources.last().unwrap().origin {
-            Origin::Terminal => 0,
+            Origin::Terminal | Origin::Block => 0,
             Origin::Evaluate => -1,
             Origin::File { fid, .. } => fid,
         }
@@ -137,6 +141,7 @@ impl Forth {
         self.sources.last_mut().unwrap().saved_in = saved_in;
         self.sources.push(Source { origin, buf, len, line: 0, saved_in: 0 });
         self.set(IN_ADDR, 0);
+        self.sync_blk();
         Ok(())
     }
 
@@ -169,6 +174,11 @@ impl Forth {
             return Ok(false);
         }
         if line != s.line as Cell {
+            if let Origin::Block = s.origin {
+                self.load_block(line)?;
+                self.set(IN_ADDR, to_in);
+                return Ok(true);
+            }
             let Origin::File { lines, .. } = &s.origin else { return Ok(false) };
             let Some(text) = usize::try_from(line - 1).ok().and_then(|i| lines.get(i)) else {
                 return Ok(false);
@@ -185,6 +195,7 @@ impl Forth {
         self.sources.pop();
         let saved_in = self.sources.last().unwrap().saved_in;
         self.set(IN_ADDR, saved_in);
+        self.sync_blk();
     }
 
     /// Recovers from an error: clears the stacks (the data stack only if asked),
@@ -200,6 +211,7 @@ impl Forth {
         self.ctrl.clear();
         self.end_local_scope();
         self.sources.truncate(1);
+        self.sync_blk();
         if let Some(xt) = self.current.take() {
             self.dict.truncate(xt);
         }

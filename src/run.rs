@@ -74,6 +74,7 @@ impl Forth {
         self.locals.truncate(locals);
         self.sources.truncate(sources);
         self.set(IN_ADDR, to_in);
+        self.sync_blk();
         if current.is_none() {
             // Drop a definition that was started inside the CATCH.
             if let Some(xt) = self.current.take() {

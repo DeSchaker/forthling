@@ -3,3 +3,5 @@
 /tests/forth2012-test-suite/
 # left behind by a failing filetest.fth
 /fatest*.txt
+# the default block file, when forthling runs here
+/blocks.fb
