@@ -23,10 +23,19 @@ Other clients start it the same way: the command `forthling-mcp`, over stdio.
 
 | Tool | Arguments | |
 |---|---|---|
-| `forth_eval` | `code` | runs Forth code; returns the output, the data and float stacks, and the error if there was one |
+| `forth_eval` | `code`, `data` | runs Forth code; returns the output, the data and float stacks, and the error if there was one |
 | `forth_stack` | | the stacks, without running anything |
 | `forth_words` | | the words defined in this session, the latest first |
-| `forth_reset` | | a new session: every definition and stack value is gone |
+| `forth_reset` | | a new session: every definition, stack value and the data are gone |
+
+A line of code, and so a string in `S"`, is at most 1024 characters. Larger input, such
+as a JSON document, goes in `data`: the code reads it with `DATA ( -- c-addr u )`, which
+gives a copy in `ALLOCATE`d memory (`FREE` it). The data stays for later calls until a
+call sends other data, and may be at most as large as the Forth memory:
+
+```json
+{"name": "forth_eval", "arguments": {"code": "ALSO JSON DATA JSON-LENGTH .", "data": "[[59],[73,41]]"}}
+```
 
 Each result is text the way the REPL shows it:
 
@@ -41,7 +50,8 @@ for an error, `"error": {"code": -13, "message": "undefined word", "detail": "FO
 and `isError` is true, so the model sees it and can put it right.
 
 The JSON words are installed (`ALSO JSON`), and the SQLite words for databases in memory
-(`ALSO SQLITE`, only `:memory:`); without the Cargo feature `sqlite`
+(`ALSO SQLITE`, only `:memory:`, which SQL stops when the time is up and which cannot
+grow larger than the Forth memory); without the Cargo feature `sqlite`
 (`--no-default-features`) the server is built without SQLite.
 
 ## The sandbox

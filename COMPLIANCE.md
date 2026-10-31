@@ -563,6 +563,8 @@ itself back.
 The MCP server (`mcp/`, the program `forthling-mcp`) runs every session in the sandbox
 with the JSON and SQLite words; its own limits cannot pass fixed ceilings, and it has no
 option for files. It reads no terminal input: `KEY` and `ACCEPT` see the end of the input.
+It adds the word `DATA ( -- c-addr u )` to `FORTH-WORDLIST` (`FORTHLING-MCP`): the
+`data` of the latest call that sent some, `ALLOCATE`d.
 
 The SQLite words (`sqlite/`, in the program `forthling-sqlite`) install `FORTHLING-SQLITE`
 (version 1) and the word list `SQLITE`. They follow the FILE word set: databases and
@@ -571,5 +573,7 @@ from `DB-ERROR`; -261 for an invalid handle), and the strings they return are
 `ALLOCATE`d, for the program to `FREE`. The words without an ior (`DB-COLUMN` and the
 like, `DB-CHANGES`, `DB-LAST-ROWID`) throw -261 for an invalid handle and -24 for a
 missing row or column. Without `Permission::Files`, `DB-OPEN` opens only `:memory:` (else
-the ior -259), and SQL cannot attach a database file, so `ATTACH` and `VACUUM INTO`
-fail with -260.
+the ior -259), SQL cannot attach a database file, so `ATTACH` and `VACUUM INTO`
+fail with -260, and a database cannot grow larger than the Forth memory. With a time
+limit, SQL that runs past it is stopped and the word throws -258; the result of a query
+may be at most the size of the Forth memory (else the ior -260).

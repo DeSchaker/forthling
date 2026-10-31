@@ -23,6 +23,7 @@ use rusqlite::limits::Limit;
 use rusqlite::types::Value;
 use rusqlite::{Connection, params_from_iter};
 use std::collections::{HashMap, VecDeque};
+use std::time::Instant;
 
 /// The ior of an error that SQLite reports; DB-ERROR gives its message.
 pub const SQLITE_ERROR: Cell = -260;
@@ -60,6 +61,37 @@ impl From<rusqlite::Error> for Failure {
     }
 }
 
+/// What running SQL may take: the time of the evaluation, and results no
+/// larger than the Forth memory.
+#[derive(Clone, Copy)]
+struct Bounds {
+    deadline: Option<Instant>,
+    room: usize,
+}
+
+fn bounds(f: &Forth) -> Bounds {
+    Bounds { deadline: f.deadline(), room: f.memory().len() }
+}
+
+/// Lets SQLite stop a statement when the time is up; a query can run long,
+/// even forever (WITH RECURSIVE), inside one Forth step.
+fn guard(conn: &Connection, deadline: Option<Instant>) -> Result<(), Failure> {
+    match deadline {
+        Some(d) => conn.progress_handler(1000, Some(move || Instant::now() >= d))?,
+        None => conn.progress_handler(1000, None::<fn() -> bool>)?,
+    }
+    Ok(())
+}
+
+/// What a value takes, roughly, for the bounds and for the work it is.
+fn size(v: &Value) -> usize {
+    16 + match v {
+        Value::Text(s) => s.len(),
+        Value::Blob(b) => b.len(),
+        _ => 8,
+    }
+}
+
 fn invalid(handle: Cell) -> Failure {
     Failure(INVALID_HANDLE, format!("{handle} is not an open handle"))
 }
@@ -79,14 +111,17 @@ impl State {
     }
 
     /// Opens a database; without `files`, only one in memory, which cannot
-    /// reach files through SQL either (ATTACH and VACUUM INTO).
-    fn open(&mut self, path: &str, files: bool) -> Result<Cell, Failure> {
+    /// reach files through SQL either (ATTACH and VACUUM INTO), and which
+    /// cannot grow larger than the Forth memory.
+    fn open(&mut self, path: &str, files: bool, room: usize) -> Result<Cell, Failure> {
         if !files && path != ":memory:" {
             return Err(Failure(NOT_PERMITTED, format!("DB-OPEN {path}: no file access")));
         }
         let conn = Connection::open(path)?;
         if !files {
             conn.set_limit(Limit::SQLITE_LIMIT_ATTACHED, 0)?;
+            let page: i64 = conn.pragma_query_value(None, "page_size", |row| row.get(0))?;
+            conn.pragma_update(None, "max_page_count", (room as i64 / page).max(1))?;
         }
         let db = self.handle();
         self.dbs.insert(db, conn);
@@ -120,21 +155,38 @@ impl State {
         Ok(())
     }
 
-    fn step(&mut self, stmt: Cell) -> Result<bool, Failure> {
+    /// The next row; the first step runs the statement and reads all its
+    /// rows. Also gives the bytes it read, as work.
+    fn step(&mut self, stmt: Cell, bounds: Bounds) -> Result<(bool, usize), Failure> {
         let s = self.stmts.get_mut(&stmt).ok_or_else(|| invalid(stmt))?;
+        let mut read = 0;
         if s.rows.is_none() {
             let conn = self.dbs.get(&s.db).ok_or_else(|| invalid(s.db))?;
+            guard(conn, bounds.deadline)?;
             let mut prepared = conn.prepare(&s.sql)?;
             let columns = prepared.column_count();
             let mut rows = prepared.query(params_from_iter(s.params.iter()))?;
             let mut all = VecDeque::new();
             while let Some(row) = rows.next()? {
-                all.push_back((0..columns).map(|i| row.get(i)).collect::<Result<_, _>>()?);
+                let values: Vec<Value> =
+                    (0..columns).map(|i| row.get(i)).collect::<Result<_, _>>()?;
+                read += values.iter().map(size).sum::<usize>();
+                if read > bounds.room {
+                    let message = "the result of the query is larger than the Forth memory";
+                    return Err(Failure(SQLITE_ERROR, message.into()));
+                }
+                all.push_back(values);
             }
             s.rows = Some(all);
         }
         s.row = s.rows.as_mut().and_then(VecDeque::pop_front);
-        Ok(s.row.is_some())
+        Ok((s.row.is_some(), read))
+    }
+
+    fn exec(&self, sql: &str, db: Cell, bounds: Bounds) -> Result<(), Failure> {
+        let conn = self.db(db)?;
+        guard(conn, bounds.deadline)?;
+        Ok(conn.execute_batch(sql)?)
     }
 
     fn reset(&mut self, stmt: Cell) -> Result<(), Failure> {
@@ -235,8 +287,8 @@ impl Extension for Sqlite {
         // Permission::Files.
         word(f, "DB-OPEN", |f| {
             let path = pop_text(f)?;
-            let files = f.permits(Permission::Files);
-            let result = f.state::<State>().open(&path, files);
+            let (files, room) = (f.permits(Permission::Files), f.memory().len());
+            let result = f.state::<State>().open(&path, files, room);
             push_value_ior(f, result);
             Ok(())
         });
@@ -252,8 +304,10 @@ impl Extension for Sqlite {
         word(f, "DB-EXEC", |f| {
             let db = f.pop()?;
             let sql = pop_text(f)?;
-            let state = f.state::<State>();
-            let result = state.db(db).and_then(|c| Ok(c.execute_batch(&sql)?));
+            f.charge(sql.len())?;
+            let bounds = bounds(f);
+            let result = f.state::<State>().exec(&sql, db, bounds);
+            f.check_time()?; // SQLite was stopped because the time is up
             push_ior(f, result);
             Ok(())
         });
@@ -299,8 +353,12 @@ impl Extension for Sqlite {
         // DB-STEP ( stmt -- flag ior ): true when there is a next row.
         word(f, "DB-STEP", |f| {
             let stmt = f.pop()?;
-            let result = f.state::<State>().step(stmt).map(|row| if row { -1 } else { 0 });
-            push_value_ior(f, result);
+            let bounds = bounds(f);
+            let result = f.state::<State>().step(stmt, bounds);
+            f.check_time()?; // SQLite was stopped because the time is up
+            let result = result.map(|(row, read)| (if row { -1 } else { 0 }, read));
+            f.charge(result.as_ref().map_or(0, |&(_, read)| read))?;
+            push_value_ior(f, result.map(|(flag, _)| flag));
             Ok(())
         });
         // DB-RESET ( stmt -- ior ): the next DB-STEP runs it again.

@@ -139,3 +139,40 @@ fn the_sandbox_keeps_sql_away_from_files() {
     assert_eq!(run(&mut f, &vacuum), "-260 ");
     assert!(!path.exists(), "SQL wrote {name}");
 }
+
+#[test]
+fn sql_keeps_to_the_limits() {
+    use forthling::Limits;
+    use std::time::{Duration, Instant};
+    // An endless query stops when the time is up, inside its one step.
+    let mut f = forth();
+    f.set_limits(Limits { time: Some(Duration::from_millis(200)), ..Limits::default() });
+    let endless =
+        "WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM c) SELECT count(*) FROM c";
+    let start = Instant::now();
+    let e = f.interpret(&format!("S\" {endless}\" DB DB-PREPARE THROW DB-STEP")).unwrap_err();
+    assert_eq!(e.to_string(), "error -258: limit exceeded: time");
+    assert!(start.elapsed() < Duration::from_secs(3), "{:?}", start.elapsed());
+    let start = Instant::now();
+    let e = f.interpret(&format!("S\" CREATE TABLE t AS {endless}\" DB DB-EXEC")).unwrap_err();
+    assert_eq!(e.code, -258);
+    assert!(start.elapsed() < Duration::from_secs(3), "{:?}", start.elapsed());
+    // A result may not be larger than the Forth memory.
+    let mut f = Forth::with_memory(64 << 10);
+    f.install(&Sqlite);
+    run(&mut f, "ALSO SQLITE  S\" :memory:\" DB-OPEN THROW VALUE DB");
+    let big = "WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM c LIMIT 10000) SELECT 'some text' FROM c";
+    let out = run(&mut f, &format!("S\" {big}\" DB DB-PREPARE THROW DB-STEP . . DB-ERROR TYPE"));
+    assert_eq!(out, "-260 0 the result of the query is larger than the Forth memory");
+    // In the sandbox a database cannot grow larger than the Forth memory.
+    let mut f = Forth::with_memory(64 << 10);
+    f.permit(forthling::Permission::Files, false);
+    f.install(&Sqlite);
+    run(
+        &mut f,
+        "ALSO SQLITE  S\" :memory:\" DB-OPEN THROW VALUE DB  S\" CREATE TABLE t (x)\" DB DB-EXEC THROW",
+    );
+    let fill = "INSERT INTO t WITH RECURSIVE c(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM c LIMIT 10000) SELECT randomblob(100) FROM c";
+    let out = run(&mut f, &format!("S\" {fill}\" DB DB-EXEC . DB-ERROR TYPE"));
+    assert!(out.starts_with("-260 ") && out.contains("full"), "{out}");
+}

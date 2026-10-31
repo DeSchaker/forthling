@@ -206,3 +206,49 @@ fn over_stdio() {
     assert_eq!(help.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&help.stderr).contains("at most 60s"));
 }
+
+#[test]
+fn data_for_large_input() {
+    let mut s = server();
+    // A JSON document far longer than a line of code.
+    let rows: Vec<Vec<u32>> =
+        (1..=100).map(|n| (0..n).map(|i| (i * 7 + n) % 100).collect()).collect();
+    let json = serde_json::to_string(&rows).unwrap();
+    assert!(json.len() > 10_000);
+    let r = call(
+        &mut s,
+        "forth_eval",
+        json!({ "code": "ALSO JSON DATA 2DUP JSON-LENGTH . NIP .", "data": json }),
+    );
+    assert_eq!(r["structuredContent"]["output"], format!("100 {} ", json.len()));
+    // The data stays for later calls, until other data comes.
+    let r = eval(&mut s, "DATA 2DUP S\" [3]\" JSON@ DROP JSON-LENGTH . DROP FREE .");
+    assert_eq!(r["structuredContent"]["output"], "4 0 ");
+    let r = call(&mut s, "forth_eval", json!({ "code": "DATA TYPE", "data": "hello" }));
+    assert_eq!(r["structuredContent"]["output"], "hello");
+    call(&mut s, "forth_reset", json!({}));
+    assert_eq!(eval(&mut s, "DATA . DROP")["structuredContent"]["output"], "0 ");
+    // Data must be text, and fit in the memory.
+    let not_text = json!({ "name": "forth_eval", "arguments": { "code": "1", "data": 5 } });
+    assert_eq!(error_code(&ask(&mut s, "tools/call", not_text)), -32602);
+    let mut small = Server::new(Settings { memory: 64 << 10, ..Settings::default() });
+    let too_big =
+        json!({ "name": "forth_eval", "arguments": { "code": "1", "data": "x".repeat(70_000) } });
+    assert_eq!(error_code(&ask(&mut small, "tools/call", too_big)), -32602);
+    let init = ask(&mut s, "initialize", json!({}));
+    assert!(init["result"]["instructions"].as_str().unwrap().contains("1024 characters"));
+}
+
+#[test]
+fn sql_stops_in_time() {
+    let mut s = Server::new(Settings { time: Duration::from_millis(300), ..Settings::default() });
+    let start = std::time::Instant::now();
+    let endless = "ALSO SQLITE S\" :memory:\" DB-OPEN THROW VALUE DB \
+                   S\" WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM c) SELECT count(*) FROM c\" \
+                   DB DB-PREPARE THROW DB-STEP";
+    let r = eval(&mut s, endless);
+    if cfg!(feature = "sqlite") {
+        assert_eq!(r["structuredContent"]["error"]["detail"], "time");
+    }
+    assert!(start.elapsed() < Duration::from_secs(3), "{:?}", start.elapsed());
+}

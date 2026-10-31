@@ -6,9 +6,11 @@
 //! take only Forth code, no Forth word can change the limits or the
 //! permissions, and no setting of the server opens files or lifts a limit.
 
-use forthling::{DEFAULT_MEMORY, Forth, Limits, Permission, Throw};
+use forthling::{DEFAULT_MEMORY, Extension, Forth, Limits, Permission, Throw};
 use serde_json::{Map, Value, json};
+use std::cell::RefCell;
 use std::io;
+use std::rc::Rc;
 use std::time::Duration;
 
 /// The protocol versions the server speaks; it answers with the client's
@@ -88,11 +90,13 @@ const INVALID_PARAMS: i64 = -32602;
 pub struct Server {
     settings: Settings,
     forth: Forth,
+    data: Rc<RefCell<Vec<u8>>>, // the latest data of forth_eval, which DATA gives
 }
 
 impl Server {
     pub fn new(settings: Settings) -> Self {
-        Server { settings, forth: sandbox(&settings) }
+        let data = Rc::default();
+        Server { settings, forth: sandbox(&settings, &data), data }
     }
 
     /// Answers one message; None for a notification, which gets no answer.
@@ -147,7 +151,7 @@ impl Server {
             Some(_) => return Err((INVALID_PARAMS, "arguments must be an object".into())),
         };
         let allowed: &[&str] = match name {
-            "forth_eval" => &["code"],
+            "forth_eval" => &["code", "data"],
             "forth_stack" | "forth_words" | "forth_reset" => &[],
             _ => return Err((INVALID_PARAMS, format!("unknown tool {name}"))),
         };
@@ -159,6 +163,19 @@ impl Server {
                 let Some(code) = args.get("code").and_then(Value::as_str) else {
                     return Err((INVALID_PARAMS, "forth_eval needs code, a string".into()));
                 };
+                match args.get("data") {
+                    None => {}
+                    Some(Value::String(data)) if data.len() <= self.settings.memory => {
+                        *self.data.borrow_mut() = data.clone().into_bytes();
+                    }
+                    Some(Value::String(_)) => {
+                        return Err((
+                            INVALID_PARAMS,
+                            "data is larger than the Forth memory".into(),
+                        ));
+                    }
+                    Some(_) => return Err((INVALID_PARAMS, "data must be a string".into())),
+                }
                 let result = self.forth.interpret(code);
                 let output = String::from_utf8_lossy(&self.forth.take_output()).into_owned();
                 Ok(state(&self.forth, &output, result.err()))
@@ -177,16 +194,17 @@ impl Server {
                 }))
             }
             _ => {
-                self.forth = sandbox(&self.settings);
+                self.data.borrow_mut().clear();
+                self.forth = sandbox(&self.settings, &self.data);
                 Ok(state(&self.forth, "", None))
             }
         }
     }
 }
 
-/// A Forth system in the sandbox, with the JSON words and, with the feature
-/// `sqlite`, the SQLite words for databases in memory.
-fn sandbox(settings: &Settings) -> Forth {
+/// A Forth system in the sandbox, with the JSON words, the word DATA and,
+/// with the feature `sqlite`, the SQLite words for databases in memory.
+fn sandbox(settings: &Settings, data: &Rc<RefCell<Vec<u8>>>) -> Forth {
     let mut f = Forth::with_memory(settings.memory);
     f.set_limits(settings.limits());
     f.permit(Permission::Files, false);
@@ -195,7 +213,30 @@ fn sandbox(settings: &Settings) -> Forth {
     f.install(&forthling::Json);
     #[cfg(feature = "sqlite")]
     f.install(&forthling_sqlite::Sqlite);
+    f.install(&Data(Rc::clone(data)));
     f
+}
+
+/// The word DATA, as an extension (FORTHLING-MCP), so that it is the
+/// system's and not one of the session's own words.
+struct Data(Rc<RefCell<Vec<u8>>>);
+
+impl Extension for Data {
+    fn name(&self) -> &str {
+        "FORTHLING-MCP"
+    }
+
+    fn install(&self, f: &mut Forth) {
+        // DATA ( -- c-addr u ): the data of forth_eval, ALLOCATEd, for the
+        // program to FREE. Data has no line limit, as code has.
+        let data = Rc::clone(&self.0);
+        let word = move |f: &mut Forth| {
+            let data = data.borrow().clone();
+            f.charge(data.len())?;
+            f.push_bytes(&data)
+        };
+        f.add_word(1, "DATA", word).expect("FORTH-WORDLIST exists");
+    }
 }
 
 fn reply(id: Value, result: Result<Value, Failure>) -> String {
@@ -280,10 +321,13 @@ fn tools() -> Value {
         {
             "name": "forth_eval",
             "title": "Run Forth",
-            "description": "Runs Forth-2012 code in the session and returns what it printed, the data stack and the float stack, and the error if there was one. Definitions, variables and the stacks stay for the next call.",
+            "description": "Runs Forth-2012 code in the session and returns what it printed, the data stack and the float stack, and the error if there was one. Definitions, variables and the stacks stay for the next call. Large input goes in data, which the code reads with DATA.",
             "inputSchema": {
                 "type": "object",
-                "properties": { "code": { "type": "string", "description": "Forth source; it may have several lines" } },
+                "properties": {
+                    "code": { "type": "string", "description": "Forth source; it may have several lines, each at most 1024 characters" },
+                    "data": { "type": "string", "description": "Text for the word DATA ( -- c-addr u ), which gives a copy in ALLOCATEd memory (FREE it); without a line limit, for large input such as JSON. It stays for later calls until another call sends data." },
+                },
                 "required": ["code"],
                 "additionalProperties": false,
             },
@@ -313,7 +357,7 @@ fn tools() -> Value {
         {
             "name": "forth_reset",
             "title": "Start over",
-            "description": "Starts a new Forth session: every definition, variable and stack value is gone.",
+            "description": "Starts a new Forth session: every definition, variable and stack value is gone, and so is the data.",
             "inputSchema": no_arguments,
             "outputSchema": state_schema(),
             "annotations": { "readOnlyHint": false, "destructiveHint": true, "idempotentHint": true, "openWorldHint": false },
@@ -335,7 +379,10 @@ fn instructions(s: &Settings) -> String {
          shows the output and the data stack (the top last). Words are not case sensitive; `.` \
          prints and drops the top of the stack; `: NAME ... ;` defines a word; IF, DO, BEGIN and \
          the like work only inside a definition; `S\" text\"` gives ( c-addr u ) and TYPE prints \
-         it. An error empties the stacks. `ALSO JSON` gives JSON words: `JSON@` reads a path such \
+         it. An error empties the stacks. A line of code, and so a string in `S\" \"`, is at most \
+         1024 characters: give larger input, such as a JSON document, as the `data` argument of \
+         forth_eval, and read it in the code with `DATA ( -- c-addr u )`, an ALLOCATEd copy. \
+         `ALSO JSON` gives JSON words: `JSON@` reads a path such \
          as `users[0].name` from JSON text, and `JSON{{ S\" key\" JSON-KEY 1 JSON-NUMBER JSON}}` \
          writes JSON.{sqlite} Each call may take at most {} steps, {} ms and {} bytes of output; \
          the session's definitions and the like at most {} bytes in all; there is no file access.",

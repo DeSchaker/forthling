@@ -144,6 +144,19 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
   with a shell can go around it, which only the agent's permissions (Claude Code
   settings) or a container stop. Tests: `mcp/tests/mcp.rs` (also over real stdio); CI job
   `mcp` (1.85 and stable on Linux, stable on Windows, with and without SQLite).
+- **MCP data and SQL bounds (2026-10-31):** tried with Claude Code (Project Euler 5, 15
+  and 67 through `claude -p`, all right; in 67 the session hit the line limit of 1024
+  with a 15 KB JSON document and worked around it with a buffer). So the instructions now
+  name the line limit, and `forth_eval` takes `data`, which the word `DATA ( -- c-addr u )`
+  gives `ALLOCATE`d (an extension `FORTHLING-MCP` of the server, so it is no word of the
+  session; data stays until replaced, `forth_reset` clears it, at most the memory size).
+  Thinking about it showed a real gap: SQL could run forever in one step (an endless
+  `WITH RECURSIVE` ran on past `--max-time 1s`). Now `guard` sets a SQLite progress
+  handler (rusqlite feature `hooks`) that stops at the evaluation's `deadline`, after which
+  the word throws -258 through `check_time`; the rows a query reads may be at most the
+  Forth memory and are charged as work; in the sandbox `max_page_count` keeps a database
+  within the memory size. The host API gained public `charge`, `check_time` and
+  `deadline` for this.
 - **JSON (2026-10-31):** step 5 of the revised order is done, in `src/json.rs`, in the
   core at the maintainer's request (no dependency is needed), as the extension
   `forthling::Json` (word list `JSON`, `FORTHLING-JSON`). `Forth::new()` stays plain

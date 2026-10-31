@@ -67,7 +67,8 @@ latest stable Rust, on Linux and Windows.
   an extension. A word that handles much data at once calls `charge(bytes)` before the
   work, so the time limit holds. A word of the program is made with `new_word`, not
   `define`, and whatever else grows outside Forth memory is counted in `space_used` and
-  checked with `check_space`. See `src/sandbox.rs`.
+  checked with `check_space`. See `src/sandbox.rs`. An extension uses the public
+  `charge`, `check_time` and `deadline` for work outside Forth, as the SQLite words do.
 - Keep a change small and give it tests. If it changes how forthling behaves, update
   `COMPLIANCE.md` and the README where they describe that behaviour. `VERKLARING.md` is
   its Dutch translation; the maintainer keeps it in step, so you need not.

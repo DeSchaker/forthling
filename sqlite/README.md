@@ -51,7 +51,13 @@ the statement again from the top, as `DB-RESET` does.
 
 In the sandbox (without `Permission::Files`) `DB-OPEN` opens only `:memory:`, and gives
 the ior -259 for a file; SQL cannot attach a database file either (`ATTACH` and
-`VACUUM INTO` fail with -260).
+`VACUUM INTO` fail with -260), and the database cannot grow larger than the Forth memory
+(`max_page_count`; an `INSERT` past it gives -260, "database or disk is full").
+
+SQL keeps to the limits of the evaluation, also outside the sandbox when they are set: a
+query that runs past the time limit (even an endless `WITH RECURSIVE`) is stopped, and
+the word throws -258; the result of a query may be at most as large as the Forth memory
+(else the ior -260), and what it reads counts as work, as for `MOVE`.
 
 A statement runs at its first `DB-STEP`, which reads all its rows; the next `DB-STEP`s
 hand them out one by one.

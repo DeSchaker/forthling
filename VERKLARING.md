@@ -582,7 +582,9 @@ Python-programma de exceptie zelf terug.
 De MCP-server (`mcp/`, het programma `forthling-mcp`) draait elke sessie in de zandbak,
 met de JSON- en SQLite-woorden; zijn eigen limieten kunnen niet boven vaste plafonds, en
 hij heeft geen optie voor bestanden. Hij leest geen terminalinvoer: `KEY` en `ACCEPT` zien
-het einde van de invoer.
+het einde van de invoer. Hij voegt het woord `DATA ( -- c-addr u )` toe aan
+`FORTH-WORDLIST` (`FORTHLING-MCP`): de `data` van de laatste aanroep die die meestuurde,
+ge-`ALLOCATE`d.
 
 De SQLite-woorden (`sqlite/`, in het programma `forthling-sqlite`) installeren
 `FORTHLING-SQLITE` (versie 1) en de woordenlijst `SQLITE`. Ze volgen de FILE-wordset:
@@ -592,4 +594,7 @@ teruggeven zijn ge-`ALLOCATE`d, zodat het programma ze met `FREE` vrijgeeft. De 
 zonder ior (`DB-COLUMN` en dergelijke, `DB-CHANGES`, `DB-LAST-ROWID`) gooien -261 bij een
 ongeldige handle en -24 bij een ontbrekende rij of kolom. Zonder `Permission::Files` opent
 `DB-OPEN` alleen `:memory:` (anders de ior -259), en kan SQL geen databasebestand
-koppelen, zodat `ATTACH` en `VACUUM INTO` mislukken met -260.
+koppelen, zodat `ATTACH` en `VACUUM INTO` mislukken met -260, en kan een database niet
+groter worden dan het Forth-geheugen. Met een tijdlimiet wordt SQL dat erover gaat
+gestopt en gooit het woord -258; het resultaat van een query mag hooguit zo groot zijn als
+het Forth-geheugen (anders de ior -260).

@@ -197,10 +197,11 @@ impl Forth {
         self.check_space()
     }
 
-    /// Counts work of `bytes` bytes as steps, one per BYTES_PER_STEP, and
-    /// reads the clock when that passes a multiple of CLOCK_EVERY. Words that
-    /// handle much data call it before they do the work.
-    pub(crate) fn charge(&mut self, bytes: usize) -> Res {
+    /// Counts work of `bytes` bytes as steps, one per 64 bytes, and reads the
+    /// clock when that passes a multiple of 4096 steps; throws -258 when a
+    /// limit is reached. A word that handles much data at once calls it, so
+    /// that the limits hold for it too; an extension as well.
+    pub fn charge(&mut self, bytes: usize) -> Res {
         let cost = (bytes / BYTES_PER_STEP) as u64;
         if cost == 0 {
             return Ok(());
@@ -238,6 +239,20 @@ impl Forth {
             }
             _ => Ok(()),
         }
+    }
+
+    /// Throws -258 when the time of the evaluation is up; for an extension
+    /// that has just done something that took long.
+    pub fn check_time(&mut self) -> Res {
+        self.check_clock()
+    }
+
+    /// When the time of the current evaluation is up, if it has a limit; for
+    /// an extension that runs something long outside Forth (such as SQL), so
+    /// that it can stop in time. Not available in WebAssembly.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn deadline(&self) -> Option<Instant> {
+        self.budget.deadline
     }
 
     #[cfg(not(target_arch = "wasm32"))]
