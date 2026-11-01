@@ -86,10 +86,17 @@ pub(crate) fn represent(r: f64, u: usize) -> Option<(Vec<u8>, i64)> {
         return None;
     }
     let s = format!("{:.*e}", u.max(1) - 1, r.abs());
-    let (mantissa, exp) = s.split_once('e').unwrap();
+    // For a finite float `{:e}` always gives "d.ddde<int>", so the `?`s never
+    // return; they only keep a panic out of the code.
+    let (mantissa, exp) = s.split_once('e')?;
     let mut digits: Vec<u8> = mantissa.bytes().filter(u8::is_ascii_digit).collect();
     digits.truncate(u);
-    Some((digits, exp.parse::<i64>().unwrap() + 1))
+    Some((digits, exp.parse::<i64>().ok()? + 1))
+}
+
+/// The ASCII digits of `represent` as text.
+fn digit_text(digits: &[u8]) -> String {
+    digits.iter().map(|&d| char::from(d)).collect()
 }
 
 /// The text of an infinity or a NaN, for F. FE. and FS.
@@ -111,7 +118,7 @@ pub(crate) fn fixed(r: f64, p: usize) -> String {
     let Some((digits, n)) = represent(r, p) else { return special(r) };
     let (int, frac) = if n as usize >= p && n > 0 {
         // Too large for decimals: the digits, then zeros up to the point.
-        (String::from_utf8(digits).unwrap() + &"0".repeat(n as usize - p), String::new())
+        (digit_text(&digits) + &"0".repeat(n as usize - p), String::new())
     } else {
         // Below 1 all p digits go after the point, as in 0.00024.
         let decimals = if n <= 0 { p } else { p - n as usize };
@@ -132,7 +139,7 @@ pub(crate) fn scientific(r: f64, p: usize, engineering: bool) -> String {
     while digits.len() < shift + 1 {
         digits.push(b'0');
     }
-    let digits = String::from_utf8(digits).unwrap();
+    let digits = digit_text(&digits);
     let (int, frac) = digits.split_at(shift + 1);
     format!("{}{int}.{frac}E{} ", sign(r), exp - shift as i64)
 }
@@ -177,7 +184,9 @@ impl Forth {
     }
 
     pub(crate) fn fget(&self, a: usize) -> f64 {
-        f64::from_le_bytes(self.mem[a..a + FLOAT].try_into().unwrap())
+        let mut bytes = [0; FLOAT];
+        bytes.copy_from_slice(&self.mem[a..a + FLOAT]);
+        f64::from_le_bytes(bytes)
     }
 
     pub(crate) fn fset(&mut self, a: usize, r: f64) {
@@ -188,5 +197,31 @@ impl Forth {
     /// BASE is decimal.
     pub(crate) fn float_literal(&self, w: &str) -> Option<f64> {
         if self.get(BASE_ADDR) == 10 { to_float(w.as_bytes(), true) } else { None }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn represent_works_for_every_kind_of_finite_float() {
+        let floats = [0.0, -0.0, 1.0, -2.5, 1e300, -1e-300, f64::MAX, f64::MIN_POSITIVE, 5e-324];
+        for r in floats {
+            for u in 0..20 {
+                let (digits, _) = represent(r, u).expect("a finite float");
+                assert!(digits.len() <= u);
+                assert!(digits.iter().all(u8::is_ascii_digit));
+            }
+            assert!(!fixed(r, 6).is_empty());
+            assert!(!scientific(r, 6, true).is_empty());
+        }
+    }
+
+    #[test]
+    fn represent_gives_none_for_infinities_and_nan() {
+        for r in [f64::INFINITY, f64::NEG_INFINITY, f64::NAN] {
+            assert!(represent(r, 5).is_none());
+        }
     }
 }
