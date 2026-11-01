@@ -111,6 +111,7 @@ over the modules and are `pub(crate)`, except the public API in `lib.rs` and `ho
 | `float.rs` | the float stack (`fpush`, `fpop`), `F@`/`F!` in memory, text to float (`to_float`) and float to text (`represent`, `fixed`, `scientific`) |
 | `xchar.rs` | UTF-8: encoding, decoding and column width of xchars, `XKEY` and `PARSE` with an xchar |
 | `files.rs` | file ids, `INCLUDED`/`REQUIRED`, helpers for the FILE words |
+| `vfs.rs` | the file system behind them: `FileSystem`, `FileHandle`, `Access`, `NativeFs`, `MemoryFs`, `set_file_system`, `disk_files` |
 | `run.rs` | the inner interpreter: `Instr`, frames, loops, `CATCH` |
 | `compiler.rs` | `Ctrl`, helpers for definitions and control flow, `TO`/`IS` |
 | `words/*.rs` | the primitives by group (`stack`, `double`, `memory`, `console`, `define`, `control`, `string`, `tools`, `system`, `file`, `facility`, `heap`, `locals`, `search`, `block`, `xchar`, `float`) |
@@ -122,11 +123,34 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
 
 ### Next session: resume here
 
-- **Next step:** step 13 of the revised order, a virtual file system; or step 16,
-  publishing `forthling-mcp` in the MCP Registry, which needs a choice of package first;
-  or step 17, a tutorial extension, which needs a few choices first (see there).
+- **Next step:** step 16, publishing `forthling-mcp` in the MCP Registry, which needs a
+  choice of package first; or step 17, a tutorial extension, which needs a few choices
+  first (see there). Open from step 13: files in the playground's UI (a panel, kept in
+  `localStorage`), and files for `--sandbox` and Python's `sandbox=True`.
   The website (robbertwesterink.nl, private repo `DeSchaker/website`) links to the
   playground since 2026-10-31.
+- **Virtual file system (2026-11-01):** step 13 is done, in `src/vfs.rs`. The trait
+  `FileSystem` (`open` with an `Access` of read, write, create and truncate, `delete`,
+  `rename`, `exists`, `canonical` for REQUIRED, and `is_disk`) gives `Box<dyn FileHandle>`
+  (`Read + Write + Seek` with `size` and `set_size`; also for `fs::File` and
+  `io::Cursor<Vec<u8>>`). `Forth` keeps one in `vfs`, set with `set_file_system` (which
+  writes the block buffers back first, as `set_block_file`); the FILE words, `INCLUDE`
+  and the like, `resolve`, the block file and the host's `include` all go through it, no
+  longer `std::fs`. `NativeFs` is the disk and the default. `MemoryFs` keeps files in
+  memory: a clone shares them (`insert`, `get`, `paths`, `used`), names are normalized
+  (`/` and `\` separate, `.` and `..` work, a leading `/` is dropped), and
+  `with_limit(bytes)` caps them in all, counting a deleted file that is still open until
+  it is closed. `Forth::sandboxed()` now has an empty `MemoryFs` of 4 MiB
+  (`SANDBOX_LIMIT`) and permits files; the MCP server likewise per session (the argument
+  `files` of `forth_eval`, `{name: text}`, puts files in; `forth_reset` empties them),
+  and the web module (`fl_write_file`, `fl_read_file`, `fl_files`; in JavaScript
+  `writeFile`, `readFile`, `files`, also through the worker). `--sandbox` and Python's
+  `sandbox=True` still deny files, unchanged. Since `Permission::Files` no longer means
+  the disk, `Forth::disk_files()` (Files permitted and `is_disk`) is what SQLite's
+  `DB-OPEN` checks now, so a database file stays out of reach in MCP. READ-FILE,
+  READ-LINE, WRITE-FILE and WRITE-LINE now `charge` their bytes. Tested: the suite's
+  `filetest.fth` and `blocktest.fth` also run on a `MemoryFs` (`suite_file_access_in_memory`),
+  `tests/vfs.rs`, MCP and Node tests. The `.wasm` grew from 412124 to 454113 bytes.
 - **Stepping and breakpoints (2026-10-31):** step 11 is done, in `src/debug.rs`, but not
   as planned: a run cannot pause and resume across calls of the host, because `CATCH`,
   `EVALUATE`, `INCLUDE`, `LOAD`, `TRAVERSE-WORDLIST` and the outer interpreter run Forth
@@ -890,10 +914,13 @@ positioning and what agents need. The old step 8 (debugging and tracing) became 
     embedded DSL in Rust programs (a safe configuration or rule language, the niche of
     Lua) easy; that needed no step of its own before, since the host API is there and
     step 4 makes it safe. Independent of the rest; it can come earlier.
-13. **A virtual file system:** a trait that the host implements (in memory, a SQLite
+13. ✅ **A virtual file system:** a trait that the host implements (in memory, a SQLite
     blob, localStorage in the browser) behind the standard FILE words, so that code in
     the sandbox can read and write files safely, and the playground and MCP can
-    `INCLUDE`. `Permission::Files` then means "files through the host's VFS".
+    `INCLUDE`. `Permission::Files` then means "files through the host's VFS". *As built
+    (2026-11-01):* `FileSystem` with `NativeFs` and `MemoryFs` in the core; the sandbox,
+    MCP and the web module use files in memory; extensions that open files themselves
+    check `disk_files()` (see "Next session").
 14. **Practical glue:** an HTTP client, regular expressions, starting processes. Useful,
     but dependencies and risks, so separate extensions, under the capabilities of step 4.
 15. **Later, as hobby projects:** graphics, Windows words and the FFI (as designed above),

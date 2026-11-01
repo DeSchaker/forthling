@@ -18,7 +18,7 @@ cp web/target/wasm32-unknown-unknown/release/forthling_web.wasm web/www/forthlin
 ```
 
 `web/www/` then holds the whole site: `index.html` (the playground), `worker.js`,
-`forthling.js` and `forthling.wasm` (some 420 KB). Serve it with any web server, for
+`forthling.js` and `forthling.wasm` (some 450 KB). Serve it with any web server, for
 example `python -m http.server` in `web/www`, and open http://localhost:8000/. Opening
 `index.html` as a file does not work: the browser loads the module and the worker only
 over http(s). The server must give `.wasm` the type `application/wasm`; most do.
@@ -58,9 +58,22 @@ plays such a record back, word by word, forwards and back, with the stack before
 each word and jumps to each `BREAK`; WebAssembly cannot wait in the middle of a run, but
 the sandbox makes a run come out the same each time, so the record is what happened.
 
+The session's files are in memory. `INCLUDE`, the FILE words and the block words use
+them, and the page can too:
+
+```js
+forth.writeFile("square.fs", ": SQUARE DUP * ;");
+forth.eval("INCLUDE square.fs 7 SQUARE .");   // output: "49 "
+forth.readFile("square.fs");                    // ": SQUARE DUP * ;", or null for no such file
+forth.files();                                  // [{ name: "square.fs", size: 16 }]
+```
+
+`writeFile` throws when the files would pass 4 MiB in all; `reset()` starts with no
+files.
+
 ## In WebAssembly
 
-- The sandbox: no file access, no terminal input, at most 10 million steps and 1 MiB of
+- The sandbox: files only in memory (at most 4 MiB, gone at `reset()`), no terminal input, at most 10 million steps and 1 MiB of
   output per run and 4 MiB of definitions and the like in all. WebAssembly has no clock
   for a time limit, so the steps are the limit there.
 - `MS` does nothing (WebAssembly cannot sleep); `TIME&DATE` has the time of the page

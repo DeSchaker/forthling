@@ -49,11 +49,31 @@ test("the sandbox holds in the browser", async () => {
   const started = Date.now();
   assert.equal(forth.eval(": FOREVER BEGIN AGAIN ; FOREVER").error.code, -258);
   assert.ok(Date.now() - started < 10_000);
-  assert.equal(forth.eval("INCLUDE x.fs").error.code, -259);
-  assert.equal(forth.eval("S\" x.txt\" R/O OPEN-FILE . .").output, "-259 0 ");
+  // Files are in memory only.
+  assert.equal(forth.eval("INCLUDE x.fs").error.code, -38);
+  assert.equal(forth.eval("S\" x.txt\" R/O OPEN-FILE . .").output, "-69 0 ");
   assert.equal(forth.eval("KEY").error.code, -39);
   assert.equal(forth.eval(": STARS 2000000 0 DO 42 EMIT LOOP ; STARS").error.detail, "output");
   assert.equal(forth.eval("1 2 + .").output, "3 ");
+});
+
+test("files live in the session's memory", async () => {
+  const forth = await fresh();
+  forth.writeFile("lib/square.fs", ": SQUARE DUP * ;");
+  forth.writeFile("main.fs", "REQUIRE lib/square.fs 7 SQUARE .");
+  assert.equal(forth.eval("INCLUDE main.fs").output, "49 ");
+  forth.eval("S\" out.txt\" W/O CREATE-FILE THROW S\" héllo\" ROT WRITE-LINE THROW");
+  assert.equal(forth.readFile("out.txt"), "héllo\n");
+  assert.equal(forth.readFile("none.txt"), null);
+  assert.deepEqual(forth.files(), [
+    { name: "lib/square.fs", size: 16 }, { name: "main.fs", size: 32 }, { name: "out.txt", size: 7 },
+  ]);
+  // Blocks are a file there too.
+  forth.eval("1 BLOCK 1024 BLANK S\" 6 7 * .\" 1 BLOCK SWAP MOVE UPDATE SAVE-BUFFERS");
+  assert.equal(forth.eval("EMPTY-BUFFERS 1 LOAD").output, "42 ");
+  assert.throws(() => forth.writeFile("big", "x".repeat(4 * 1024 * 1024)), /full/);
+  forth.reset();
+  assert.deepEqual(forth.files(), []);
 });
 
 test("what WebAssembly lacks is handled", async () => {

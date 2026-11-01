@@ -10,7 +10,7 @@ const USAGE: &str = "\
 usage: forthling-mcp [options]
 
 An MCP server over stdio: AI agents run Forth through it, always in the
-sandbox, without file access. With Claude Code:
+sandbox, with files only in memory. With Claude Code:
 
   claude mcp add forthling -- forthling-mcp
 

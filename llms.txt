@@ -14,7 +14,8 @@ This file is for language models that write Forth for forthling, mostly through 
 - To look at one place, put `BREAK` there (after `ALSO DEBUG`): it does not stop the program, but the result has `breaks`, the stacks and the running words at each `BREAK` (at most 100).
 - `steps` and `max_depth` in each result tell how many steps the call took and how deep the data stack went: a depth that grows with each pass of a loop shows a value left behind.
 - A line of code, and so a string in `S" "`, is at most 1024 characters. Give larger input, such as a JSON document, as the `data` argument, and read it with `DATA ( -- c-addr u )`, an `ALLOCATE`d copy (`FREE` it). It stays for later calls until another call sends data.
-- Each call may take at most 10000000 steps, 5000 ms and 1048576 bytes of output; the session's definitions and the like at most 4194304 bytes in all. A limit reached throws -258 (detail `steps`, `time` or `output`); `CATCH` cannot go on after it. There is no file access (-259).
+- Files are in memory, never on the disk, at most 4194304 bytes in all, and stay until `forth_reset`. Give source files as the `files` argument of `forth_eval`, `{"square.fs": ": SQUARE DUP * ;"}`, then `INCLUDE square.fs`. The FILE words work on them too: `S" out.txt" W/O CREATE-FILE THROW VALUE OUT  S" hi" OUT WRITE-LINE THROW  OUT CLOSE-FILE THROW`, and a later call can read the file back.
+- Each call may take at most 10000000 steps, 5000 ms and 1048576 bytes of output; the session's definitions and the like at most 4194304 bytes in all. A limit reached throws -258 (detail `steps`, `time` or `output`); `CATCH` cannot go on after it.
 
 ## Forth in a few lines
 

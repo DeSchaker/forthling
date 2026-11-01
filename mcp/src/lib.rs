@@ -4,10 +4,11 @@
 //!
 //! The sandbox is enforced here, not by what the model is told: the tools
 //! take only Forth code, no Forth word can change the limits or the
-//! permissions, and no setting of the server opens files or lifts a limit.
+//! permissions, no setting of the server lifts a limit, and the files of a
+//! session are in memory (a `MemoryFs`), never on the disk.
 
 use forthling::{
-    DEFAULT_MEMORY, ErrorContext, Extension, Forth, Limits, Permission, Resume, Throw, TraceEntry,
+    DEFAULT_MEMORY, ErrorContext, Extension, Forth, Limits, MemoryFs, Resume, Throw, TraceEntry,
 };
 use serde_json::{Map, Value, json};
 use std::cell::RefCell;
@@ -41,7 +42,8 @@ struct Breaks {
     dropped: usize,
 }
 
-/// What the server runs Forth with: always every limit, never files.
+/// What the server runs Forth with: always every limit, and files only in
+/// memory.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Settings {
     pub memory: usize,
@@ -108,12 +110,14 @@ pub struct Server {
     forth: Forth,
     data: Rc<RefCell<Vec<u8>>>, // the latest data of forth_eval, which DATA gives
     breaks: Rc<RefCell<Breaks>>, // the BREAKs of the current call
+    files: MemoryFs,            // the session's files
 }
 
 impl Server {
     pub fn new(settings: Settings) -> Self {
-        let (data, breaks) = (Rc::default(), Rc::default());
-        Server { settings, forth: sandbox(&settings, &data, &breaks), data, breaks }
+        let (data, breaks, files) = (Rc::default(), Rc::default(), files());
+        let forth = sandbox(&settings, &data, &breaks, &files);
+        Server { settings, forth, data, breaks, files }
     }
 
     /// Answers one message; None for a notification, which gets no answer.
@@ -168,7 +172,7 @@ impl Server {
             Some(_) => return Err((INVALID_PARAMS, "arguments must be an object".into())),
         };
         let allowed: &[&str] = match name {
-            "forth_eval" => &["code", "data", "trace"],
+            "forth_eval" => &["code", "data", "files", "trace"],
             "forth_stack" | "forth_words" | "forth_reset" => &[],
             _ => return Err((INVALID_PARAMS, format!("unknown tool {name}"))),
         };
@@ -192,6 +196,24 @@ impl Server {
                         ));
                     }
                     Some(_) => return Err((INVALID_PARAMS, "data must be a string".into())),
+                }
+                match args.get("files") {
+                    None => {}
+                    Some(Value::Object(files)) => {
+                        let Some(texts) =
+                            files.values().map(Value::as_str).collect::<Option<Vec<_>>>()
+                        else {
+                            return Err((INVALID_PARAMS, "each file must be a string".into()));
+                        };
+                        for (name, text) in files.keys().zip(texts) {
+                            self.files
+                                .insert(name, text)
+                                .map_err(|e| (INVALID_PARAMS, format!("file {name}: {e}")))?;
+                        }
+                    }
+                    Some(_) => {
+                        return Err((INVALID_PARAMS, "files must be an object of texts".into()));
+                    }
                 }
                 let trace = match args.get("trace") {
                     None | Some(Value::Bool(false)) => false,
@@ -241,23 +263,32 @@ impl Server {
             }
             _ => {
                 self.data.borrow_mut().clear();
-                self.forth = sandbox(&self.settings, &self.data, &self.breaks);
+                self.files = files();
+                self.forth = sandbox(&self.settings, &self.data, &self.breaks, &self.files);
                 Ok(state(&self.forth, "", None))
             }
         }
     }
 }
 
-/// A Forth system in the sandbox, with the JSON words, the word DATA and,
-/// with the feature `sqlite`, the SQLite words for databases in memory.
+/// The files of a new session: none, and room for `MemoryFs::SANDBOX_LIMIT`
+/// bytes.
+fn files() -> MemoryFs {
+    MemoryFs::with_limit(MemoryFs::SANDBOX_LIMIT)
+}
+
+/// A Forth system in the sandbox, with the files in memory, the JSON words,
+/// the word DATA and, with the feature `sqlite`, the SQLite words for
+/// databases in memory.
 fn sandbox(
     settings: &Settings,
     data: &Rc<RefCell<Vec<u8>>>,
     breaks: &Rc<RefCell<Breaks>>,
+    files: &MemoryFs,
 ) -> Forth {
     let mut f = Forth::with_memory(settings.memory);
     f.set_limits(settings.limits());
-    f.permit(Permission::Files, false);
+    f.set_file_system(Box::new(files.clone())).expect("no block buffers in use yet");
     // Terminal input would be the protocol itself; KEY and ACCEPT get none.
     f.set_input(Box::new(io::Cursor::new(Vec::new())));
     f.install(&forthling::Json);
@@ -521,13 +552,14 @@ fn tools() -> Value {
         {
             "name": "forth_eval",
             "title": "Run Forth",
-            "description": "Runs Forth-2012 code in the session and returns what it printed, the data stack and the float stack, and the error if there was one. Definitions, variables and the stacks stay for the next call. Large input goes in data, which the code reads with DATA.",
+            "description": "Runs Forth-2012 code in the session and returns what it printed, the data stack and the float stack, and the error if there was one. Definitions, variables, files and the stacks stay for the next call. Large input goes in data, which the code reads with DATA; source files to INCLUDE go in files.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "code": { "type": "string", "description": "Forth source; it may have several lines, each at most 1024 characters" },
                     "trace": { "type": "boolean", "description": "If true, the result also gives a trace: each word that ran (not inside the built-in words), with how deep it was nested and the data stack when it started; at most 1000 words. For finding where code goes wrong." },
                     "data": { "type": "string", "description": "Text for the word DATA ( -- c-addr u ), which gives a copy in ALLOCATEd memory (FREE it); without a line limit, for large input such as JSON. It stays for later calls until another call sends data." },
+                    "files": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Files to put in the session's file system before the code runs, as {\"name\": \"text\"}, replacing files of the same name; the code can INCLUDE them or open them with the FILE words. The files are in memory and stay until forth_reset." },
                 },
                 "required": ["code"],
                 "additionalProperties": false,
@@ -558,7 +590,7 @@ fn tools() -> Value {
         {
             "name": "forth_reset",
             "title": "Start over",
-            "description": "Starts a new Forth session: every definition, variable and stack value is gone, and so is the data.",
+            "description": "Starts a new Forth session: every definition, variable and stack value is gone, and so are the data and the files.",
             "inputSchema": no_arguments,
             "outputSchema": state_schema(),
             "annotations": { "readOnlyHint": false, "destructiveHint": true, "idempotentHint": true, "openWorldHint": false },
@@ -588,10 +620,15 @@ fn instructions(s: &Settings) -> String {
          `ALSO JSON` gives JSON words: `JSON@` reads a path such \
          as `users[0].name` from JSON text, and `JSON{{ S\" key\" JSON-KEY 1 JSON-NUMBER JSON}}` \
          writes JSON.{sqlite} Each call may take at most {} steps, {} ms and {} bytes of output; \
-         the session's definitions and the like at most {} bytes in all; there is no file access.",
+         the session's definitions and the like at most {} bytes in all. Files are in memory, \
+         never on the disk, at most {} bytes in all: INCLUDE, REQUIRE, the FILE words \
+         (`S\" out.txt\" W/O CREATE-FILE`) and BLOCK work on them. Give the code source files \
+         with the `files` argument of forth_eval, {{\"name.fs\": \"text\"}}, and INCLUDE them; \
+         files stay until forth_reset.",
         s.steps,
         s.time.as_millis(),
         s.output,
         s.space,
+        MemoryFs::SANDBOX_LIMIT,
     )
 }

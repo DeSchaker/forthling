@@ -2,7 +2,8 @@
 //! evaluation, and permissions for what a Forth program may reach outside
 //! its memory. They restrict the Forth program, not the host: `include`
 //! called by the host still reads its file, but `INCLUDE` in the program
-//! needs `Permission::Files`.
+//! needs `Permission::Files`. Which files there are is up to the file
+//! system (vfs.rs): the disk, or for `sandboxed` files in memory.
 
 use crate::*;
 use std::time::Duration;
@@ -43,7 +44,8 @@ impl Limits {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum Permission {
-    /// Files: the FILE words, `INCLUDE` and the like, and the block file.
+    /// Files: the FILE words, `INCLUDE` and the like, and the block file,
+    /// in the file system the host set (`set_file_system`).
     Files,
 }
 
@@ -101,13 +103,14 @@ fn limit_reached(what: &str) -> Throw {
 }
 
 impl Forth {
-    /// A system for programs that are not trusted: no files, no terminal
-    /// input (`set_input` gives it some), and the limits of
-    /// `Limits::SANDBOX`.
+    /// A system for programs that are not trusted: files only in memory
+    /// (an empty `MemoryFs` of at most `MemoryFs::SANDBOX_LIMIT` bytes; give
+    /// it files of your own with `set_file_system`), no terminal input
+    /// (`set_input` gives it some), and the limits of `Limits::SANDBOX`.
     pub fn sandboxed() -> Self {
         let mut f = Forth::new();
         f.set_limits(Limits::SANDBOX);
-        f.permit(Permission::Files, false);
+        f.vfs = Box::new(MemoryFs::with_limit(MemoryFs::SANDBOX_LIMIT));
         f.set_input(Box::new(io::Cursor::new(Vec::new())));
         f
     }

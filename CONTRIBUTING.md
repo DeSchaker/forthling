@@ -71,8 +71,9 @@ latest stable Rust, on Linux and Windows.
 - `pop_str()` pops and checks a string ( c-addr u ).
 - Output goes through `emit_bytes`, `emit_memory` or `emit_str`, never straight into the
   output buffer, so the output limit of the sandbox holds. Code that reaches a file checks
-  `Permission::Files` first (`need`, or `permits` for a word with an ior), and so does
-  an extension. A word that handles much data at once calls `charge(bytes)` before the
+  `Permission::Files` first (`need`, or `permits` for a word with an ior) and opens it
+  through the file system (`self.vfs`, see `src/vfs.rs`), never with `std::fs`; an
+  extension that opens files itself checks `disk_files()`. A word that handles much data at once calls `charge(bytes)` before the
   work, so the time limit holds. A word of the program is made with `new_word`, not
   `define`, and whatever else grows outside Forth memory is counted in `space_used` and
   checked with `check_space`. See `src/sandbox.rs`. An extension uses the public

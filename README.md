@@ -17,8 +17,9 @@ to install.
 - **The whole standard.** All word sets of Forth-2012, from CORE to FLOATING, pass the
   Forth-2012 test suite, so standard code from books and tutorials runs as written. See
   [Standard compliance](#standard-compliance).
-- **Safe to play with.** A sandbox puts limits on steps, time and output, and keeps files
-  out of reach. A runaway loop stops with an error instead of hanging, and gives the same
+- **Safe to play with.** A sandbox puts limits on steps, time and output, and keeps the
+  disk out of reach: files live in memory there, so a program can still write, read and
+  `INCLUDE` them. A runaway loop stops with an error instead of hanging, and gives the same
   result on every machine. See [Sandbox](#sandbox).
 - **Small and clean.** The core has no dependencies and no `unsafe`, and its memory is
   bounded.
@@ -224,8 +225,7 @@ let error = forth.interpret(": FOREVER BEGIN AGAIN ; FOREVER").unwrap_err();
 assert_eq!(error.to_string(), "error -258: limit exceeded: steps");
 ```
 
-`Forth::sandboxed()` permits no files (the FILE words give the ior -259, `INCLUDE` and the
-block words throw -259), has no terminal input, and limits each evaluation (each call of
+`Forth::sandboxed()` has files only in memory (see [Files](#files)), no terminal input, and limits each evaluation (each call of
 `interpret` or `include`) to 10 million steps, 5 seconds and 1 MiB of output. A step is an
 instruction or a word, and words that handle much data at once (`MOVE`, `SEARCH`, the JSON
 words and the like) count one step per 64 bytes, so the time limit holds for them too.
@@ -233,9 +233,37 @@ Forth memory has its fixed size; what a program makes outside it (definitions an
 code, word lists, `REPLACES` texts, JSON strings) is limited to 4 MiB in all, its
 `space`. `set_limits(Limits { … })` and `permit(Permission::Files, …)` set them one by
 one. A limit that is reached throws -258, and every step after it throws again, so
-`CATCH` cannot go on. The sandbox restricts the Forth program, not the host: `include`
+`CATCH` cannot go on. `permit(Permission::Files, false)` takes files away altogether (the
+FILE words give the ior -259, `INCLUDE` and the block words throw -259); the program's
+`--sandbox` does that. The sandbox restricts the Forth program, not the host: `include`
 called by the host still reads its file. Extensions follow the permissions too; SQLite
-then only opens `:memory:`.
+opens only `:memory:` unless the program may use the disk (`Forth::disk_files()`).
+
+### Files
+
+The FILE words, `INCLUDE` and the like, the block file and the host's `include` go
+through a file system that the host chooses with `set_file_system`: `NativeFs`, the disk
+(the default), `MemoryFs`, files in memory, or a `FileSystem` of its own, such as files
+in a database or the browser's storage. A `MemoryFs` and its clones share their files, so
+the host can put files in and read back what the program wrote:
+
+```rust
+use forthling::{Forth, MemoryFs};
+
+let files = MemoryFs::new();
+files.insert("square.fs", ": SQUARE DUP * ;").unwrap();
+let mut forth = Forth::sandboxed();
+forth.set_file_system(Box::new(files.clone())).unwrap();
+forth.interpret("INCLUDE square.fs  S\" out.txt\" W/O CREATE-FILE THROW VALUE OUT").unwrap();
+forth.interpret("7 SQUARE 0 <# #S #> OUT WRITE-FILE THROW  OUT CLOSE-FILE THROW").unwrap();
+assert_eq!(files.get("out.txt").unwrap(), b"49");
+```
+
+In a `MemoryFs` a name is a path in which `/` and `\` both separate the parts, so
+`lib/../square.fs` is `square.fs`; `MemoryFs::with_limit(bytes)` caps the files in all,
+and a write past it fails with the word's ior. `Forth::sandboxed()` starts with an empty
+one of 4 MiB (`MemoryFs::SANDBOX_LIMIT`), and so does each session of the MCP server and
+the playground.
 
 ### Error reports
 
@@ -347,7 +375,7 @@ the same each time, the record is what happened.
 
 ### In the browser
 
-`web/` compiles forthling to WebAssembly (about 420 KB, no dependencies, no wasm-bindgen)
+`web/` compiles forthling to WebAssembly (about 450 KB, no dependencies, no wasm-bindgen)
 and has a playground page: Forth in the browser, on the visitor's own computer, in the
 sandbox. Try it at **https://deschaker.github.io/forthling/**; see
 [web/README.md](web/README.md).
@@ -355,8 +383,8 @@ sandbox. Try it at **https://deschaker.github.io/forthling/**; see
 ### For AI agents (MCP)
 
 `mcp/` holds `forthling-mcp`, an [MCP](https://modelcontextprotocol.io/) server: AI agents
-run Forth through it, in a session that keeps their definitions, always in the sandbox and
-without file access. With Claude Code: `claude mcp add forthling -- forthling-mcp`. Its
+run Forth through it, in a session that keeps their definitions and files, always in the
+sandbox, with files only in memory. With Claude Code: `claude mcp add forthling -- forthling-mcp`. Its
 tools are `forth_eval`, `forth_stack`, `forth_words` and `forth_reset`; each result has
 the output and the stacks as text and as JSON. See [mcp/README.md](mcp/README.md), also
 for what enforces the sandbox when a user asks the AI to get around it.

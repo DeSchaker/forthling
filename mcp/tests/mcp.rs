@@ -46,7 +46,7 @@ fn initialize_and_list() {
     assert_eq!(init["result"]["serverInfo"]["name"], "forthling");
     assert!(init["result"]["capabilities"]["tools"].is_object());
     let instructions = init["result"]["instructions"].as_str().unwrap();
-    assert!(instructions.contains("10000000 steps") && instructions.contains("no file access"));
+    assert!(instructions.contains("10000000 steps") && instructions.contains("never on the disk"));
     let unknown = ask(&mut s, "initialize", json!({ "protocolVersion": "1999-01-01" }));
     assert_eq!(unknown["result"]["protocolVersion"], LATEST);
     // A notification gets no answer.
@@ -144,12 +144,16 @@ fn the_sandbox_holds() {
     let code =
         |s: &mut Server, forth: &str| eval(s, forth)["structuredContent"]["error"]["code"].clone();
     assert_eq!(code(&mut s, ": FOREVER BEGIN AGAIN ; FOREVER"), -258);
-    assert_eq!(code(&mut s, "INCLUDE secrets.fs"), -259);
+    // Files are in memory: those on the disk are not there.
+    assert_eq!(code(&mut s, "INCLUDE Cargo.toml"), -38);
     assert_eq!(
-        eval(&mut s, "S\" secrets.txt\" R/O OPEN-FILE . .")["structuredContent"]["output"],
-        "-259 0 "
+        eval(&mut s, "S\" Cargo.toml\" R/O OPEN-FILE . .")["structuredContent"]["output"],
+        "-69 0 "
     );
-    assert_eq!(code(&mut s, "1 BLOCK"), -259);
+    let r = eval(&mut s, "S\" Cargo.toml\" DELETE-FILE . 1 BLOCK DROP UPDATE SAVE-BUFFERS");
+    assert_eq!(r["structuredContent"]["output"], "-64 ");
+    assert!(std::path::Path::new("Cargo.toml").exists());
+    assert!(!std::path::Path::new("blocks.fb").exists());
     // KEY gets no input: it must not read the protocol on stdin.
     assert_eq!(code(&mut s, "KEY"), -39);
     #[cfg(feature = "sqlite")]
@@ -166,6 +170,27 @@ fn the_sandbox_holds() {
     assert_eq!(r["structuredContent"]["output"], "[1]");
     // A limit of one call does not carry over to the next.
     assert_eq!(eval(&mut s, "1 2 + .")["structuredContent"]["output"], "3 ");
+}
+
+#[test]
+fn files_go_in_and_stay_until_reset() {
+    let mut s = server();
+    let files = json!({ "lib/square.fs": ": SQUARE DUP * ;", "main.fs": "REQUIRE lib/square.fs 9 SQUARE ." });
+    let r = call(&mut s, "forth_eval", json!({ "code": "INCLUDE main.fs", "files": files }));
+    assert_eq!(r["structuredContent"]["output"], "81 ");
+    // What the code writes, a later call reads.
+    eval(&mut s, "S\" out.txt\" W/O CREATE-FILE THROW S\" saved\" ROT WRITE-FILE THROW");
+    let read =
+        "CREATE B 20 ALLOT S\" out.txt\" R/O OPEN-FILE THROW B 20 ROT READ-FILE THROW B SWAP TYPE";
+    assert_eq!(eval(&mut s, read)["structuredContent"]["output"], "saved");
+    call(&mut s, "forth_reset", json!({}));
+    assert_eq!(eval(&mut s, "INCLUDE main.fs")["structuredContent"]["error"]["code"], -38);
+    // Files must be texts, and fit.
+    let bad = |files: Value| json!({ "name": "forth_eval", "arguments": { "code": "1", "files": files } });
+    assert_eq!(error_code(&ask(&mut s, "tools/call", bad(json!({ "a": 1 })))), -32602);
+    assert_eq!(error_code(&ask(&mut s, "tools/call", bad(json!(["a"])))), -32602);
+    let big = "x".repeat(forthling::MemoryFs::SANDBOX_LIMIT + 1);
+    assert_eq!(error_code(&ask(&mut s, "tools/call", bad(json!({ "big": big })))), -32602);
 }
 
 #[test]

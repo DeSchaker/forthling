@@ -28,10 +28,10 @@ it beforehand; a test keeps the limits in both the same.
 
 | Tool | Arguments | |
 |---|---|---|
-| `forth_eval` | `code`, `data`, `trace` | runs Forth code; returns the output, the data and float stacks, and the error if there was one |
+| `forth_eval` | `code`, `data`, `files`, `trace` | runs Forth code; returns the output, the data and float stacks, and the error if there was one |
 | `forth_stack` | | the stacks, without running anything |
 | `forth_words` | | the words defined in this session, the latest first |
-| `forth_reset` | | a new session: every definition, stack value and the data are gone |
+| `forth_reset` | | a new session: every definition, stack value, the data and the files are gone |
 
 A line of code, and so a string in `S"`, is at most 1024 characters. Larger input, such
 as a JSON document, goes in `data`: the code reads it with `DATA ( -- c-addr u )`, which
@@ -40,6 +40,17 @@ call sends other data, and may be at most as large as the Forth memory:
 
 ```json
 {"name": "forth_eval", "arguments": {"code": "ALSO JSON DATA JSON-LENGTH .", "data": "[[59],[73,41]]"}}
+```
+
+Each session has files of its own, in memory and never on the disk: `INCLUDE`, `REQUIRE`,
+the FILE words and the block words use them, and they stay until `forth_reset`. `files`
+puts files there before the code runs, as an object of names and texts, replacing files of
+the same name; so an agent can give a library once and `INCLUDE` it, and what the code
+writes, a later call can read. The files take at most 4 MiB in all; a write past that
+fails with the word's ior, and `files` that do not fit are refused.
+
+```json
+{"name": "forth_eval", "arguments": {"code": "INCLUDE square.fs 7 SQUARE .", "files": {"square.fs": ": SQUARE DUP * ;"}}}
 ```
 
 Each result is text the way the REPL shows it:
@@ -113,7 +124,7 @@ grow larger than the Forth memory); without the Cargo feature `sqlite`
 
 ## The sandbox
 
-Every session runs in forthling's sandbox: no file access, and each call at most
+Every session runs in forthling's sandbox: files only in memory, and each call at most
 10 million steps, 5 seconds and 1 MiB of output; the session's definitions and the like at
 most 4 MiB in all. The options change these limits, each up to a ceiling the program
 fixes:

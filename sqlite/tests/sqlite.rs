@@ -130,7 +130,7 @@ fn the_sandbox_keeps_sql_away_from_files() {
     let mut f = Forth::sandboxed();
     f.install(&Sqlite);
     let open = format!("ALSO SQLITE S\" {name}\" DB-OPEN . . DB-ERROR TYPE");
-    assert_eq!(run(&mut f, &open), format!("-259 0 DB-OPEN {name}: no file access"));
+    assert_eq!(run(&mut f, &open), format!("-259 0 DB-OPEN {name}: no files on the disk"));
     run(&mut f, "S\" :memory:\" DB-OPEN THROW VALUE DB");
     let attach = format!("S\" ATTACH '{name}' AS other\" DB DB-EXEC .");
     assert_eq!(run(&mut f, &attach), "-260 ");

@@ -1,6 +1,6 @@
 //! The Forth-2012 test suite (tests/forth2012-test-suite, see ROADMAP.md).
 
-use forthling::Forth;
+use forthling::{Forth, MemoryFs};
 use std::path::{Path, PathBuf};
 use std::{env, fs, io, process};
 
@@ -54,17 +54,39 @@ fn suite_core() {
 /// that no test failed, and returns the output; None when the suite is
 /// missing.
 fn run_suite(test_files: &[&str]) -> Option<String> {
+    run_suite_on(test_files, false)
+}
+
+/// Runs the suite as `run_suite`, with `in_memory` in a `MemoryFs` that
+/// holds the suite's files by their names: the files the tests write and
+/// the block file never reach the disk.
+fn run_suite_on(test_files: &[&str], in_memory: bool) -> Option<String> {
     let mut files = vec!["tester.fr", "core.fr", "coreplustest.fth", "utilities.fth"];
     files.push("errorreport.fth");
     files.extend(test_files);
-    let paths = files.iter().map(|name| suite_file(name)).collect::<Option<Vec<_>>>()?;
+    let mut paths = files.iter().map(|name| suite_file(name)).collect::<Option<Vec<_>>>()?;
     let mut f = Forth::new();
     // core.fr's ACCEPT test asks for a line of input
     f.set_input(Box::new(io::Cursor::new(b"typed line\n".to_vec())));
     // blocktest.fth writes blocks; keep them out of the project directory
     let name = Path::new(test_files[0]).file_name().unwrap().to_string_lossy();
     let blocks = env::temp_dir().join(format!("forthling-{}-{name}.fb", process::id()));
-    f.set_block_file(&blocks).unwrap();
+    if in_memory {
+        // All of them, since filetest.fth also includes helpers.
+        let vfs = MemoryFs::new();
+        let dir = Path::new(&paths[0]).parent().unwrap();
+        for entry in fs::read_dir(dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_file() {
+                let name = path.file_name().unwrap().to_string_lossy();
+                vfs.insert(&name, fs::read(&path).unwrap()).unwrap();
+            }
+        }
+        f.set_file_system(Box::new(vfs)).unwrap();
+        paths = files.iter().map(|name| name.to_string()).collect();
+    } else {
+        f.set_block_file(&blocks).unwrap();
+    }
     let result = paths.iter().try_for_each(|path| f.include(path));
     fs::remove_file(&blocks).ok();
     let out = output(f);
@@ -138,6 +160,15 @@ fn suite_search() {
 #[test]
 fn suite_block() {
     let Some(out) = run_suite(&["blocktest.fth"]) else { return };
+    assert!(out.contains("End of Block word tests"), "{out}");
+}
+
+/// The FILE and BLOCK tests again, with files in memory (vfs.rs).
+#[test]
+fn suite_file_access_in_memory() {
+    let Some(out) = run_suite_on(&["coreexttest.fth", "filetest.fth"], true) else { return };
+    assert!(out.contains("End of File-Access word set tests"), "{out}");
+    let Some(out) = run_suite_on(&["blocktest.fth"], true) else { return };
     assert!(out.contains("End of Block word tests"), "{out}");
 }
 

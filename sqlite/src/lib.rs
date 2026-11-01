@@ -18,7 +18,7 @@
 //! A statement runs at its first DB-STEP, which reads all its rows; the
 //! next DB-STEPs hand them out one by one.
 
-use forthling::{Cell, Extension, Forth, NOT_PERMITTED, Permission, Res, Throw};
+use forthling::{Cell, Extension, Forth, NOT_PERMITTED, Res, Throw};
 use rusqlite::limits::Limit;
 use rusqlite::types::Value;
 use rusqlite::{Connection, params_from_iter};
@@ -115,7 +115,7 @@ impl State {
     /// cannot grow larger than the Forth memory.
     fn open(&mut self, path: &str, files: bool, room: usize) -> Result<Cell, Failure> {
         if !files && path != ":memory:" {
-            return Err(Failure(NOT_PERMITTED, format!("DB-OPEN {path}: no file access")));
+            return Err(Failure(NOT_PERMITTED, format!("DB-OPEN {path}: no files on the disk")));
         }
         let conn = Connection::open(path)?;
         if !files {
@@ -283,11 +283,12 @@ impl Extension for Sqlite {
 
     fn install(&self, f: &mut Forth) {
         // DB-OPEN ( c-addr u -- db ior ): opens or creates a database file;
-        // :memory: is a database in memory, the only kind without
-        // Permission::Files.
+        // :memory: is a database in memory, the only kind unless the
+        // program may use the disk (Permission::Files and the disk as its
+        // file system; a database file does not go through the file system).
         word(f, "DB-OPEN", |f| {
             let path = pop_text(f)?;
-            let (files, room) = (f.permits(Permission::Files), f.memory().len());
+            let (files, room) = (f.disk_files(), f.memory().len());
             let result = f.state::<State>().open(&path, files, room);
             push_value_ior(f, result);
             Ok(())

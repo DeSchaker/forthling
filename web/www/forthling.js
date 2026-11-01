@@ -10,6 +10,14 @@
 //
 //   forth.eval(code, { trace: 10000 })   // also records the words that ran:
 //   // trace: [{ word, depth, stack, stack_depth }, ...], trace_dropped
+//
+// The session's files are in memory (at most 4 MiB); INCLUDE, the FILE words
+// and BLOCK use them, and so can the page:
+//
+//   forth.writeFile("square.fs", ": SQUARE DUP * ;");
+//   forth.eval("INCLUDE square.fs 7 SQUARE .");   // output: "49 "
+//   forth.readFile("square.fs");                    // the text, or null
+//   forth.files();                                  // [{ name, size }, ...]
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -51,6 +59,35 @@ export class Forth {
   /** The words defined in the session, the latest first. */
   words() {
     return this.#answer(this.#wasm.fl_words());
+  }
+
+  /** Puts a file in the session's files; throws when it does not fit. */
+  writeFile(name, text) {
+    const nameBytes = encoder.encode(name);
+    const contents = typeof text === "string" ? encoder.encode(text) : text;
+    this.#input(nameBytes.length + contents.length, (bytes) => {
+      bytes.set(nameBytes);
+      bytes.set(contents, nameBytes.length);
+    });
+    const failed = this.#answer(this.#wasm.fl_write_file(nameBytes.length));
+    if (failed !== null) throw new Error(failed);
+  }
+
+  /** The text of a file of the session, or null when there is none. */
+  readFile(name) {
+    const bytes = encoder.encode(name);
+    this.#input(bytes.length, (input) => input.set(bytes));
+    return this.#answer(this.#wasm.fl_read_file());
+  }
+
+  /** The session's files: [{ name, size }], sorted by name. */
+  files() {
+    return this.#answer(this.#wasm.fl_files());
+  }
+
+  #input(length, fill) {
+    const at = this.#wasm.fl_input(length);
+    fill(new Uint8Array(this.#wasm.memory.buffer, at, length));
   }
 
   #answer(length) {

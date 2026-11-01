@@ -5,9 +5,10 @@
 //! The page writes the code into the input buffer (`fl_input` gives room for
 //! it), calls `fl_eval`, and reads the answer, a JSON text, from `fl_answer`.
 //! The answer has the same shape as a result of the MCP server: `output`,
-//! `stack`, `fstack`, `compiling` and `error`.
+//! `stack`, `fstack`, `compiling` and `error`. The session's files are in
+//! memory; `fl_write_file`, `fl_read_file` and `fl_files` reach them.
 
-use forthling::{Debugger, Forth, Json, Throw, TraceEntry};
+use forthling::{Debugger, Forth, Json, MemoryFs, Throw, TraceEntry};
 use std::cell::{Cell, RefCell};
 
 thread_local! {
@@ -16,13 +17,18 @@ thread_local! {
     static ANSWER: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
     static NOW: Cell<u64> = const { Cell::new(0) }; // seconds since 1970, from the page
     static RECORD: Cell<usize> = const { Cell::new(0) }; // trace entries to record, 0 for none
+    static FILES: RefCell<MemoryFs> = RefCell::new(MemoryFs::new()); // the session's files
 }
 
-/// A new session: the sandbox (no files, no terminal input, 10 million
-/// steps and 1 MiB of output per run; WebAssembly has no clock for a time
-/// limit), the JSON words, TRACE-ON and TRACE-OFF, and the time of the page for TIME&DATE.
+/// A new session: the sandbox (files only in memory, at most 4 MiB, no
+/// terminal input, 10 million steps and 1 MiB of output per run;
+/// WebAssembly has no clock for a time limit), the JSON words, TRACE-ON and
+/// TRACE-OFF, and the time of the page for TIME&DATE.
 fn session() -> Forth {
     let mut f = Forth::sandboxed();
+    let files = MemoryFs::with_limit(MemoryFs::SANDBOX_LIMIT);
+    f.set_file_system(Box::new(files.clone())).expect("no block buffers in use yet");
+    FILES.with(|f| *f.borrow_mut() = files);
     f.install(&Json);
     f.install(&Debugger);
     f.set_clock(|| NOW.with(Cell::get));
@@ -100,6 +106,45 @@ pub extern "C" fn fl_words() -> usize {
         format!("[{}]", names.join(","))
     });
     set_answer(words)
+}
+
+/// Puts a file in the session's files, replacing one of the same name: the
+/// input is its name (`name_len` bytes), then its contents. The answer is
+/// `null`, or the reason it failed as a JSON string; returns its length.
+#[unsafe(no_mangle)]
+pub extern "C" fn fl_write_file(name_len: usize) -> usize {
+    with_session(|_| ());
+    let input = INPUT.with(|i| i.borrow().clone());
+    let (name, contents) = input.split_at(name_len.min(input.len()));
+    let name = String::from_utf8_lossy(name);
+    let result = FILES.with(|f| f.borrow().insert(&name, contents));
+    set_answer(result.map_or_else(|e| quoted(&format!("{name}: {e}")), |()| "null".into()))
+}
+
+/// The contents of the file named by the input, as a JSON string (invalid
+/// UTF-8 replaced), or `null` when there is none; returns the length.
+#[unsafe(no_mangle)]
+pub extern "C" fn fl_read_file() -> usize {
+    with_session(|_| ());
+    let name = INPUT.with(|i| String::from_utf8_lossy(&i.borrow()).into_owned());
+    let contents = FILES.with(|f| f.borrow().get(&name));
+    set_answer(contents.map_or_else(|| "null".into(), |c| quoted(&String::from_utf8_lossy(&c))))
+}
+
+/// The session's files as a JSON array of `{"name", "size"}`, sorted by
+/// name; returns the length.
+#[unsafe(no_mangle)]
+pub extern "C" fn fl_files() -> usize {
+    with_session(|_| ());
+    let files = FILES.with(|f| {
+        let f = f.borrow();
+        let sizes = f.paths().into_iter().map(|p| {
+            let size = f.get(&p).map_or(0, |c| c.len());
+            format!("{{\"name\":{},\"size\":{size}}}", quoted(&p))
+        });
+        sizes.collect::<Vec<_>>().join(",")
+    });
+    set_answer(format!("[{files}]"))
 }
 
 /// Where the latest answer is.

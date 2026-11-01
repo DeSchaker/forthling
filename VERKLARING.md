@@ -317,7 +317,9 @@ Keuzes van de implementatie:
   verder bij de volgende `READ-LINE`. `WRITE-LINE` sluit regels af met LF.
 - **Vorm van bestandsnamen**: de paden van het besturingssysteem, ten opzichte van de
   huidige map. `INCLUDED` en `REQUIRED` zoeken een relatieve naam ook naast het bestand
-  dat wordt ingelezen.
+  dat wordt ingelezen. Een host kan een ander bestandssysteem achter de FILE-woorden
+  zetten (zie Zandbak); in dat in het geheugen is een naam een pad waarin `/` en `\`
+  allebei de delen scheiden en `.` en `..` gewoon werken.
 - **Wat `FILE-STATUS` geeft**: x is altijd 0; de ior is 0 als het bestand bestaat, anders
   -67.
 - **Invoer na een uitzondering in `INCLUDE-FILE` of `INCLUDED`**: het bestand wordt
@@ -547,10 +549,17 @@ beschrijft. In de zandbak:
   erover zou gaan, vervalt. Een bereikte limiet gooit -258; elke stap daarna gooit opnieuw, zodat een `CATCH` het wel
   ziet maar niet verder kan. Uitvoer voorbij de limiet vervalt. `MS` dat de tijdlimiet
   zou passeren, gooit meteen. In WebAssembly bestaat de tijdlimiet niet.
+- **Bestanden** zijn die van het bestandssysteem dat de host geeft (`set_file_system`):
+  standaard de schijf, in `Forth::sandboxed()` en de MCP-server bestanden in het geheugen
+  (samen hoogstens 4 MiB; een schrijfactie daarboven mislukt met de ior van het woord),
+  zodat een programma daar bestanden kan schrijven, lezen en `INCLUDE`n zonder de schijf
+  te bereiken. De FILE-woorden, `INCLUDE` en dergelijke, het blokbestand en `include` van
+  de host gebruiken het allemaal.
 - **Zonder `Permission::Files`** geven de FILE-woorden die een bestand noemen
   (`OPEN-FILE`, `CREATE-FILE`, `DELETE-FILE`, `RENAME-FILE`, `FILE-STATUS`) de ior -259;
   `INCLUDE`, `INCLUDED`, `REQUIRE`, `REQUIRED` en de BLOCK-woorden, die geen ior hebben,
-  gooien -259. Een bestand dat de host zelf inleest, wordt nog wel gelezen.
+  gooien -259. Een bestand dat de host zelf inleest, wordt nog wel gelezen. `--sandbox`
+  in het programma neemt bestanden op deze manier weg.
 
 ## Extensies
 

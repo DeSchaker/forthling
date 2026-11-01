@@ -127,7 +127,8 @@ fn files_can_be_forbidden() {
 fn a_sandboxed_system() {
     let mut f = Forth::sandboxed();
     assert_eq!(f.limits(), Limits::SANDBOX);
-    assert!(!f.permits(Permission::Files));
+    // Files, but only in memory (tests/vfs.rs).
+    assert!(f.permits(Permission::Files));
     assert_eq!(fails(&mut f, "KEY").code, -39); // no terminal input: end of input
     assert_eq!(fails(&mut f, ": FOREVER BEGIN AGAIN ; FOREVER").code, LIMIT_EXCEEDED);
     f.interpret(": SQUARE DUP * ; 12 SQUARE .").unwrap();

@@ -27,6 +27,7 @@ mod terminal;
 mod throw;
 mod trace;
 mod typed;
+mod vfs;
 mod words;
 mod xchar;
 
@@ -43,6 +44,7 @@ pub use terminal::Input;
 pub use throw::{LIMIT_EXCEEDED, NOT_PERMITTED, QUIT, Throw};
 pub use trace::{Debugger, TRACE_CELLS, TraceEntry};
 pub use typed::{FromForth, IntoForth};
+pub use vfs::{Access, FileHandle, FileSystem, MemoryFs, NativeFs};
 
 // Every module starts with `use crate::*;`, so these make the items of all
 // modules, and the std items most of them need, available everywhere.
@@ -60,6 +62,7 @@ pub(crate) use parse::*;
 pub(crate) use run::*;
 pub(crate) use sandbox::*;
 pub(crate) use stack::*;
+pub(crate) use std::cell::RefCell;
 pub(crate) use std::collections::{HashMap, HashSet};
 pub(crate) use std::io::{self, BufRead};
 pub(crate) use std::rc::Rc;
@@ -116,6 +119,7 @@ pub struct Forth {
     substitutions: HashMap<String, Vec<u8>>, // REPLACES texts, by upper-case name
     files: Vec<Option<OpenFile>>, // open files, indexed by file id - 1
     blocks: Blocks,        // the block file and the block buffers
+    vfs: Box<dyn FileSystem>, // where the files are (vfs.rs)
     included: HashSet<String>, // files INCLUDED so far, for REQUIRED
     extensions: HashMap<String, Cell>, // installed extensions: version by upper-case name
     host_state: HashMap<std::any::TypeId, Box<dyn std::any::Any>>, // see Forth::state
@@ -190,6 +194,7 @@ impl Forth {
             substitutions: HashMap::new(),
             files: Vec::new(),
             blocks: Blocks::new("blocks.fb".into()),
+            vfs: Box::new(NativeFs),
             included: HashSet::new(),
             extensions: HashMap::new(),
             host_state: HashMap::new(),

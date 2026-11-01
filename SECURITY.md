@@ -5,13 +5,15 @@ write and delete files. Running untrusted Forth code that way is therefore unsaf
 not a vulnerability.
 
 For code you do not trust there is the sandbox (`Forth::sandboxed()`, `--sandbox`, or
-`sandbox=True` in Python): no file access from Forth, limits on the steps, the time and
+`sandbox=True` in Python): no files on the disk for Forth (`Forth::sandboxed()` and the
+MCP server give it files in memory instead), limits on the steps, the time and
 the output of each evaluation, and a limit on the space a program takes outside its Forth
-memory. Getting around it is a vulnerability: reaching a file, running on after a limit
+memory. Getting around it is a vulnerability: reaching a file on the disk, running on after a limit
 was reached, one step that takes far longer than the time limit, or memory of the host
 growing past the limits. Words that a host program adds in Rust or Python
 run with the rights of that program; the sandbox cannot restrict them, so a host that
-offers them to untrusted code should check `Forth::permits` as the SQLite words do.
+offers them to untrusted code should check `Forth::permits`, or `Forth::disk_files` before
+it opens a file itself, as the SQLite words do.
 
 The MCP server `forthling-mcp` always runs in the sandbox and has no option to leave it.
 It protects against the Forth code an AI agent sends, not against an agent that also has

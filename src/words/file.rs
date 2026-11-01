@@ -1,8 +1,7 @@
 //! The FILE word set; the ior of a failing file word is its THROW code.
 
 use crate::*;
-use std::fs;
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{Read, SeekFrom};
 
 pub(crate) fn install(f: &mut Forth) {
     f.prim("OPEN-FILE", |f| {
@@ -25,21 +24,21 @@ pub(crate) fn install(f: &mut Forth) {
     });
     f.prim("DELETE-FILE", |f| {
         let name = f.pop_name()?;
-        let removed = f.permits(Permission::Files).then(|| fs::remove_file(name).ok());
+        let removed = f.permits(Permission::Files).then(|| f.vfs.delete(&name).ok());
         f.push(permitted_ior(removed, DELETE_FILE_FAILED));
         Ok(())
     });
     f.prim("RENAME-FILE", |f| {
         let to = f.pop_name()?;
         let from = f.pop_name()?;
-        let renamed = f.permits(Permission::Files).then(|| fs::rename(from, to).ok());
+        let renamed = f.permits(Permission::Files).then(|| f.vfs.rename(&from, &to).ok());
         f.push(permitted_ior(renamed, RENAME_FILE_FAILED));
         Ok(())
     });
     f.prim("FILE-STATUS", |f| {
         let name = f.pop_name()?;
         f.push(0);
-        let status = f.permits(Permission::Files).then(|| fs::metadata(name).ok());
+        let status = f.permits(Permission::Files).then(|| f.vfs.exists(&name).then_some(()));
         f.push(permitted_ior(status, FILE_STATUS_FAILED));
         Ok(())
     });
@@ -51,7 +50,7 @@ pub(crate) fn install(f: &mut Forth) {
     });
     f.prim("FILE-SIZE", |f| {
         let fid = f.pop()?;
-        let size = f.with_file(fid, |file| Ok(file.metadata()?.len()));
+        let size = f.with_file(fid, |file| file.size());
         f.push_size(size, FILE_SIZE_FAILED);
         Ok(())
     });
@@ -65,7 +64,7 @@ pub(crate) fn install(f: &mut Forth) {
     f.prim("RESIZE-FILE", |f| {
         let fid = f.pop()?;
         let size = u64::try_from(f.pop_ud()?).unwrap_or(u64::MAX);
-        let done = f.with_file(fid, |file| file.set_len(size));
+        let done = f.with_file(fid, |file| file.set_size(size));
         f.push(ior(done, RESIZE_FILE_FAILED));
         Ok(())
     });
@@ -78,6 +77,7 @@ pub(crate) fn install(f: &mut Forth) {
     f.prim("READ-FILE", |f| {
         let fid = f.pop()?;
         let (i, n) = f.pop_str()?;
+        f.charge(n)?;
         let mut data = Vec::new();
         let done = f.with_file(fid, |file| file.take(n as u64).read_to_end(&mut data));
         f.mem[i..i + data.len()].copy_from_slice(&data);
@@ -88,6 +88,7 @@ pub(crate) fn install(f: &mut Forth) {
     f.prim("READ-LINE", |f| {
         let fid = f.pop()?;
         let (i, n) = f.pop_str()?;
+        f.charge(n)?;
         let line = f.with_file(fid, |file| read_line_from(file, n));
         let (data, more) = match &line {
             Some(Some(data)) => (&data[..], true),
@@ -103,6 +104,7 @@ pub(crate) fn install(f: &mut Forth) {
         let fid = f.pop()?;
         let (a, n) = f.pop2()?;
         let data = f.bytes(a, n)?;
+        f.charge(data.len())?;
         let done = f.with_file(fid, |file| file.write_all(&data));
         f.push(ior(done, WRITE_FILE_FAILED));
         Ok(())
@@ -112,6 +114,7 @@ pub(crate) fn install(f: &mut Forth) {
         let (a, n) = f.pop2()?;
         let mut data = f.bytes(a, n)?;
         data.push(b'\n');
+        f.charge(data.len())?;
         let done = f.with_file(fid, |file| file.write_all(&data));
         f.push(ior(done, WRITE_LINE_FAILED));
         Ok(())

@@ -1,8 +1,7 @@
 //! Files: file ids, INCLUDED and REQUIRED, and helpers for the FILE words.
 
 use crate::*;
-use std::fs;
-use std::io::{Read, Seek, SeekFrom};
+use std::io::{Read, SeekFrom};
 use std::path::Path;
 
 // File access methods, as R/O and W/O in the prelude; R/W is 2 and BIN adds 4,
@@ -12,13 +11,8 @@ pub(crate) const W_O: Cell = 1;
 
 /// A file opened by OPEN-FILE, CREATE-FILE or INCLUDED; file id n is `files[n - 1]`.
 pub(crate) struct OpenFile {
-    pub(crate) file: fs::File,
+    pub(crate) file: Box<dyn FileHandle>,
     pub(crate) name: String,
-}
-
-/// The name under which REQUIRED remembers a file.
-pub(crate) fn canonical(path: &str) -> String {
-    fs::canonicalize(path).map_or_else(|_| path.to_string(), |p| p.to_string_lossy().into_owned())
 }
 
 /// The ior of a file word: 0 on success, else the word's THROW code.
@@ -29,9 +23,9 @@ pub(crate) fn ior<T>(result: Option<T>, code: Cell) -> Cell {
 /// The core of READ-LINE: reads at most `max` characters of the next line,
 /// without its line ending. Returns None at the end of the file. A line
 /// longer than `max` is continued by the next read.
-pub(crate) fn read_line_from(file: &mut fs::File, max: usize) -> io::Result<Option<Vec<u8>>> {
+pub(crate) fn read_line_from(file: &mut dyn FileHandle, max: usize) -> io::Result<Option<Vec<u8>>> {
     let mut chunk = Vec::new();
-    file.take(max as u64 + 2).read_to_end(&mut chunk)?;
+    Read::take(&mut *file, max as u64 + 2).read_to_end(&mut chunk)?;
     if chunk.is_empty() {
         return Ok(None);
     }
@@ -56,9 +50,10 @@ impl Forth {
 
     fn include_path(&mut self, path: &str) -> Res {
         let path = self.resolve(path);
-        let file =
-            fs::File::open(&path).map_err(|e| Throw::with(NO_SUCH_FILE, format!("{path}: {e}")))?;
-        self.included.insert(canonical(&path));
+        let read = Access { read: true, ..Access::default() };
+        let file = (self.vfs.open(&path, read))
+            .map_err(|e| Throw::with(NO_SUCH_FILE, format!("{path}: {e}")))?;
+        self.included.insert(self.vfs.canonical(&path));
         let fid = self.add_file(file, &path);
         self.include_file(fid)
     }
@@ -66,7 +61,7 @@ impl Forth {
     /// REQUIRED: includes a file unless it was included before.
     pub(crate) fn require(&mut self, path: &str) -> Res {
         let path = self.resolve(path);
-        if self.included.contains(&canonical(&path)) {
+        if self.included.contains(&self.vfs.canonical(&path)) {
             return Ok(());
         }
         self.include(&path)
@@ -75,7 +70,7 @@ impl Forth {
     /// A relative path that does not exist is looked up next to the file
     /// being included, so a file can include its neighbours.
     pub(crate) fn resolve(&self, path: &str) -> String {
-        if Path::new(path).exists() {
+        if self.vfs.exists(path) {
             return path.to_string();
         }
         let including = self.sources.iter().rev().find_map(|s| match s.origin {
@@ -84,7 +79,7 @@ impl Forth {
         });
         let beside = including.and_then(|f| Path::new(&f.name).parent()).map(|dir| dir.join(path));
         match beside {
-            Some(p) if p.exists() => p.to_string_lossy().into_owned(),
+            Some(p) if self.vfs.exists(&p.to_string_lossy()) => p.to_string_lossy().into_owned(),
             _ => path.to_string(),
         }
     }
@@ -127,7 +122,7 @@ impl Forth {
     }
 
     /// Registers an open file and returns its file id, reusing a free one.
-    pub(crate) fn add_file(&mut self, file: fs::File, name: &str) -> Cell {
+    pub(crate) fn add_file(&mut self, file: Box<dyn FileHandle>, name: &str) -> Cell {
         let entry = Some(OpenFile { file, name: name.to_string() });
         match self.files.iter().position(Option::is_none) {
             Some(i) => {
@@ -164,9 +159,9 @@ impl Forth {
     pub(crate) fn with_file<T>(
         &mut self,
         fid: Cell,
-        op: impl FnOnce(&mut fs::File) -> io::Result<T>,
+        op: impl FnOnce(&mut dyn FileHandle) -> io::Result<T>,
     ) -> Option<T> {
-        op(&mut self.open_file_mut(fid)?.file).ok()
+        op(&mut *self.open_file_mut(fid)?.file).ok()
     }
 
     /// Pushes a file position or size as ( ud ior ).
@@ -188,13 +183,10 @@ impl Forth {
             self.push(NOT_PERMITTED);
             return;
         }
-        let mut options = fs::OpenOptions::new();
-        let access = fam & 3;
-        options.read(access != W_O).write(access != R_O || create);
-        if create {
-            options.create(true).truncate(true);
-        }
-        match options.open(name) {
+        let fam = fam & 3;
+        let access =
+            Access { read: fam != W_O, write: fam != R_O || create, create, truncate: create };
+        match self.vfs.open(name, access) {
             Ok(file) => {
                 let fid = self.add_file(file, name);
                 self.push(fid);

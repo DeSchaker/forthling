@@ -2,8 +2,7 @@
 //! memory. LOAD makes a block an input source (see interpreter.rs).
 
 use crate::*;
-use std::fs::{File, OpenOptions};
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{SeekFrom, Write};
 use std::path::PathBuf;
 
 pub(crate) const BLOCK_SIZE: usize = 1024;
@@ -21,7 +20,7 @@ pub(crate) struct BlockBuffer {
 
 pub(crate) struct Blocks {
     path: PathBuf,
-    file: Option<File>,
+    pub(crate) file: Option<Box<dyn FileHandle>>,
     bufs: [BlockBuffer; BLOCK_BUFFERS],
     current: Option<usize>, // the buffer UPDATE marks
     clock: u64,
@@ -109,7 +108,7 @@ impl Forth {
         let err = |e: io::Error| Throw::with(BLOCK_WRITE, e.to_string());
         // Blocks between the end of the file and this one become blank.
         let offset = (b.block - 1) * BLOCK_SIZE as u64;
-        let len = file.metadata().map_err(err)?.len();
+        let len = file.size().map_err(err)?;
         if len < offset {
             file.seek(SeekFrom::End(0)).map_err(err)?;
             file.write_all(&vec![b' '; (offset - len) as usize]).map_err(err)?;
@@ -138,17 +137,16 @@ impl Forth {
     }
 
     /// The block file, opened (and created if need be) on first use.
-    fn block_file(&mut self) -> Res<&mut File> {
+    fn block_file(&mut self) -> Res<&mut dyn FileHandle> {
         if self.blocks.file.is_none() {
             self.need(Permission::Files, || format!("block file {}", self.blocks.path.display()))?;
-            let path = &self.blocks.path;
-            let file =
-                OpenOptions::new().read(true).write(true).create(true).truncate(false).open(path);
-            let file =
-                file.map_err(|e| Throw::with(BLOCK_READ, format!("{}: {e}", path.display())))?;
+            let path = self.blocks.path.to_string_lossy();
+            let access = Access { read: true, write: true, create: true, truncate: false };
+            let file = (self.vfs.open(&path, access))
+                .map_err(|e| Throw::with(BLOCK_READ, format!("{path}: {e}")))?;
             self.blocks.file = Some(file);
         }
-        Ok(self.blocks.file.as_mut().unwrap())
+        Ok(&mut **self.blocks.file.as_mut().unwrap())
     }
 
     /// LOAD: interprets block u, then goes back to the current input.
