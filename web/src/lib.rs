@@ -28,7 +28,7 @@
     clippy::uninlined_format_args
 )]
 
-use forthling::{Debugger, Forth, Json, MemoryFs, Throw, TraceEntry, Tutorial};
+use forthling::{Debugger, Forth, Functional, Json, MemoryFs, Throw, TraceEntry, Tutorial};
 use std::cell::{Cell, RefCell};
 use std::fmt::Write as _;
 
@@ -51,6 +51,7 @@ fn session() -> Forth {
     f.set_file_system(Box::new(files.clone())).expect("no block buffers in use yet");
     FILES.with(|f| *f.borrow_mut() = files);
     f.install(&Json);
+    f.install(&Functional);
     f.install(&forthling_regex::Regex);
     f.install(&Debugger);
     f.install(&Tutorial);

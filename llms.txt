@@ -72,6 +72,23 @@ Reading: `JSON-VALID? ( json -- flag )`, `JSON-TYPE ( json -- n )` (0 null, 1 bo
 
 Writing goes to the output, or between `<JSON` and `JSON>` to a string; the commas come by themselves: `JSON{ JSON} JSON[ JSON]`, `JSON-KEY ( c-addr u -- )`, `JSON-STRING ( c-addr u -- )`, `JSON-NUMBER ( n -- )`, `JSON-FLOAT ( F: r -- )`, `JSON-FLAG ( flag -- )`, `JSON-NULL`, `JSON-RAW ( json -- )`.
 
+## Functional words
+
+`ALSO FUNCTIONAL` gives `MAP FOLD SCAN FILTER RANGE` on the data stack. The loop runs in Rust and the token is called once per item. The token's stack effect is checked after every call. A primitive token (`' +`, `' INVERT`, `' MAX`) is called directly, without the inner interpreter. A quotation of one primitive is the same token.
+
+```forth
+ALSO FUNCTIONAL
+1 6 RANGE [: DUP * ;] MAP 5 ' + FOLD .        \ 55  (RANGE gives 1 2 3 4 5 5)
+1 10 RANGE [: 2 MOD 0= ;] FILTER .S    \ <5> 2 4 6 8 4
+1 2 3 4 4 ' + SCAN .S    \ <9> 2 4 6 8 4 1 3 6 10
+```
+
+- `MAP ( x1 .. xn n xt -- y1 .. yn )`, `xt` is `( x -- y )`.
+- `FOLD ( x1 .. xn n xt -- r )`, `xt` is `( acc x -- acc' )`; `x1` is the first `acc`, so `n` must be at least 1.
+- `SCAN ( x1 .. xn n xt -- r1 .. rn )`: like `FOLD`, keeping every partial result.
+- `FILTER ( x1 .. xn n xt -- y1 .. ym m )`, `xt` is `( x -- flag )`.
+- `RANGE ( a b -- a .. b-1 n )`.
+
 ## Tutorial
 
 `ALSO TUTORIAL` gives a Forth course of 20 lessons, ten for beginners and ten beyond, which an agent can walk a person through: `LESSONS` lists them, `n LESSON` shows lesson n (text, code to try, a task), `CHECK` tests the answer the person defined and says what is still wrong, `HINT` gives a hint and `NEXT` the next lesson.

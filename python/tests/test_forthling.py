@@ -70,6 +70,11 @@ class InterpretTest(unittest.TestCase):
         f = forthling.Forth()
         self.assertEqual(f.interpret('S" FORTHLING-PYTHON" ENVIRONMENT? . .'), "-1 1 ")
 
+    def test_functional(self):
+        f = forthling.Forth()
+        f.interpret("ALSO FUNCTIONAL")
+        self.assertEqual(f.interpret("1 6 RANGE [: DUP * ;] MAP 5 ' + FOLD ."), "55 ")
+
     def test_json(self):
         f = forthling.Forth()
         f.interpret("ALSO JSON")

@@ -110,6 +110,7 @@ test("what WebAssembly lacks is handled", async () => {
   const deep = forth.eval(nest);
   assert.deepEqual([deep.error, deep.output], [null, "0 "]);
   assert.equal(forth.eval("ALSO JSON S\" [1,[2,3]]\" S\" [1][0]\" JSON@ DROP TYPE").output, "2");
+  assert.equal(forth.eval("ALSO FUNCTIONAL 1 6 RANGE [: DUP * ;] MAP 5 ' + FOLD .").output, "55 ");
   // The trace words are installed.
   forth.reset();
   assert.equal(forth.eval("ALSO DEBUG : SQ DUP * ; 3 TRACE-ON SQ TRACE-OFF").output,

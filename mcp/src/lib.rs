@@ -321,6 +321,7 @@ fn sandbox(
     // Terminal input would be the protocol itself; KEY and ACCEPT get none.
     f.set_input(Box::new(io::Cursor::new(Vec::new())));
     f.install(&forthling::Json);
+    f.install(&forthling::Functional);
     f.install(&forthling::Debugger);
     f.install(&forthling::Tutorial);
     // BREAK does not stop the program, which no one is watching: it records
@@ -675,7 +676,8 @@ fn instructions(s: &Settings) -> String {
          forth_eval, and read it in the code with `DATA ( -- c-addr u )`, an ALLOCATEd copy. \
          `ALSO JSON` gives JSON words: `JSON@` reads a path such \
          as `users[0].name` from JSON text, and `JSON{{ S\" key\" JSON-KEY 1 JSON-NUMBER JSON}}` \
-         writes JSON. `ALSO TUTORIAL` gives a Forth course of 20 lessons to walk a person \
+         writes JSON. `ALSO FUNCTIONAL` gives `MAP FOLD SCAN FILTER RANGE` on the data stack, \
+         such as `1 6 RANGE [: DUP * ;] MAP 5 ' + FOLD .` (55). `ALSO TUTORIAL` gives a Forth course of 20 lessons to walk a person \
          through: `LESSONS`, `n LESSON`, `CHECK` (tests their answer), `HINT`, `NEXT`.{sqlite}{regex}{http} \
          Each call may take at most {} steps, {} ms and {} bytes of output; \
          the session's definitions and the like at most {} bytes in all. Files are in memory, \

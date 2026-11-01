@@ -204,6 +204,7 @@ impl PyForth {
             forth.set_file_system(Box::new(files.clone())).expect("no block buffers in use yet");
         }
         forth.install(&forthling::Json);
+        forth.install(&forthling::Functional);
         forth.install(&forthling_regex::Regex);
         let hosts = allow_hosts.unwrap_or_default();
         forth.install(&forthling_http::Http::new().allow_all(hosts.iter().map(String::as_str)));

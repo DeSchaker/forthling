@@ -262,6 +262,36 @@ Writing goes to the output, or between `<JSON` and `JSON>` (which gives `( c-add
 `JSON-FLOAT ( F: r -- )`, `JSON-FLAG ( flag -- )`, `JSON-NULL` and `JSON-RAW ( json -- )`.
 A structure that does not fit, such as a value in an object without its key, throws -22.
 
+### Functional words
+
+The word list `FUNCTIONAL` (`ALSO FUNCTIONAL`) has `MAP`, `FOLD`, `SCAN`, `FILTER` and `RANGE`
+on the data stack. The loop runs in Rust and calls the execution token once per item; the
+stack effect of the token is checked after each call, and the step and time limits apply
+inside it. A primitive token (`' +`, `' INVERT`, or a quotation of one primitive) is called
+directly, without the inner interpreter. The forthling program does not install it; a Rust
+program does with `forth.install(&forthling::Functional)`, as the MCP server, the Python
+module and the playground do.
+
+```forth
+ALSO FUNCTIONAL
+1 6 RANGE [: DUP * ;] MAP 5 ' + FOLD .        \ 55
+1 10 RANGE [: 2 MOD 0= ;] FILTER .S           \ <5> 2 4 6 8 4
+```
+
+| Word | Stack |
+|---|---|
+| `MAP` | `( x1 .. xn n xt -- y1 .. yn )`, `xt` is `( x -- y )` |
+| `FOLD` | `( x1 .. xn n xt -- r )`, `xt` is `( acc x -- acc' )`; `x1` is the first `acc`, so `n` is at least 1 |
+| `SCAN` | `( x1 .. xn n xt -- r1 .. rn )`: like `FOLD`, with every partial result |
+| `FILTER` | `( x1 .. xn n xt -- y1 .. ym m )`, `xt` is `( x -- flag )` |
+| `RANGE` | `( a b -- a .. b-1 n )` |
+
+Measured on 60000 numbers, 100 times, release build: summing with `RANGE ' + FOLD` takes 93 ms,
+against 471 ms for a plain `DO` loop; with a colon word instead of `+` it takes 250 ms. A
+quotation that is not one primitive (`[: DUP * ;] MAP`) goes through the inner interpreter
+and is not faster than a loop (460 ms against 361 ms for a loop with the same work, `MAP`
+and a `FOLD` to add up the result included).
+
 ### Sandbox
 
 Code that is not trusted, from a user or an AI agent, runs in a sandbox:

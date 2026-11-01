@@ -32,6 +32,7 @@ mod debug;
 mod dictionary;
 mod files;
 mod float;
+mod functional;
 mod heap;
 mod host;
 mod interpreter;
@@ -55,6 +56,7 @@ mod xchar;
 mod tests;
 
 pub use debug::{DebugHook, Pause, Reason, Resume};
+pub use functional::Functional;
 pub use host::Extension;
 pub use json::Json;
 pub use memory::{DEFAULT_MEMORY, MAX_MEMORY, MIN_MEMORY};
