@@ -1089,6 +1089,19 @@ positioning and what agents need. The old step 8 (debugging and tracing) became 
     or in a crate of its own. Every example in a lesson is run in forthling, and a test
     checks that the model answer of each task passes `CHECK`. Independent of the other
     steps.
+18. **Evaluate the Rust code with `rust-skills`** (added 2026-11-01, at the maintainer's
+    wish): review the codebase against the rules of the agent skill `rust-skills` by
+    leonardomso (https://github.com/leonardomso/rust-skills). By its own description it
+    has 179 rules in 14 categories, ordered by priority, with ownership and borrowing,
+    error handling and memory optimization as critical. Added with
+    `npx skills add https://github.com/leonardomso/rust-skills --skill rust-skills`.
+    It is third-party code: read the skill before installing it, and install it in the
+    scratchpad or for this project only. The outcome is a report, ordered by priority,
+    of findings that hold for forthling; each fix is then a small change of its own
+    with tests, measured for speed where it touches the inner interpreter, and only
+    after the maintainer's choice. Rules that clash with the conventions in
+    CONTRIBUTING.md (no `unsafe` and no dependencies in the core, Rust 1.85, no let
+    chains) do not apply. Independent of the other steps.
 
 Considered, not planned (2026-10-31):
 - **A prefix or S-expression layer** (`(+ (* 3 4) 2)` compiled to threaded code), for
