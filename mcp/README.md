@@ -133,8 +133,9 @@ answer, `HINT`, `NEXT`).
 
 The JSON words are installed (`ALSO JSON`), and the SQLite words for databases in memory
 (`ALSO SQLITE`, only `:memory:`, which SQL stops when the time is up and which cannot
-grow larger than the Forth memory); without the Cargo feature `sqlite`
-(`--no-default-features`) the server is built without SQLite.
+grow larger than the Forth memory) and the regular expression words (`ALSO REGEX`, which
+match in linear time); without the Cargo features `sqlite` and `regex`
+(`--no-default-features`) the server is built without them.
 
 ## The sandbox
 

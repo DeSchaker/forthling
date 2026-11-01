@@ -497,6 +497,20 @@ V DB-STEP THROW DROP  0 V DB-COLUMN TYPE
 3.53.2 ok
 ```
 
+### Regular expressions
+
+`regex/` adds the word list `REGEX`: `RE-MATCH?`, `RE-FIND`, `RE-GROUP`, `RE-COUNT` and
+`RE-REPLACE`. Matching takes time linear in the text, so no pattern can hang a program, and
+the words reach nothing outside Forth, so they need no permission: they are in the MCP
+server, the Python module and the playground, and `forthling-regex` is the program with
+them. See [regex/README.md](regex/README.md) and [the example](regex/examples/dates.fs).
+
+```
+ALSO REGEX
+: SWAP-DATE  S" 2026-11-01" S" (\d+)-(\d+)-(\d+)" S" $3/$2/$1" RE-REPLACE ;
+SWAP-DATE TYPE
+```
+
 ## Standard compliance
 
 [`ROADMAP.md`](ROADMAP.md) holds the roadmap to Forth-2012 and the
@@ -655,7 +669,8 @@ forthling needs Rust 1.85 or newer. CI (`.github/workflows/ci.yml`) checks forma
 clippy lints and runs all tests, the test suite included, on Rust 1.85 and on the latest
 stable Rust on Linux and Windows. It also builds the Python module and runs its tests
 (`python -m unittest discover -s python/tests`, after `pip install ./python`) and checks
-and tests the SQLite words (`cargo test --manifest-path sqlite/Cargo.toml`) and the MCP
+and tests the SQLite words (`cargo test --manifest-path sqlite/Cargo.toml`), the regular
+expression words (`cargo test --manifest-path regex/Cargo.toml`) and the MCP
 server (`cargo test --manifest-path mcp/Cargo.toml`, also with `--no-default-features`),
 and builds the WebAssembly module and tests it with Node (`node --test
 web/tests/forthling.test.mjs`).

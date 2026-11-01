@@ -1,6 +1,7 @@
 /target
 /python/target/
 /sqlite/target/
+/regex/target/
 /mcp/target/
 /web/target/
 # built from web/, see web/README.md

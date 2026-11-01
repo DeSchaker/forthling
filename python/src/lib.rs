@@ -177,6 +177,7 @@ impl PyForth {
             forth.set_file_system(Box::new(files.clone())).expect("no block buffers in use yet");
         }
         forth.install(&forthling::Json);
+        forth.install(&forthling_regex::Regex);
         forth.install(&PythonHost);
         Ok(PyForth { forth, pending: Rc::default(), files })
     }

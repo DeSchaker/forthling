@@ -31,6 +31,7 @@ fn session() -> Forth {
     f.set_file_system(Box::new(files.clone())).expect("no block buffers in use yet");
     FILES.with(|f| *f.borrow_mut() = files);
     f.install(&Json);
+    f.install(&forthling_regex::Regex);
     f.install(&Debugger);
     f.install(&Tutorial);
     f.set_clock(|| NOW.with(Cell::get));

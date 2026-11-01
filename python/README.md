@@ -73,6 +73,8 @@ except forthling.ForthError as e:
   `THROW -257` in Forth; if nothing catches it, `interpret` raises the exception itself.
 - `finished` tells whether `BYE` was executed.
 - `S" FORTHLING-PYTHON" ENVIRONMENT?` gives `1 true` in Forth.
+- The regular expression words are installed too (`ALSO REGEX`; see
+  [regex/README.md](https://github.com/DeSchaker/forthling/blob/main/regex/README.md)).
 - The JSON words are installed (`ALSO JSON`; see the
   [README](https://github.com/DeSchaker/forthling#json)), so Forth can read JSON that
   Python passes in and write JSON that Python reads with `json.loads`.

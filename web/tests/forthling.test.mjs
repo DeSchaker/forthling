@@ -128,3 +128,10 @@ test("what WebAssembly lacks is handled", async () => {
   assert.equal(forth.eval("2E0 FSQRT F. 1. 2. D+ D. -9223372036854775808 .").output,
     "1.4142135623731 3 -9223372036854775808 "); // as natively
 });
+
+test("regular expressions", async () => {
+  const forth = await fresh();
+  const r = forth.eval('ALSO REGEX S" order 66" S" [0-9]+" RE-FIND . . .');
+  assert.equal(r.output, "-1 2 6 ");
+  assert.equal(forth.eval('S" a" S" (" RE-MATCH?').error.code, -262);
+});

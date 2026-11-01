@@ -69,10 +69,15 @@ Writing goes to the output, or between `<JSON` and `JSON>` to a string; the comm
 
 `ALSO SQLITE` gives SQLite words, for databases in memory only: `S" :memory:" DB-OPEN THROW VALUE DB`, then `DB-PREPARE`, `DB-STEP`, `DB-COLUMN` and the like, with errors as an `ior` in the style of the FILE words.
 
+## Regular expressions
+
+`ALSO REGEX` gives regular expressions that match in time linear in the text, so no pattern can hang a program: `RE-MATCH?`, `RE-FIND`, `RE-GROUP`, `RE-COUNT` and `RE-REPLACE`. The text comes first, then the pattern, each as `( c-addr u )`: `S" order 66" S" [0-9]+" RE-FIND` gives `6 2 true` (the start and the length of the match). A bad pattern throws -262.
+
 ## Links
 
 - [README](https://github.com/DeSchaker/forthling/blob/main/README.md): features, the sandbox, standard compliance
 - [The MCP server](https://github.com/DeSchaker/forthling/blob/main/mcp/README.md): installing (`cargo install forthling-mcp`), tools, limits
 - [SQLite words](https://github.com/DeSchaker/forthling/blob/main/sqlite/README.md)
+- [Regular expression words](https://github.com/DeSchaker/forthling/blob/main/regex/README.md)
 - [Playground](https://deschaker.github.io/forthling/): Forth in the browser
 - [Forth-2012 standard](https://forth-standard.org/standard/words)

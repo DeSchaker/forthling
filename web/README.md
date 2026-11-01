@@ -18,7 +18,7 @@ cp web/target/wasm32-unknown-unknown/release/forthling_web.wasm web/www/forthlin
 ```
 
 `web/www/` then holds the whole site: `index.html` (the playground), `worker.js`,
-`forthling.js` and `forthling.wasm` (some 490 KB). Serve it with any web server, for
+`forthling.js` and `forthling.wasm` (some 570 KB). Serve it with any web server, for
 example `python -m http.server` in `web/www`, and open http://localhost:8000/. Opening
 `index.html` as a file does not work: the browser loads the module and the worker only
 over http(s). The server must give `.wasm` the type `application/wasm`; most do.
@@ -87,7 +87,7 @@ over* gives them back to the new session, also the files a program wrote.
 - The JSON words are installed (`ALSO JSON`), the debug words (`ALSO DEBUG`,
   `TRACE-ON`, `TRACE-OFF`, `BREAK`, which does nothing there but shows in a record) and
   the tutorial (`ALSO TUTORIAL`; from JavaScript `forth.lessons()` and
-  `forth.tutorial(word, n)`); SQLite is not.
+  `forth.tutorial(word, n)`) and the regular expression words (`ALSO REGEX`); SQLite is not.
 
 ## Testing
 

@@ -124,8 +124,25 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
 
 ### Next session: resume here
 
-- **Next step:** step 14, practical glue. A design is under step 14 (2026-11-01); the
-  maintainer still has to answer its questions, then build regular expressions first.
+- **Next step:** step 14, part 2: the HTTP client (`forthling-http`, with the new
+  `Permission::Network`), as designed under step 14. Part 1, regular expressions, is built.
+- **Regular expressions (2026-11-01, step 14, part 1):** the crate `forthling-regex`
+  (`regex/`, word list `REGEX`, program `forthling-regex`) on `regex-lite` 0.1: linear time
+  (a test with `(a+)+$` stays fast), no Unicode classes. The maintainer chose `regex-lite`,
+  all four hosts, and the permissions with their own extension. Words: `RE-MATCH?`,
+  `RE-FIND`, `RE-GROUP` (group n of the first match, as a start and a length, so nothing is
+  allocated), `RE-COUNT`, `RE-REPLACE` (`$1` in the replacement; `ALLOCATE`d result,
+  stopped at the size of the Forth memory). The text comes first, then the pattern. Throw
+  -262 for a bad pattern (size limit 1 MiB, nesting 100), text that is not UTF-8, a group
+  the pattern lacks, or a too large replacement. Up to 32 compiled patterns are cached in
+  `Forth::state`; the text is charged with `charge`. The MCP server has it as the default
+  Cargo feature `regex` (with the line in its instructions), the web module and the Python
+  module install it always; the `.wasm` grew from 487743 to 566845 bytes. CI has a job for
+  the crate (1.85, stable, Windows), `release.yml` checks and publishes it (between
+  `forthling-sqlite` and `forthling-mcp`). **For the next release:** crates.io needs the
+  first publish of `forthling-regex` by hand (a token with publish-new), since trusted
+  publishing can only be set up for a crate that exists; the maintainer revoked the token,
+  so make a new one for that, or release without the crate in the MCP server.
 - **Released 0.1.1 (2026-11-01):** step 16 is done. The release workflow ran in full on
   the tag `v0.1.1`: the three crates went to crates.io through trusted publishing (the
   first time; crates.io records them as published through it), the GitHub release got
@@ -1012,7 +1029,7 @@ positioning and what agents need. The old step 8 (debugging and tracing) became 
     (2026-11-01):* `FileSystem` with `NativeFs` and `MemoryFs` in the core; the sandbox,
     MCP and the web module use files in memory; extensions that open files themselves
     check `disk_files()` (see "Next session").
-14. **Practical glue:** an HTTP client, regular expressions, starting processes. Useful,
+14. **Practical glue** (part 1, regular expressions, built 2026-11-01): an HTTP client, regular expressions, starting processes. Useful,
     but dependencies and risks, so separate extensions, under the capabilities of step 4.
     *Design (2026-11-01, not built yet):* one crate per extension, as `forthling-sqlite`
     (the core keeps no dependency), each with its own word list, in this order:

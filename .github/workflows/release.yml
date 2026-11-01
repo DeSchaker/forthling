@@ -37,7 +37,7 @@ jobs:
           if [ "${GITHUB_REF_TYPE}" = tag ] && [ "${GITHUB_REF_NAME}" != "v$v" ]; then
             echo "the tag ${GITHUB_REF_NAME} is not v$v"; exit 1
           fi
-          for manifest in Cargo.toml sqlite/Cargo.toml mcp/Cargo.toml; do
+          for manifest in Cargo.toml sqlite/Cargo.toml regex/Cargo.toml mcp/Cargo.toml; do
             grep -qx "version = \"$v\"" "$manifest" || { echo "$manifest is not version $v"; exit 1; }
           done
           jq -e --arg v "$v" '.version == $v and .packages[0].version == $v' mcp/server.json
@@ -161,7 +161,7 @@ jobs:
           VERSION: ${{ needs.versions.outputs.version }}
         run: |
           todo=""
-          for crate in forthling forthling-sqlite forthling-mcp; do
+          for crate in forthling forthling-sqlite forthling-regex forthling-mcp; do
             if curl -sf -A "forthling release (https://github.com/DeSchaker/forthling)" \
                 "https://crates.io/api/v1/crates/$crate/$VERSION" > /dev/null; then
               echo "$crate $VERSION is on crates.io already"
@@ -183,6 +183,7 @@ jobs:
             case "$crate" in
               forthling) cargo publish --manifest-path Cargo.toml ;;
               forthling-sqlite) cargo publish --manifest-path sqlite/Cargo.toml ;;
+              forthling-regex) cargo publish --manifest-path regex/Cargo.toml ;;
               forthling-mcp) cargo publish --manifest-path mcp/Cargo.toml ;;
             esac
           done

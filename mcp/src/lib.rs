@@ -308,6 +308,8 @@ fn sandbox(
     })));
     #[cfg(feature = "sqlite")]
     f.install(&forthling_sqlite::Sqlite);
+    #[cfg(feature = "regex")]
+    f.install(&forthling_regex::Regex);
     f.install(&Data(Rc::clone(data)));
     f
 }
@@ -607,6 +609,11 @@ fn instructions(s: &Settings) -> String {
     } else {
         ""
     };
+    let regex = if cfg!(feature = "regex") {
+        " `ALSO REGEX` gives regular expressions in linear time: `RE-MATCH?`, `RE-FIND`, `RE-GROUP`, `RE-COUNT` and `RE-REPLACE`, which take the text and then the pattern, each as ( c-addr u )."
+    } else {
+        ""
+    };
     format!(
         "forthling runs Forth-2012 code in a sandbox. Use forth_eval to run code; definitions, \
          variables and the stacks stay between calls, and forth_reset starts over. Each result \
@@ -621,7 +628,7 @@ fn instructions(s: &Settings) -> String {
          `ALSO JSON` gives JSON words: `JSON@` reads a path such \
          as `users[0].name` from JSON text, and `JSON{{ S\" key\" JSON-KEY 1 JSON-NUMBER JSON}}` \
          writes JSON. `ALSO TUTORIAL` gives a Forth course of 20 lessons to walk a person \
-         through: `LESSONS`, `n LESSON`, `CHECK` (tests their answer), `HINT`, `NEXT`.{sqlite} \
+         through: `LESSONS`, `n LESSON`, `CHECK` (tests their answer), `HINT`, `NEXT`.{sqlite}{regex} \
          Each call may take at most {} steps, {} ms and {} bytes of output; \
          the session's definitions and the like at most {} bytes in all. Files are in memory, \
          never on the disk, at most {} bytes in all: INCLUDE, REQUIRE, the FILE words \

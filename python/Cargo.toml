@@ -17,4 +17,5 @@ crate-type = ["cdylib"]
 
 [dependencies]
 forthling = { path = ".." }
+forthling-regex = { path = "../regex" }
 pyo3 = { version = "0.30", features = ["extension-module"] }

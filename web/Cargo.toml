@@ -16,6 +16,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 forthling = { path = ".." }
+forthling-regex = { path = "../regex" }
 
 # Small and fast to load: the .wasm goes over the network.
 [profile.release]

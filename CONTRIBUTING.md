@@ -44,6 +44,9 @@ latest stable Rust, on Linux and Windows.
   `pip install ./python` and `python -m unittest discover -s python/tests`.
 - `sqlite/`: the SQLite words, likewise a crate of its own (rusqlite), with the program
   `forthling-sqlite`; check and test it with `--manifest-path sqlite/Cargo.toml`.
+- `regex/`: the regular expression words, likewise a crate of its own (regex-lite), with
+  the program `forthling-regex`; check and test it with `--manifest-path regex/Cargo.toml`.
+  The MCP server, the web module and the Python module install it.
 - `mcp/`: the MCP server `forthling-mcp`, a crate of its own (serde_json); the protocol
   is in `src/lib.rs` (`Server::handle`, one message at a time), stdio in `src/main.rs`.
   Test it with `--manifest-path mcp/Cargo.toml`, also with `--no-default-features`. Keep
@@ -86,9 +89,9 @@ latest stable Rust, on Linux and Windows.
 
 ## Releasing
 
-The version is the same for `forthling`, `forthling-sqlite` and `forthling-mcp`, and in
-`mcp/server.json` (a test in `mcp/tests` checks the last two). To release: raise the
-version in the three `Cargo.toml`, the two path dependencies and `server.json`, and push a
+The version is the same for `forthling`, `forthling-sqlite`, `forthling-regex` and
+`forthling-mcp`, and in `mcp/server.json` (a test in `mcp/tests` checks the last two). To
+release: raise the version in the four `Cargo.toml`, the path dependencies and `server.json`, and push a
 tag such as `v0.2.0`. `.github/workflows/release.yml` then publishes the crates to
 crates.io and the server to the MCP Registry, both through GitHub OIDC, without secrets.
 

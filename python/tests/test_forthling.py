@@ -193,6 +193,10 @@ class AddWordTest(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             f.interpret("AGAIN")
 
+    def test_regular_expressions(self):
+        f = forthling.Forth()
+        self.assertEqual(f.interpret('ALSO REGEX S" order 66" S" [0-9]+" RE-FIND . . .'), "-1 2 6 ")
+
 
 if __name__ == "__main__":
     unittest.main()

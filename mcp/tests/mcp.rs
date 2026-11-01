@@ -427,4 +427,15 @@ fn server_json_matches_the_crate() {
     let manifest = include_str!("../Cargo.toml");
     assert!(manifest.contains(&format!("path = \"..\", version = \"{version}\"")));
     assert!(manifest.contains(&format!("path = \"../sqlite\", version = \"{version}\"")));
+    assert!(manifest.contains(&format!("path = \"../regex\", version = \"{version}\"")));
+}
+
+#[cfg(feature = "regex")]
+#[test]
+fn regular_expressions_are_there() {
+    let mut s = server();
+    let r = eval(&mut s, "ALSO REGEX S\" order 66\" S\" [0-9]+\" RE-FIND . . .");
+    assert_eq!(r["structuredContent"]["output"], "-1 2 6 ");
+    let r = eval(&mut s, "S\" a\" S\" (\" RE-MATCH?");
+    assert_eq!(r["structuredContent"]["error"]["code"], -262);
 }
