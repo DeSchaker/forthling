@@ -80,8 +80,8 @@ it.
 
   ```toml
   [dependencies]
-  forthling = "0.1"
-  forthling-sqlite = "0.1"
+  forthling = "0.2"
+  forthling-sqlite = "0.2"
   ```
 
   ```rust
