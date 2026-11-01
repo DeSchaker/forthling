@@ -124,9 +124,18 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
 
 ### Next session: resume here
 
-- **Next step:** step 14, practical glue. Open for the maintainer, once the release of
-  0.1.1 published the crates through the workflow: "require trusted publishing" on
-  crates.io for the three crates, then revoke the API token and empty `.env`.
+- **Next step:** step 14, practical glue (an HTTP client, regular expressions, starting
+  processes; each a separate extension under the capabilities of step 4). Start with a
+  short design: which one first, and how it fits the sandbox.
+- **Released 0.1.1 (2026-11-01):** step 16 is done. The release workflow ran in full on
+  the tag `v0.1.1`: the three crates went to crates.io through trusted publishing (the
+  first time; crates.io records them as published through it), the GitHub release got
+  `forthling.mcpb`, and the Registry has `io.github.DeSchaker/forthling` 0.1.1 with the
+  crate and the bundle (its SHA-256 there matches the file on the release). The
+  maintainer installed the bundle in Claude Desktop on Windows, where it worked
+  (`16 DUP * .` gave 256). The maintainer then turned on "require trusted publishing"
+  for the three crates and revoked the API token; `.env` is gone. From now on only a tag
+  and `release.yml` publish.
 - **MCPB bundle (2026-11-01, step 16, part 2):** one bundle for all platforms
   (`platform_overrides` in `mcp/mcpb/manifest.json`, manifest version 0.3; Claude
   Desktop runs on Windows and macOS). `release.yml` builds `forthling-mcp` on three
