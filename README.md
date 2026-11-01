@@ -285,6 +285,24 @@ ALSO FUNCTIONAL
 | `SCAN` | `( x1 .. xn n xt -- r1 .. rn )`: like `FOLD`, with every partial result |
 | `FILTER` | `( x1 .. xn n xt -- y1 .. ym m )`, `xt` is `( x -- flag )` |
 | `RANGE` | `( a b -- a .. b-1 n )` |
+| `ANY?` `ALL?` | `( x1 .. xn n xt -- flag )`, `xt` is `( x -- flag )`; they stop at the answer; `ALL?` is true for `n` = 0 |
+| `FIND` | `( x1 .. xn n xt -- x true \| false )`, the first item that passes |
+| `COUNT-IF` | `( x1 .. xn n xt -- m )` |
+| `FLAT-MAP` | `( x1 .. xn n xt -- y1 .. ym m )`, `xt` is `( x -- y1 .. yk k )`; the results are joined |
+| `ITERATE` | `( x n xt -- x1 .. xn )`: `x1` is `x`, every next item is `xt` of the one before |
+| `REVERSE` | `( x1 .. xn n -- xn .. x1 )` |
+| `TAKE` `DROP-N` | `( x1 .. xm m n -- .. k )`: the first `n` items, or without them; `k` is the new count |
+| `ZIP` | `( a1 .. an b1 .. bn n -- a1 b1 .. an bn 2n )` |
+| `SUM` `PRODUCT` | `( x1 .. xn n -- r )`, wrapping; 0 and 1 for `n` = 0 |
+| `MIN-OF` `MAX-OF` | `( x1 .. xn n -- r )`; `n` is at least 1 |
+
+A word that changes the length of the list leaves the new count on top (`FILTER`, `FLAT-MAP`,
+`TAKE`, `DROP-N`, `ZIP`); `MAP`, `ITERATE` and `REVERSE` do not.
+
+```forth
+5 8 12 3 [: 6 > ;] FIND .S                    \ <2> 8 -1
+1 2 3 10 20 30 3 ZIP .S                       \ <7> 1 10 2 20 3 30 6
+```
 
 The same on a block of cells in memory, for large amounts of data, with the suffix `-CELLS`. The
 results go back into the block; the address range is checked as for other memory words.
@@ -301,6 +319,14 @@ A 5 [: DUP * ;] MAP-CELLS  A 5 ' + FOLD-CELLS .    52
 | `FOLD-CELLS` | `( addr n xt -- r )`; the first cell is the first `acc`, so `n` is at least 1 |
 | `SCAN-CELLS` | `( addr n xt -- )`, in place: cell i becomes the partial result over cells 0 to i |
 | `FILTER-CELLS` | `( addr n xt -- m )`, the cells that pass are moved to the front; `m` is how many |
+| `ANY?-CELLS` `ALL?-CELLS` | `( addr n xt -- flag )`; the block stays as it is |
+| `FIND-CELLS` | `( addr n xt -- x true \| false )` |
+| `COUNT-IF-CELLS` | `( addr n xt -- m )`; unlike `FILTER-CELLS` it does not change the block |
+| `REVERSE-CELLS` | `( addr n -- )`, in place |
+| `SUM-CELLS` `PRODUCT-CELLS` | `( addr n -- r )`, wrapping; 0 and 1 for `n` = 0 |
+
+`TAKE`, `DROP-N`, `MIN-OF` and `MAX-OF` have no `-CELLS` form: on a block, `TAKE` and `DROP-N`
+are a change of `addr n`, and `' MIN FOLD-CELLS` does the other two.
 
 Measured on 60000 numbers, 100 times, release build: summing with `RANGE ' + FOLD` takes 93 ms,
 against 471 ms for a plain `DO` loop; with a colon word instead of `+` it takes 250 ms. A

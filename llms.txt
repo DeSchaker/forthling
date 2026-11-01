@@ -88,7 +88,8 @@ ALSO FUNCTIONAL
 - `SCAN ( x1 .. xn n xt -- r1 .. rn )`: like `FOLD`, keeping every partial result.
 - `FILTER ( x1 .. xn n xt -- y1 .. ym m )`, `xt` is `( x -- flag )`.
 - `RANGE ( a b -- a .. b-1 n )`.
-- `MAP-CELLS ( addr n xt -- )`, `FOLD-CELLS ( addr n xt -- r )`, `SCAN-CELLS ( addr n xt -- )` and `FILTER-CELLS ( addr n xt -- m )` are the same on a block of n cells in memory, for large amounts of data. `MAP-CELLS`, `SCAN-CELLS` and `FILTER-CELLS` change the block in place; `FILTER-CELLS` moves the cells that pass to the front and `m` is how many. `CREATE A 3 , 1 , 4 , 1 , 5 ,  A 5 ' MAX FOLD-CELLS .` prints 5.
+- `ANY? ALL? ( x1 .. xn n xt -- flag )` and `FIND ( .. n xt -- x true | false )` stop at the answer; `COUNT-IF ( .. n xt -- m )`; `FLAT-MAP ( .. n xt -- y1 .. ym m )` with `xt` `( x -- y1 .. yk k )`; `ITERATE ( x n xt -- x1 .. xn )`; `REVERSE ( x1 .. xn n -- xn .. x1 )`; `TAKE` and `DROP-N ( x1 .. xm m n -- .. k )`; `ZIP ( a1 .. an b1 .. bn n -- a1 b1 .. an bn 2n )`; `SUM` and `PRODUCT ( x1 .. xn n -- r )` (0 and 1 for n = 0); `MIN-OF` and `MAX-OF`. `5 8 12 3 [: 6 > ;] FIND .S` shows `<2> 8 -1`.
+- `MAP-CELLS ( addr n xt -- )`, `FOLD-CELLS ( addr n xt -- r )`, `SCAN-CELLS ( addr n xt -- )` and `FILTER-CELLS ( addr n xt -- m )` are the same on a block of n cells in memory, for large amounts of data. `MAP-CELLS`, `SCAN-CELLS` and `FILTER-CELLS` change the block in place; `FILTER-CELLS` moves the cells that pass to the front and `m` is how many. `CREATE A 3 , 1 , 4 , 1 , 5 ,  A 5 ' MAX FOLD-CELLS .` prints 5. Also on a block, without changing it: `ANY?-CELLS ALL?-CELLS FIND-CELLS COUNT-IF-CELLS SUM-CELLS PRODUCT-CELLS`; `REVERSE-CELLS ( addr n -- )` works in place.
 
 ## Tutorial
 

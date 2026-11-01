@@ -676,7 +676,7 @@ fn instructions(s: &Settings) -> String {
          forth_eval, and read it in the code with `DATA ( -- c-addr u )`, an ALLOCATEd copy. \
          `ALSO JSON` gives JSON words: `JSON@` reads a path such \
          as `users[0].name` from JSON text, and `JSON{{ S\" key\" JSON-KEY 1 JSON-NUMBER JSON}}` \
-         writes JSON. `ALSO FUNCTIONAL` gives `MAP FOLD SCAN FILTER RANGE` on the data stack, and the same on a block of cells in memory (`MAP-CELLS FOLD-CELLS SCAN-CELLS FILTER-CELLS`), \
+         writes JSON. `ALSO FUNCTIONAL` gives `MAP FOLD SCAN FILTER RANGE ANY? ALL? FIND COUNT-IF FLAT-MAP ITERATE REVERSE TAKE DROP-N ZIP SUM PRODUCT MIN-OF MAX-OF` on the data stack, and the same on a block of cells in memory (`MAP-CELLS FOLD-CELLS SCAN-CELLS FILTER-CELLS ANY?-CELLS` and more), \
          such as `1 6 RANGE [: DUP * ;] MAP 5 ' + FOLD .` (55). `ALSO TUTORIAL` gives a Forth course of 20 lessons to walk a person \
          through: `LESSONS`, `n LESSON`, `CHECK` (tests their answer), `HINT`, `NEXT`.{sqlite}{regex}{http} \
          Each call may take at most {} steps, {} ms and {} bytes of output; \
