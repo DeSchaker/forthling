@@ -17,6 +17,8 @@
 //! The syntax is that of the `regex-lite` crate: Perl-like, without the
 //! Unicode classes such as `\p{L}`.
 
+#![warn(clippy::must_use_candidate)]
+
 use forthling::{Cell, Extension, Forth, Res, Throw};
 use regex_lite::{Regex as Compiled, RegexBuilder};
 use std::collections::HashMap;

@@ -9,6 +9,8 @@
 //! memory; `fl_write_file`, `fl_read_file`, `fl_delete_file` and `fl_files`
 //! reach them.
 
+#![warn(clippy::must_use_candidate)]
+
 use forthling::{Debugger, Forth, Json, MemoryFs, Throw, TraceEntry, Tutorial};
 use std::cell::{Cell, RefCell};
 

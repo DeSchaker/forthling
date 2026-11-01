@@ -8,6 +8,8 @@
 //! f.add_word("HYPOT", math.hypot, inputs=2)     # pushes a float
 //! ```
 
+#![warn(clippy::must_use_candidate)]
+
 use forthling::{
     Cell, Extension, Forth, Limits, MAX_MEMORY, MIN_MEMORY, MemoryFs, Permission, Throw,
 };

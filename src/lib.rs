@@ -6,6 +6,8 @@
 //! Forth program may inspect (BASE, STATE, >IN, the input buffers) lives in
 //! that memory, and errors are standard THROW codes.
 
+#![warn(clippy::must_use_candidate)]
+
 mod blocks;
 pub mod cli;
 mod compiler;

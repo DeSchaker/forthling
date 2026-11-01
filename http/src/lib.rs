@@ -22,6 +22,8 @@
 //! host too; headers set for the request are dropped when a redirect goes to
 //! another host. There is no proxy, and no decompression.
 
+#![warn(clippy::must_use_candidate)]
+
 use forthling::{Cell, Extension, Forth, NOT_PERMITTED, Permission, Res, Throw};
 use std::time::Duration;
 use ureq::http::Uri;
@@ -52,6 +54,7 @@ impl Default for Http {
 impl Http {
     /// No host is allowed yet, a request may take 30 seconds when the
     /// sandbox sets no deadline, and a response may be 1 MiB.
+    #[must_use]
     pub fn new() -> Self {
         Http { hosts: Vec::new(), timeout: Duration::from_secs(30), max_body: 1 << 20 }
     }
@@ -60,6 +63,7 @@ impl Http {
     /// `*.example.com` allows every host below it (not `example.com`
     /// itself), and `*` every host. An address is compared as text, so
     /// `127.0.0.1` allows that address, not `localhost`.
+    #[must_use]
     pub fn allow(mut self, host: &str) -> Self {
         self.hosts.push(host.to_ascii_lowercase());
         self
@@ -75,6 +79,7 @@ impl Http {
 
     /// The longest a request may take when the evaluation has no time limit
     /// (with one, the time left is the longest).
+    #[must_use]
     pub fn timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
         self
@@ -82,6 +87,7 @@ impl Http {
 
     /// The largest response body in bytes; a larger one throws -263. It can
     /// never be larger than the Forth memory.
+    #[must_use]
     pub fn max_body(mut self, bytes: usize) -> Self {
         self.max_body = bytes;
         self

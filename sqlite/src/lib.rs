@@ -18,6 +18,8 @@
 //! A statement runs at its first DB-STEP, which reads all its rows; the
 //! next DB-STEPs hand them out one by one.
 
+#![warn(clippy::must_use_candidate)]
+
 use forthling::{Cell, Extension, Forth, NOT_PERMITTED, Res, Throw};
 use rusqlite::limits::Limit;
 use rusqlite::types::Value;

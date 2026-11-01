@@ -7,6 +7,8 @@
 //! permissions, no setting of the server lifts a limit, and the files of a
 //! session are in memory (a `MemoryFs`), never on the disk.
 
+#![warn(clippy::must_use_candidate)]
+
 use forthling::{
     DEFAULT_MEMORY, ErrorContext, Extension, Forth, Limits, MemoryFs, Permission, Resume, Throw,
     TraceEntry,
@@ -122,6 +124,7 @@ pub struct Server {
 }
 
 impl Server {
+    #[must_use]
     pub fn new(settings: Settings) -> Self {
         let (data, breaks, files) = (Rc::default(), Rc::default(), files());
         let forth = sandbox(&settings, &data, &breaks, &files);
