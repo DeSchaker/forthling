@@ -55,6 +55,10 @@ impl Forth {
         let (source, line, line_start) = match &s.origin {
             Origin::Terminal => ("input".to_string(), s.line - first, 0),
             Origin::Evaluate => {
+                #[allow(
+                    clippy::naive_bytecount,
+                    reason = "the bytecount crate would be a dependency"
+                )]
                 let lines = bytes[..start].iter().filter(|&&b| b == b'\n').count();
                 let line_start =
                     bytes[..start].iter().rposition(|&b| b == b'\n').map_or(0, |i| i + 1);

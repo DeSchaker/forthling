@@ -842,7 +842,7 @@ fn run_blocks(name: &str, src: &str) -> Result<String, Throw> {
     f.set_block_file(&path).unwrap();
     let result = f.interpret(src);
     fs::remove_file(&path).ok();
-    result.map(|_| output(f))
+    result.map(|()| output(f))
 }
 
 #[test]

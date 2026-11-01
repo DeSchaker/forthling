@@ -22,25 +22,6 @@
 //! host too; headers set for the request are dropped when a redirect goes to
 //! another host. There is no proxy, and no decompression.
 
-// Lints of clippy::pedantic that the code is clean for; `clippy -D warnings` in CI
-// keeps it so. (The rest of pedantic is not enabled: see the open issues.)
-#![warn(
-    clippy::cast_lossless,
-    clippy::doc_markdown,
-    clippy::float_cmp,
-    clippy::format_push_string,
-    clippy::many_single_char_names,
-    clippy::match_same_arms,
-    clippy::must_use_candidate,
-    clippy::redundant_closure_for_method_calls,
-    clippy::return_self_not_must_use,
-    clippy::semicolon_if_nothing_returned,
-    clippy::single_match_else,
-    clippy::struct_excessive_bools,
-    clippy::unnecessary_literal_bound,
-    clippy::uninlined_format_args
-)]
-
 use forthling::{Cell, Extension, Forth, NOT_PERMITTED, Permission, Res, Throw};
 use std::time::Duration;
 use ureq::http::Uri;
@@ -151,13 +132,13 @@ struct Request {
 
 /// The host of a URL that is http or https; the URL parsed.
 fn parse(url: &str) -> Res<(Uri, String)> {
-    let uri: Uri = url.parse().map_err(|_| failure(format!("{url} is not a URL")))?;
-    match uri.scheme_str() {
+    let parsed: Uri = url.parse().map_err(|_| failure(format!("{url} is not a URL")))?;
+    match parsed.scheme_str() {
         Some("http" | "https") => {}
         _ => return Err(failure(format!("{url} is not an http or https URL"))),
     }
-    let host = uri.host().ok_or_else(|| failure(format!("{url} has no host")))?.to_string();
-    Ok((uri, host))
+    let host = parsed.host().ok_or_else(|| failure(format!("{url} has no host")))?.to_string();
+    Ok((parsed, host))
 }
 
 /// The address a redirect points to, from the one it came from.

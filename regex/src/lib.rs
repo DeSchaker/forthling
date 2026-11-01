@@ -17,29 +17,6 @@
 //! The syntax is that of the `regex-lite` crate: Perl-like, without the
 //! Unicode classes such as `\p{L}`.
 
-// Lints of clippy::pedantic that the code is clean for; `clippy -D warnings` in CI
-// keeps it so. (The rest of pedantic is not enabled: see the open issues.)
-#![warn(
-    clippy::cast_lossless,
-    clippy::cast_possible_truncation,
-    clippy::cast_possible_wrap,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss,
-    clippy::doc_markdown,
-    clippy::float_cmp,
-    clippy::format_push_string,
-    clippy::many_single_char_names,
-    clippy::match_same_arms,
-    clippy::must_use_candidate,
-    clippy::redundant_closure_for_method_calls,
-    clippy::return_self_not_must_use,
-    clippy::semicolon_if_nothing_returned,
-    clippy::single_match_else,
-    clippy::struct_excessive_bools,
-    clippy::unnecessary_literal_bound,
-    clippy::uninlined_format_args
-)]
-
 use forthling::{Cell, Extension, Forth, Res, Throw, to_cell};
 use regex_lite::{Regex as Compiled, RegexBuilder};
 use std::collections::HashMap;

@@ -11,7 +11,7 @@
 use crate::*;
 
 /// The largest xchar (MAX-XCHAR) and the most bytes one takes (XCHAR-MAXMEM).
-pub(crate) const MAX_XCHAR: u32 = 0x10FFFF;
+pub(crate) const MAX_XCHAR: u32 = 0x0010_FFFF;
 pub(crate) const XCHAR_MAXMEM: usize = 4;
 
 /// The UTF-8 bytes of an xchar. A value above MAX-XCHAR becomes U+FFFD, the

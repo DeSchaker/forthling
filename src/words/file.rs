@@ -131,6 +131,7 @@ fn install_io(f: &mut Forth) {
 
 /// The ior of a file operation that the sandbox may forbid: None when it
 /// was not permitted, else the result of the operation.
+#[allow(clippy::option_option, reason = "None is forbidden, Some(None) is a failed operation")]
 fn permitted_ior<T>(result: Option<Option<T>>, code: Cell) -> Cell {
     result.map_or(NOT_PERMITTED, |r| ior(r.is_some(), code))
 }

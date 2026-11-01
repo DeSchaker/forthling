@@ -465,7 +465,7 @@ fn install_reading(f: &mut Forth, wid: Cell) {
     // 4 array, 5 object, -1 no valid JSON.
     word(f, wid, "JSON-TYPE", |f| {
         let v = f.pop_json()?;
-        let n = v.map_or(-1, |(s, _)| match f.mem[s] {
+        let n = v.map_or(-1, |(s, _)| match f.mem.get(s).copied().unwrap_or(0) {
             b'n' => 0,
             b't' | b'f' => 1,
             b'"' => 3,

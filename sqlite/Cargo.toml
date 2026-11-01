@@ -20,3 +20,10 @@ path = "src/main.rs"
 [dependencies]
 forthling = { path = "..", version = "0.2.0" }
 rusqlite = { version = "0.40", features = ["bundled", "hooks", "limits"] }
+
+[lints.clippy]
+# All of pedantic, so that new code cannot bring the warnings back; CI runs clippy
+# with `-D warnings`. Priority -1 lets the lints below this line override the group.
+pedantic = { level = "warn", priority = -1 }
+# `use crate::*;` is a convention of this project: a module sees what its parent sees.
+wildcard_imports = "allow"

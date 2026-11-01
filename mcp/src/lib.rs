@@ -7,25 +7,6 @@
 //! permissions, no setting of the server lifts a limit, and the files of a
 //! session are in memory (a `MemoryFs`), never on the disk.
 
-// Lints of clippy::pedantic that the code is clean for; `clippy -D warnings` in CI
-// keeps it so. (The rest of pedantic is not enabled: see the open issues.)
-#![warn(
-    clippy::cast_lossless,
-    clippy::doc_markdown,
-    clippy::float_cmp,
-    clippy::format_push_string,
-    clippy::many_single_char_names,
-    clippy::match_same_arms,
-    clippy::must_use_candidate,
-    clippy::redundant_closure_for_method_calls,
-    clippy::return_self_not_must_use,
-    clippy::semicolon_if_nothing_returned,
-    clippy::single_match_else,
-    clippy::struct_excessive_bools,
-    clippy::unnecessary_literal_bound,
-    clippy::uninlined_format_args
-)]
-
 use forthling::{
     DEFAULT_MEMORY, ErrorContext, Extension, Forth, Limits, MemoryFs, Permission, Resume, Throw,
     TraceEntry,
@@ -94,6 +75,10 @@ impl Default for Settings {
 
 impl Settings {
     /// Checks the settings against the highest the server accepts.
+    ///
+    /// # Errors
+    ///
+    /// A message that names the setting that is over its highest value.
     pub fn check(&self) -> Result<(), String> {
         let over = |what: &str, max: String| Err(format!("{what} can be at most {max}"));
         if self.memory > MAX_MEMORY {

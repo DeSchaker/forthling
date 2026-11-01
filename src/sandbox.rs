@@ -321,7 +321,11 @@ impl Forth {
     }
 
     #[cfg(target_arch = "wasm32")]
-    #[allow(clippy::unnecessary_wraps, reason = "same signature as the native version")]
+    #[allow(
+        clippy::unnecessary_wraps,
+        clippy::unused_self,
+        reason = "same signature as the native version"
+    )]
     fn check_clock(&mut self) -> Res {
         Ok(())
     }
@@ -329,7 +333,11 @@ impl Forth {
     /// MS: sleeps, unless that would pass the time limit.
     #[cfg_attr(
         target_arch = "wasm32",
-        allow(clippy::unnecessary_wraps, reason = "same signature as the native version")
+        allow(
+            clippy::unnecessary_wraps,
+            clippy::unused_self,
+            reason = "same signature as the native version"
+        )
     )]
     pub(crate) fn sleep(&mut self, time: Duration) -> Res {
         #[cfg(not(target_arch = "wasm32"))]

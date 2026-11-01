@@ -63,7 +63,7 @@ impl Forth {
         }
         self.catches += 1;
         let base = self.frames.len();
-        let result = self.invoke(to_index(xt)).and_then(|_| self.run(base));
+        let result = self.invoke(to_index(xt)).and_then(|()| self.run(base));
         self.catches -= 1;
         let e = match result {
             Ok(()) => return Ok(0),

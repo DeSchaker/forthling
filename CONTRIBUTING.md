@@ -25,6 +25,13 @@ cargo clippy --all-targets -- -D warnings
 cargo test
 ```
 
+Clippy runs with all of `clippy::pedantic`. The setting lives in the `[lints.clippy]` table of
+each `Cargo.toml`, so a local run and CI are the same, and a warning fails CI. The lints of
+Rust 1.85 and of the latest stable differ, so run clippy on both (`cargo +1.85 clippy ...`).
+Fix a warning in the code. Where the lint is wrong for that spot, add an
+`#[allow(clippy::..., reason = "...")]` with the reason; the one allowed for the whole
+project is `wildcard_imports` (`use crate::*;` is a convention here).
+
 The suite tests need the Forth-2012 test suite at a fixed commit; see
 [Testing](README.md#testing) in the README. CI runs the same checks on Rust 1.85 and on the
 latest stable Rust, on Linux and Windows.

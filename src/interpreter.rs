@@ -191,13 +191,13 @@ impl Forth {
     pub(crate) fn refill(&mut self) -> Res<bool> {
         let s = self.sources.top();
         let line = match &s.origin {
-            Origin::Block => return self.load_block(to_cell(s.line) + 1).map(|_| true),
+            Origin::Block => return self.load_block(to_cell(s.line) + 1).map(|()| true),
             Origin::Evaluate => None,
             Origin::File { lines, .. } => lines.get(s.line).cloned(),
             Origin::Terminal => self.read_line().map(|l| String::from_utf8_lossy(&l).into_owned()),
         };
         match line {
-            Some(line) => self.load_line(&line).map(|_| true),
+            Some(line) => self.load_line(&line).map(|()| true),
             None => Ok(false),
         }
     }
