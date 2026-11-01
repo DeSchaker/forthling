@@ -114,8 +114,31 @@ jobs:
       - run: cargo clippy --manifest-path regex/Cargo.toml --all-targets -- -D warnings
       - run: cargo test --manifest-path regex/Cargo.toml
 
+  # The HTTP words in http/, a crate of its own with ureq, on its rust-version
+  # and on the latest stable. Its tests talk to a small server on the machine.
+  http:
+    strategy:
+      matrix:
+        include:
+          - { os: ubuntu-latest, rust: "1.85" }
+          - { os: ubuntu-latest, rust: stable }
+          - { os: windows-latest, rust: stable }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: http
+      - run: cargo fmt --manifest-path http/Cargo.toml -- --check
+      - run: cargo clippy --manifest-path http/Cargo.toml --all-targets -- -D warnings
+      - run: cargo test --manifest-path http/Cargo.toml
+
   # The MCP server in mcp/, a crate of its own (serde_json), with and
-  # without the SQLite and regex words.
+  # without the SQLite, regex and HTTP words.
   mcp:
     strategy:
       matrix:
@@ -138,6 +161,7 @@ jobs:
       - run: cargo test --manifest-path mcp/Cargo.toml
       - run: cargo test --manifest-path mcp/Cargo.toml --no-default-features
       - run: cargo test --manifest-path mcp/Cargo.toml --no-default-features --features regex
+      - run: cargo test --manifest-path mcp/Cargo.toml --all-features
 
   # forthling in the browser: web/ builds a WebAssembly module (no
   # dependencies, no wasm-bindgen), which Node tests through www/forthling.js.

@@ -8,7 +8,9 @@
 //! f.add_word("HYPOT", math.hypot, inputs=2)     # pushes a float
 //! ```
 
-use forthling::{Cell, Extension, Forth, Limits, MAX_MEMORY, MIN_MEMORY, MemoryFs, Throw};
+use forthling::{
+    Cell, Extension, Forth, Limits, MAX_MEMORY, MIN_MEMORY, MemoryFs, Permission, Throw,
+};
 use pyo3::create_exception;
 use pyo3::exceptions::{PyException, PyTypeError, PyValueError};
 use pyo3::prelude::*;
@@ -134,12 +136,17 @@ impl PyForth {
     /// `sandbox=True` forbids files and limits each evaluation to 10 million
     /// steps, 5 seconds and 1 MiB of output, and the space of definitions and
     /// the like to 4 MiB; `max_steps`, `max_time` (in seconds), `max_output`
-    /// and `max_space` (in bytes) set a limit of their own.
+    /// and `max_space` (in bytes) set a limit of their own. `allow_hosts` is
+    /// a list of hosts that HTTP requests of the Forth code may go to (`ALSO
+    /// HTTP`); without it no request goes out, and `sandbox=True` closes the
+    /// network altogether unless there are hosts.
     #[new]
     #[pyo3(signature = (
         memory = None, input = "", sandbox = false,
-        max_steps = None, max_time = None, max_output = None, max_space = None
+        max_steps = None, max_time = None, max_output = None, max_space = None,
+        allow_hosts = None
     ))]
+    #[allow(clippy::too_many_arguments)] // the keyword arguments of the Python constructor
     fn new(
         memory: Option<usize>,
         input: &str,
@@ -148,6 +155,7 @@ impl PyForth {
         max_time: Option<f64>,
         max_output: Option<usize>,
         max_space: Option<usize>,
+        allow_hosts: Option<Vec<String>>,
     ) -> PyResult<Self> {
         let mut forth = match memory {
             None => Forth::new(),
@@ -178,6 +186,11 @@ impl PyForth {
         }
         forth.install(&forthling::Json);
         forth.install(&forthling_regex::Regex);
+        let hosts = allow_hosts.unwrap_or_default();
+        forth.install(&forthling_http::Http::new().allow_all(hosts.iter().map(String::as_str)));
+        if sandbox && hosts.is_empty() {
+            forth.permit(Permission::Network, false);
+        }
         forth.install(&PythonHost);
         Ok(PyForth { forth, pending: Rc::default(), files })
     }

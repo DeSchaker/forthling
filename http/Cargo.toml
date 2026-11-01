@@ -1,0 +1,23 @@
+[package]
+name = "forthling-http"
+version = "0.1.1"
+edition = "2024"
+rust-version = "1.85"
+description = "HTTP client words for forthling, a Forth interpreter in Rust"
+license = "MIT"
+repository = "https://github.com/DeSchaker/forthling"
+readme = "README.md"
+keywords = ["forth", "http", "interpreter"]
+categories = ["network-programming"]
+
+# A workspace of its own, so the core keeps its own Cargo.lock without ureq.
+[workspace]
+
+[[bin]]
+name = "forthling-http"
+path = "src/main.rs"
+
+[dependencies]
+forthling = { path = "..", version = "0.1.1" }
+# rustls with the Mozilla roots; no gzip, so that a response is the bytes sent.
+ureq = { version = "3", default-features = false, features = ["rustls"] }

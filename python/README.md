@@ -36,7 +36,7 @@ except forthling.ForthError as e:
 ```
 
 - `Forth(memory=None, input="", sandbox=False, max_steps=None, max_time=None,
-  max_output=None, max_space=None)`: `memory` is the size in bytes (1 MiB by default); `input` is what
+  max_output=None, max_space=None, allow_hosts=None)`: `memory` is the size in bytes (1 MiB by default); `input` is what
   `KEY`, `ACCEPT` and `REFILL` read from the terminal. `sandbox=True` is for code you do
   not trust: files only in memory (see below), each `interpret` is limited to 10 million steps, 5 seconds
   and 1 MiB of output, and definitions and the like to 4 MiB in all. `max_steps`,
@@ -75,6 +75,10 @@ except forthling.ForthError as e:
 - `S" FORTHLING-PYTHON" ENVIRONMENT?` gives `1 true` in Forth.
 - The regular expression words are installed too (`ALSO REGEX`; see
   [regex/README.md](https://github.com/DeSchaker/forthling/blob/main/regex/README.md)).
+- The HTTP words are installed too (`ALSO HTTP`; see
+  [http/README.md](https://github.com/DeSchaker/forthling/blob/main/http/README.md)), but closed:
+  `allow_hosts=["api.example.com"]` lists the hosts that Forth code may send requests to;
+  without it every request throws -259, and `sandbox=True` denies the network altogether.
 - The JSON words are installed (`ALSO JSON`; see the
   [README](https://github.com/DeSchaker/forthling#json)), so Forth can read JSON that
   Python passes in and write JSON that Python reads with `json.loads`.

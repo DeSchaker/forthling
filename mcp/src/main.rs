@@ -20,6 +20,10 @@ options (each at most the value in brackets):
       --max-time T       time per call, such as 5s or 500ms (default 5s) [60s]
       --max-output SIZE  output per call (default 1M) [16M]
       --max-space SIZE   definitions and the like in all (default 4M) [64M]
+      --allow-host HOST  a host that Forth code may send HTTP requests to (repeat
+                         for more; *.example.com or *); needs a build with the
+                         feature http (cargo install forthling-mcp --features http).
+                         Without this option the network stays closed
   -h, --help             show this help
   -V, --version          show the version
 ";
@@ -44,6 +48,7 @@ fn settings() -> Result<Option<Settings>, String> {
             "--max-time" => s.time = parse_duration(&value("a time")?)?,
             "--max-output" => s.output = parse_bytes(&value("a size")?)?,
             "--max-space" => s.space = parse_bytes(&value("a size")?)?,
+            "--allow-host" => s.hosts.push(value("a host")?),
             "-h" | "--help" => {
                 print!("{USAGE}");
                 return Ok(None);

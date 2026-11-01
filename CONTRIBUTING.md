@@ -47,6 +47,11 @@ latest stable Rust, on Linux and Windows.
 - `regex/`: the regular expression words, likewise a crate of its own (regex-lite), with
   the program `forthling-regex`; check and test it with `--manifest-path regex/Cargo.toml`.
   The MCP server, the web module and the Python module install it.
+- `http/`: the HTTP client words, likewise a crate of its own (ureq), with the program
+  `forthling-http`; check and test it with `--manifest-path http/Cargo.toml` (its tests run a
+  small server on the machine). It reaches the network, so it needs `Permission::Network` and
+  a list of hosts. The MCP server (feature `http`, off by default) and the Python module
+  install it; the web module cannot.
 - `mcp/`: the MCP server `forthling-mcp`, a crate of its own (serde_json); the protocol
   is in `src/lib.rs` (`Server::handle`, one message at a time), stdio in `src/main.rs`.
   Test it with `--manifest-path mcp/Cargo.toml`, also with `--no-default-features`. Keep
@@ -89,9 +94,9 @@ latest stable Rust, on Linux and Windows.
 
 ## Releasing
 
-The version is the same for `forthling`, `forthling-sqlite`, `forthling-regex` and
+The version is the same for `forthling`, `forthling-sqlite`, `forthling-regex`, `forthling-http` and
 `forthling-mcp`, and in `mcp/server.json` (a test in `mcp/tests` checks the last two). To
-release: raise the version in the four `Cargo.toml`, the path dependencies and `server.json`, and push a
+release: raise the version in the five `Cargo.toml`, the path dependencies and `server.json`, and push a
 tag such as `v0.2.0`. `.github/workflows/release.yml` then publishes the crates to
 crates.io and the server to the MCP Registry, both through GitHub OIDC, without secrets.
 

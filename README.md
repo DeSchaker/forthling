@@ -281,7 +281,7 @@ one. A limit that is reached throws -258, and every step after it throws again, 
 `CATCH` cannot go on. `permit(Permission::Files, false)` takes files away altogether (the
 FILE words give the ior -259, `INCLUDE` and the block words throw -259). The sandbox restricts the Forth program, not the host: `include`
 called by the host still reads its file. Extensions follow the permissions too; SQLite
-opens only `:memory:` unless the program may use the disk (`Forth::disk_files()`).
+opens only `:memory:` unless the program may use the disk (`Forth::disk_files()`). `Forth::sandboxed()` also denies `Permission::Network`, which the HTTP words need (see [HTTP](#http)); `--sandbox` of the program does the same.
 
 ### Files
 
@@ -511,6 +511,31 @@ ALSO REGEX
 SWAP-DATE TYPE
 ```
 
+### HTTP
+
+`http/` adds the word list `HTTP`: `HTTP-GET`, `HTTP-POST`, `HTTP-HEADER` and
+`HTTP-RESPONSE-HEADER`, through ureq with rustls. A program fetches a page or posts to a
+JSON API, and reads the answer with the JSON words. It reaches other machines, so it is
+closed by default: it needs `Permission::Network` (which `Forth::sandboxed()` and
+`--sandbox` deny) and a list of the hosts it may reach, which the host program gives
+(`Http::new().allow("api.example.com")`; `--allow-host` for the program
+`forthling-http` and the MCP server, the `allow_hosts` argument of the Python module).
+With no list, no request goes out. The time left in the budget bounds a request, a
+response is at most 1 MiB, and redirects only go to allowed hosts. The playground has none.
+See [http/README.md](http/README.md) and [the examples](http/examples).
+
+```
+ALSO HTTP
+: SHOW-PAGE ( -- )
+  S" https://example.com/" HTTP-GET ( body u status )
+  . . ." bytes, "
+  S" content-type" HTTP-RESPONSE-HEADER IF 2DUP TYPE DROP FREE THROW THEN
+  CR  FREE THROW ;
+SHOW-PAGE
+```
+
+`forthling-http --allow-host example.com` printed `200 577 bytes, text/html; charset=utf-8`.
+
 ## Standard compliance
 
 [`ROADMAP.md`](ROADMAP.md) holds the roadmap to Forth-2012 and the
@@ -670,7 +695,8 @@ clippy lints and runs all tests, the test suite included, on Rust 1.85 and on th
 stable Rust on Linux and Windows. It also builds the Python module and runs its tests
 (`python -m unittest discover -s python/tests`, after `pip install ./python`) and checks
 and tests the SQLite words (`cargo test --manifest-path sqlite/Cargo.toml`), the regular
-expression words (`cargo test --manifest-path regex/Cargo.toml`) and the MCP
-server (`cargo test --manifest-path mcp/Cargo.toml`, also with `--no-default-features`),
+expression words (`cargo test --manifest-path regex/Cargo.toml`), the HTTP words
+(`cargo test --manifest-path http/Cargo.toml`, against a small server on the machine) and the MCP
+server (`cargo test --manifest-path mcp/Cargo.toml`, also with `--no-default-features` and `--all-features`),
 and builds the WebAssembly module and tests it with Node (`node --test
 web/tests/forthling.test.mjs`).

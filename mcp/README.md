@@ -137,6 +137,14 @@ grow larger than the Forth memory) and the regular expression words (`ALSO REGEX
 match in linear time); without the Cargo features `sqlite` and `regex`
 (`--no-default-features`) the server is built without them.
 
+The HTTP words (`ALSO HTTP`, see [http/README.md](https://github.com/DeSchaker/forthling/blob/main/http/README.md)) are a third feature,
+`http`, which is off by default because it reaches the network. Build the server with it
+(`cargo install forthling-mcp --features http`) and start it with the hosts that Forth code
+may send requests to, once for each host: `forthling-mcp --allow-host api.example.com`
+(`*.example.com` and `*` also work). Without `--allow-host` the network stays closed and the
+model is not told about the words. It is the only option that opens something outside the
+sandbox, and only for the hosts you name; a Forth word cannot add one.
+
 ## The sandbox
 
 Every session runs in forthling's sandbox: files only in memory, and each call at most
@@ -150,10 +158,12 @@ fixes:
       --max-time T       time per call, such as 5s or 500ms (default 5s) [60s]
       --max-output SIZE  output per call (default 1M) [16M]
       --max-space SIZE   definitions and the like in all (default 4M) [64M]
+      --allow-host HOST  a host that Forth code may send HTTP requests to (repeat)
 ```
 
 There is no option to switch the sandbox off or to permit files, so changing how the
-server is started does not open them either.
+server is started does not open them either. Only `--allow-host` opens the network, for
+the hosts it names (see above).
 
 **What enforces it.** The sandbox is enforced by the server, not by what the model is
 told or promises: the tools take only Forth code (other arguments are refused), and no
@@ -171,6 +181,7 @@ as a user with few rights.
 ```
 cargo test --manifest-path mcp/Cargo.toml
 cargo test --manifest-path mcp/Cargo.toml --no-default-features
+cargo test --manifest-path mcp/Cargo.toml --all-features
 ```
 
 ## Links

@@ -197,6 +197,22 @@ class AddWordTest(unittest.TestCase):
         f = forthling.Forth()
         self.assertEqual(f.interpret('ALSO REGEX S" order 66" S" [0-9]+" RE-FIND . . .'), "-1 2 6 ")
 
+    def test_http_needs_hosts(self):
+        # Nothing is allowed by default, in the sandbox or out of it.
+        f = forthling.Forth()
+        with self.assertRaises(forthling.ForthError) as e:
+            f.interpret('ALSO HTTP S" http://127.0.0.1:9/" HTTP-GET')
+        self.assertIn("not allowed", str(e.exception))
+        f = forthling.Forth(sandbox=True)
+        with self.assertRaises(forthling.ForthError) as e:
+            f.interpret('ALSO HTTP S" http://127.0.0.1:9/" HTTP-GET')
+        self.assertIn("network is not permitted", str(e.exception))
+        # With hosts, a request goes out (this one finds nobody to answer).
+        f = forthling.Forth(sandbox=True, allow_hosts=["127.0.0.1"])
+        with self.assertRaises(forthling.ForthError) as e:
+            f.interpret('ALSO HTTP S" http://127.0.0.1:9/" HTTP-GET')
+        self.assertIn("-263", str(e.exception))
+
 
 if __name__ == "__main__":
     unittest.main()

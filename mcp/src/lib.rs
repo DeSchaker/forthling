@@ -8,7 +8,8 @@
 //! session are in memory (a `MemoryFs`), never on the disk.
 
 use forthling::{
-    DEFAULT_MEMORY, ErrorContext, Extension, Forth, Limits, MemoryFs, Resume, Throw, TraceEntry,
+    DEFAULT_MEMORY, ErrorContext, Extension, Forth, Limits, MemoryFs, Permission, Resume, Throw,
+    TraceEntry,
 };
 use serde_json::{Map, Value, json};
 use std::cell::RefCell;
@@ -44,13 +45,16 @@ struct Breaks {
 
 /// What the server runs Forth with: always every limit, and files only in
 /// memory.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Settings {
     pub memory: usize,
     pub steps: u64,
     pub time: Duration,
     pub output: usize,
     pub space: usize,
+    /// The hosts that Forth code may send HTTP requests to (`--allow-host`);
+    /// none by default, and then the network stays closed. Needs the feature `http`.
+    pub hosts: Vec<String>,
 }
 
 impl Default for Settings {
@@ -63,6 +67,7 @@ impl Default for Settings {
             time: limits.time.unwrap_or(MAX_TIME),
             output: limits.output.unwrap_or(MAX_OUTPUT),
             space: limits.space.unwrap_or(MAX_SPACE),
+            hosts: Vec::new(),
         }
     }
 }
@@ -85,6 +90,9 @@ impl Settings {
         }
         if self.space > MAX_SPACE {
             return over("--max-space", "64M".into());
+        }
+        if !self.hosts.is_empty() && !cfg!(feature = "http") {
+            return Err("--allow-host needs a build with the feature http".into());
         }
         Ok(())
     }
@@ -310,6 +318,15 @@ fn sandbox(
     f.install(&forthling_sqlite::Sqlite);
     #[cfg(feature = "regex")]
     f.install(&forthling_regex::Regex);
+    // The network stays closed unless the server was started with hosts.
+    f.permit(Permission::Network, false);
+    #[cfg(feature = "http")]
+    if !settings.hosts.is_empty() {
+        f.install(
+            &forthling_http::Http::new().allow_all(settings.hosts.iter().map(String::as_str)),
+        );
+        f.permit(Permission::Network, true);
+    }
     f.install(&Data(Rc::clone(data)));
     f
 }
@@ -614,6 +631,14 @@ fn instructions(s: &Settings) -> String {
     } else {
         ""
     };
+    let http = if cfg!(feature = "http") && !s.hosts.is_empty() {
+        format!(
+            " `ALSO HTTP` gives an HTTP client for these hosts only: {}. `HTTP-GET ( url-addr url-u -- body-addr body-u status )` and `HTTP-POST ( url-addr url-u body-addr body-u type-addr type-u -- body-addr' body-u' status )` give the body, ALLOCATEd, and the status, a number such as 404 that is no error; `HTTP-HEADER ( name-addr name-u value-addr value-u -- )` sets a header for the next request only, and `HTTP-RESPONSE-HEADER ( name-addr name-u -- value-addr value-u true | false )` reads one of the response. A failed request throws -263. Put the strings of one call in a definition: the strings of `S\"` in the interpreter share a buffer.",
+            s.hosts.join(", ")
+        )
+    } else {
+        String::new()
+    };
     format!(
         "forthling runs Forth-2012 code in a sandbox. Use forth_eval to run code; definitions, \
          variables and the stacks stay between calls, and forth_reset starts over. Each result \
@@ -628,7 +653,7 @@ fn instructions(s: &Settings) -> String {
          `ALSO JSON` gives JSON words: `JSON@` reads a path such \
          as `users[0].name` from JSON text, and `JSON{{ S\" key\" JSON-KEY 1 JSON-NUMBER JSON}}` \
          writes JSON. `ALSO TUTORIAL` gives a Forth course of 20 lessons to walk a person \
-         through: `LESSONS`, `n LESSON`, `CHECK` (tests their answer), `HINT`, `NEXT`.{sqlite}{regex} \
+         through: `LESSONS`, `n LESSON`, `CHECK` (tests their answer), `HINT`, `NEXT`.{sqlite}{regex}{http} \
          Each call may take at most {} steps, {} ms and {} bytes of output; \
          the session's definitions and the like at most {} bytes in all. Files are in memory, \
          never on the disk, at most {} bytes in all: INCLUDE, REQUIRE, the FILE words \

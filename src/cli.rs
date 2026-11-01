@@ -73,7 +73,31 @@ struct Args {
 /// forthling::cli::main(&[]); // what main.rs does
 /// ```
 pub fn main(extensions: Extensions) -> ! {
-    let run = match options() {
+    main_with(extensions, &[])
+}
+
+/// An option that a program with extensions adds, such as `--allow-host`
+/// of forthling-http: it takes a value, which `apply` receives each time
+/// the option is given (an error message makes the program stop with it).
+/// `apply` stores the value where the extension finds it when it is
+/// installed, which is after the options are read.
+pub struct ExtraOption {
+    /// The long name, with the dashes: `--allow-host`.
+    pub name: &'static str,
+    /// What the value is called in the help: `HOST`.
+    pub value: &'static str,
+    /// One line for the help.
+    pub help: &'static str,
+    pub apply: fn(&str) -> Result<(), String>,
+}
+
+/// As `main`, with options of the extensions as well.
+///
+/// ```no_run
+/// forthling::cli::main_with(&[], &[]); // what main does
+/// ```
+pub fn main_with(extensions: Extensions, extra: &[ExtraOption]) -> ! {
+    let run = match options(extra) {
         Ok(Some(run)) => run,
         Ok(None) => std::process::exit(0),
         Err(e) => {
@@ -90,15 +114,22 @@ pub fn main(extensions: Extensions) -> ! {
 }
 
 /// What to run; None after --help.
-fn options() -> Result<Option<Run>, String> {
-    let args = parse_args(env::args().skip(1))?;
+fn options(extra: &[ExtraOption]) -> Result<Option<Run>, String> {
+    let args = parse_args(env::args().skip(1), extra)?;
     if args.help {
         // Programs with extensions, such as forthling-sqlite, show their own name.
         let program = env::args()
             .next()
             .and_then(|p| Some(PathBuf::from(p).file_stem()?.to_string_lossy().into_owned()))
             .unwrap_or_else(|| "forthling".into());
-        print!("{}", USAGE.replacen("forthling", &program, 1));
+        let mut usage = USAGE.replacen("forthling", &program, 1);
+        let help = "  -h, --help ";
+        let at = usage.find(help).expect("the usage lists --help");
+        for option in extra {
+            let name = format!("{} {}", option.name, option.value);
+            usage.insert_str(at, &format!("  {name:<18} {}\n", option.help));
+        }
+        print!("{usage}");
         println!("  {}", config_path().map_or("(none)".into(), |p| p.display().to_string()));
         return Ok(None);
     }
@@ -142,7 +173,10 @@ pub fn parse_duration(s: &str) -> Result<Duration, String> {
     }
 }
 
-fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
+fn parse_args(
+    mut args: impl Iterator<Item = String>,
+    extra: &[ExtraOption],
+) -> Result<Args, String> {
     let mut parsed = Args::default();
     while let Some(arg) = args.next() {
         // --name=value is the same as --name value.
@@ -163,6 +197,10 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
             "--max-space" => parsed.max_space = Some(value("a size")?),
             "-h" | "--help" => parsed.help = true,
             "--" => parsed.files.extend(args.by_ref()),
+            _ if extra.iter().any(|o| o.name == name) => {
+                let option = extra.iter().find(|o| o.name == name).expect("it was found");
+                (option.apply)(&value(option.value)?)?;
+            }
             a if a.starts_with('-') && a.len() > 1 => {
                 return Err(format!("unknown option {a} (see --help)"));
             }
@@ -303,6 +341,9 @@ fn run_forth(run: Run, extensions: Extensions) -> i32 {
         }
         forth.set_file_system(Box::new(files)).expect("no block buffers in use yet");
     }
+    if run.sandbox {
+        forth.permit(Permission::Network, false);
+    }
     forth.set_limits(run.limits);
     forth.set_interactive(true);
     forth.set_debugger(Some(Box::new(debugger)));
@@ -366,7 +407,7 @@ mod tests {
 
     #[test]
     fn arguments() {
-        let args = |a: &str| parse_args(a.split_whitespace().map(String::from));
+        let args = |a: &str| parse_args(a.split_whitespace().map(String::from), &[]);
         let files = |f: &[&str]| f.iter().map(|s| s.to_string()).collect::<Vec<_>>();
         let parsed = args("-m 4M a.fs -b my.fb b.fs").unwrap();
         assert_eq!(parsed.settings.memory.as_deref(), Some("4M"));
@@ -388,6 +429,27 @@ mod tests {
         assert_eq!(parsed.max_output.as_deref(), Some("none"));
         assert_eq!(parsed.files, files(&["x.fs"]));
         assert!(args("--max-time").is_err());
+    }
+
+    #[test]
+    fn extra_options() {
+        use std::sync::Mutex;
+        static SEEN: Mutex<Vec<String>> = Mutex::new(Vec::new());
+        fn keep(value: &str) -> Result<(), String> {
+            if value.is_empty() {
+                return Err("empty".into());
+            }
+            SEEN.lock().unwrap().push(value.to_string());
+            Ok(())
+        }
+        let extra = [ExtraOption { name: "--host", value: "HOST", help: "a host", apply: keep }];
+        let args = |a: &str| parse_args(a.split_whitespace().map(String::from), &extra);
+        let parsed = args("--host a.org x.fs --host=b.org").unwrap();
+        assert_eq!(*SEEN.lock().unwrap(), ["a.org", "b.org"]);
+        assert_eq!(parsed.files, ["x.fs"]);
+        assert_eq!(args("--host").unwrap_err(), "--host needs HOST");
+        assert_eq!(args("--host=").unwrap_err(), "empty");
+        assert!(parse_args(["--host", "a"].map(String::from).into_iter(), &[]).is_err());
     }
 
     #[test]

@@ -129,6 +129,9 @@ fn a_sandboxed_system() {
     assert_eq!(f.limits(), Limits::SANDBOX);
     // Files, but only in memory (tests/vfs.rs).
     assert!(f.permits(Permission::Files));
+    // No network: an extension such as forthling-http refuses to connect.
+    assert!(!f.permits(Permission::Network));
+    assert!(Forth::new().permits(Permission::Network));
     assert_eq!(fails(&mut f, "KEY").code, -39); // no terminal input: end of input
     assert_eq!(fails(&mut f, ": FOREVER BEGIN AGAIN ; FOREVER").code, LIMIT_EXCEEDED);
     f.interpret(": SQUARE DUP * ; 12 SQUARE .").unwrap();

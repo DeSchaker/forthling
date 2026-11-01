@@ -124,8 +124,42 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
 
 ### Next session: resume here
 
-- **Next step:** step 14, part 2: the HTTP client (`forthling-http`, with the new
-  `Permission::Network`), as designed under step 14. Part 1, regular expressions, is built.
+- **Next step:** to be chosen with the maintainer: step 14, part 3 (processes, possibly
+  left out), step 18 (review of the Rust code with `rust-skills`) or the release that
+  bundles part 1 and 2 (all five crates get one new version; see below). Parts 1
+  (regular expressions) and 2 (the HTTP client) of step 14 are built.
+- **HTTP client (2026-11-01, step 14, part 2):** the crate `forthling-http` (`http/`, word
+  list `HTTP`, program `forthling-http`) on `ureq` 3 with rustls (default features off, so no
+  gzip) and the new `Permission::Network` in the core, which `Forth::sandboxed()` and the
+  program's `--sandbox` deny. The maintainer chose: the program, MCP and Python as hosts (the
+  web module cannot: WebAssembly cannot block on `fetch`), a list of hosts that is required
+  (`Http::new()` allows none; `.allow("api.example.com")`, `*.example.com` or `*`), and
+  `HTTP-GET`, `HTTP-POST`, `HTTP-HEADER` and `HTTP-RESPONSE-HEADER`. A status such as 404
+  is returned, not thrown; throw -263 for a failed request (bad URL, connection, response
+  over the cap, more than 5 redirects), -259 for a host outside the list or no permission,
+  -258 when the time of the sandbox runs out. The timeout is the time left in the budget
+  (30 s without a limit, `Http::timeout`), the body is capped at 1 MiB and at the Forth
+  memory (`Http::max_body`), the bytes are charged. Redirects are followed by hand, at most
+  5, each hop checked against the list; `HTTP-HEADER` headers last for one request and are
+  dropped when a redirect leaves the host; no proxy (ureq would read the environment) and no
+  decompression. The body is `ALLOCATE`d. A pitfall found while testing: the strings of
+  `S"` in the interpreter share one buffer, so a call with three of them must be in a
+  definition (said in the README and in the MCP instructions). The core got a mechanism for
+  options that extensions add to the program: `forthling::cli::main_with(extensions,
+  &[ExtraOption])` (the `forthling-http` program uses it for `--allow-host`; the hosts are
+  read before the extensions are installed). MCP has the Cargo feature `http`, **off by
+  default**, and the option `--allow-host` (repeatable); without a host the words are not
+  installed, the model is not told about them and the network stays denied;
+  `--allow-host` without the feature is refused. `Settings` is no longer `Copy` (it has
+  `hosts`). Python: `Forth(allow_hosts=[...])`; the words are always installed, but closed;
+  `sandbox=True` denies the network unless hosts are given. CI has a job for the crate and
+  `mcp --all-features`; `release.yml` checks and publishes it between `forthling-regex`
+  and `forthling-mcp`. Tested with a small server on the machine (12 tests: status and
+  body, POST, headers, redirects, the list, the permission, the cap, the time) and once
+  against https://example.com (200, 577 bytes). **Not published yet:** it comes with the
+  next release, which bundles part 1 and 2. A first `cargo publish` of `forthling-http`
+  must be done by hand with a token (trusted publishing needs the crate to exist), as for
+  `forthling-regex`; then the maintainer sets up trusted publishing for it.
 - **Regular expressions (2026-11-01, step 14, part 1):** the crate `forthling-regex`
   (`regex/`, word list `REGEX`, program `forthling-regex`) on `regex-lite` 0.1: linear time
   (a test with `(a+)+$` stays fast), no Unicode classes. The maintainer chose `regex-lite`,
@@ -1026,7 +1060,7 @@ positioning and what agents need. The old step 8 (debugging and tracing) became 
     (2026-11-01):* `FileSystem` with `NativeFs` and `MemoryFs` in the core; the sandbox,
     MCP and the web module use files in memory; extensions that open files themselves
     check `disk_files()` (see "Next session").
-14. **Practical glue** (part 1, regular expressions, built 2026-11-01): an HTTP client, regular expressions, starting processes. Useful,
+14. **Practical glue** (parts 1 and 2, regular expressions and the HTTP client, built 2026-11-01): an HTTP client, regular expressions, starting processes. Useful,
     but dependencies and risks, so separate extensions, under the capabilities of step 4.
     *Design (2026-11-01, not built yet):* one crate per extension, as `forthling-sqlite`
     (the core keeps no dependency), each with its own word list, in this order:

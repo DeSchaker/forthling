@@ -47,6 +47,11 @@ pub enum Permission {
     /// Files: the FILE words, `INCLUDE` and the like, and the block file,
     /// in the file system the host set (`set_file_system`).
     Files,
+    /// The network: the extensions that connect to other machines, such as
+    /// `forthling-http`, need it. `Forth::sandboxed` denies it. Whether a
+    /// program reaches a given machine is up to the extension, which keeps
+    /// a list of the hosts it may connect to.
+    Network,
 }
 
 /// What is left of the limits in the current evaluation.
@@ -106,10 +111,12 @@ impl Forth {
     /// A system for programs that are not trusted: files only in memory
     /// (an empty `MemoryFs` of at most `MemoryFs::SANDBOX_LIMIT` bytes; give
     /// it files of your own with `set_file_system`), no terminal input
-    /// (`set_input` gives it some), and the limits of `Limits::SANDBOX`.
+    /// (`set_input` gives it some), no network (`Permission::Network`), and
+    /// the limits of `Limits::SANDBOX`.
     pub fn sandboxed() -> Self {
         let mut f = Forth::new();
         f.set_limits(Limits::SANDBOX);
+        f.permit(Permission::Network, false);
         f.vfs = Box::new(MemoryFs::with_limit(MemoryFs::SANDBOX_LIMIT));
         f.set_input(Box::new(io::Cursor::new(Vec::new())));
         f

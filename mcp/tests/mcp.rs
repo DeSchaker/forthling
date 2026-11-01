@@ -428,6 +428,7 @@ fn server_json_matches_the_crate() {
     assert!(manifest.contains(&format!("path = \"..\", version = \"{version}\"")));
     assert!(manifest.contains(&format!("path = \"../sqlite\", version = \"{version}\"")));
     assert!(manifest.contains(&format!("path = \"../regex\", version = \"{version}\"")));
+    assert!(manifest.contains(&format!("path = \"../http\", version = \"{version}\"")));
 }
 
 #[cfg(feature = "regex")]
@@ -438,4 +439,65 @@ fn regular_expressions_are_there() {
     assert_eq!(r["structuredContent"]["output"], "-1 2 6 ");
     let r = eval(&mut s, "S\" a\" S\" (\" RE-MATCH?");
     assert_eq!(r["structuredContent"]["error"]["code"], -262);
+}
+
+#[cfg(feature = "http")]
+mod http {
+    use super::*;
+    use std::io::Read;
+    use std::net::TcpListener;
+
+    /// A server on this machine that answers every request with "hi"; the
+    /// port it listens on.
+    fn hi() -> u16 {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let Ok(mut stream) = stream else { continue };
+                let mut buf = [0u8; 1024];
+                let _ = stream.read(&mut buf);
+                let _ = stream.write_all(
+                    b"HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: 2\r\n\r\nhi",
+                );
+            }
+        });
+        port
+    }
+
+    #[test]
+    fn requests_go_only_to_the_hosts_of_the_option() {
+        let port = hi();
+        let code = format!("ALSO HTTP S\" http://127.0.0.1:{port}/\" HTTP-GET . TYPE");
+        let mut s =
+            Server::new(Settings { hosts: vec!["127.0.0.1".into()], ..Settings::default() });
+        let r = eval(&mut s, &code);
+        assert_eq!(r["structuredContent"]["output"], "200 hi");
+        let init = ask(&mut s, "initialize", json!({ "protocolVersion": LATEST }));
+        let instructions = init["result"]["instructions"].as_str().unwrap();
+        assert!(instructions.contains("HTTP-GET") && instructions.contains("127.0.0.1"));
+        // Another host is refused.
+        let r = eval(&mut s, "S\" http://example.org/\" HTTP-GET");
+        assert_eq!(r["structuredContent"]["error"]["code"], -259);
+        // After a reset the words and the hosts are still there.
+        call(&mut s, "forth_reset", json!({}));
+        let r = eval(&mut s, &code);
+        assert_eq!(r["structuredContent"]["output"], "200 hi");
+    }
+
+    #[test]
+    fn without_hosts_the_network_is_closed() {
+        let mut s = server();
+        let r = eval(&mut s, "ALSO HTTP");
+        assert_eq!(r["structuredContent"]["error"]["code"], -13);
+        let init = ask(&mut s, "initialize", json!({ "protocolVersion": LATEST }));
+        assert!(!init["result"]["instructions"].as_str().unwrap().contains("HTTP"));
+    }
+}
+
+#[cfg(not(feature = "http"))]
+#[test]
+fn hosts_need_the_feature() {
+    let s = Settings { hosts: vec!["example.org".into()], ..Settings::default() };
+    assert!(s.check().unwrap_err().contains("feature http"));
 }

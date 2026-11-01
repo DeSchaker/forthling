@@ -23,9 +23,12 @@ default = ["sqlite", "regex"]
 sqlite = ["dep:forthling-sqlite"]
 # The regular expression words.
 regex = ["dep:forthling-regex"]
+# The HTTP words, for the hosts of --allow-host; off by default, since they reach the network.
+http = ["dep:forthling-http"]
 
 [dependencies]
 forthling = { path = "..", version = "0.1.1" }
 forthling-sqlite = { path = "../sqlite", version = "0.1.1", optional = true }
 forthling-regex = { path = "../regex", version = "0.1.1", optional = true }
+forthling-http = { path = "../http", version = "0.1.1", optional = true }
 serde_json = "1"
