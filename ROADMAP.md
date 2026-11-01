@@ -124,9 +124,8 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
 
 ### Next session: resume here
 
-- **Next step:** step 14, practical glue (an HTTP client, regular expressions, starting
-  processes; each a separate extension under the capabilities of step 4). Start with a
-  short design: which one first, and how it fits the sandbox.
+- **Next step:** step 14, practical glue. A design is under step 14 (2026-11-01); the
+  maintainer still has to answer its questions, then build regular expressions first.
 - **Released 0.1.1 (2026-11-01):** step 16 is done. The release workflow ran in full on
   the tag `v0.1.1`: the three crates went to crates.io through trusted publishing (the
   first time; crates.io records them as published through it), the GitHub release got
@@ -1015,6 +1014,34 @@ positioning and what agents need. The old step 8 (debugging and tracing) became 
     check `disk_files()` (see "Next session").
 14. **Practical glue:** an HTTP client, regular expressions, starting processes. Useful,
     but dependencies and risks, so separate extensions, under the capabilities of step 4.
+    *Design (2026-11-01, not built yet):* one crate per extension, as `forthling-sqlite`
+    (the core keeps no dependency), each with its own word list, in this order:
+    1. **Regular expressions** (`forthling-regex`, word list `REGEX`), first: they reach
+       nothing outside, so they need no new permission and work in every host, the
+       playground included. On the crate `regex` or `regex-lite`: both match in linear
+       time (no catastrophic backtracking), which the sandbox needs; `regex-lite` is
+       smaller in the `.wasm` but has no Unicode classes such as `\p{L}`. Words, a
+       first sketch: `RE-MATCH? ( c-addr u re u -- flag )`,
+       `RE-FIND ( c-addr u re u -- start len true | false )`, `RE-CAPTURE` for groups,
+       `RE-REPLACE` giving an `ALLOCATE`d string; patterns compiled once and kept in a
+       small cache in `Forth::state`; `charge` on the text; a size limit on the
+       compiled pattern; an invalid pattern throws by name.
+    2. **HTTP client** (`forthling-http`): a new `Permission::Network` (the enum is
+       `non_exhaustive`), denied by `Forth::sandboxed()`; on top of that a list of
+       allowed hosts in the extension (`Http::new().allow("api.example.com")`). A
+       blocking client such as `ureq` with rustls; the timeout from the time left in
+       the budget, a cap on the response, the bytes charged. The program permits it;
+       MCP only with an option; the playground not at first (WebAssembly cannot block
+       on `fetch`; a synchronous XMLHttpRequest in the worker could, under CORS).
+    3. **Processes** (`forthling-process`, on `std::process`, no dependency): a new
+       `Permission::Processes`, denied by the sandbox and never in MCP or the
+       playground; only in the program, with the deadline enforced (`try_wait` and
+       `kill`) and the output capped. The riskiest; possibly left out.
+
+    To decide first: the order; `regex` or `regex-lite`; which hosts install each (the
+    program, MCP, the web module, Python); whether `Permission::Network` and
+    `Permission::Processes` go into the core now, together with the regex step, or
+    each with its own extension.
 15. **Later, as hobby projects:** graphics, Windows words and the FFI (as designed above),
     and editor support (an LSP with stack effects on hover), once there are users.
 16. **Publish `forthling-mcp` in the MCP Registry** (added 2026-10-31, at the

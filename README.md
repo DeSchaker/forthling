@@ -60,6 +60,35 @@ forthling — WORDS shows the dictionary, BYE quits.
 
 Run a file: `cargo run --release -- examples/demo.fs`
 
+### What to install
+
+forthling comes in parts, called crates in Rust: the core (`forthling`) and extensions
+such as `forthling-sqlite` and `forthling-mcp`. Which ones you need depends on how you use
+it.
+
+- **To use forthling,** install one program; its extensions are built in.
+  - In the browser: nothing to install, open the
+    [playground](https://deschaker.github.io/forthling/).
+  - `cargo install forthling`: the program, the core alone, without SQLite.
+  - `cargo install forthling-sqlite`: the same program with the SQLite words.
+  - `cargo install forthling-mcp`, or the bundle `forthling.mcpb` (see
+    [For AI agents](#for-ai-agents-mcp)): the MCP server, with the core and SQLite.
+- **To embed forthling in a Rust program,** name the core and the extensions you want in
+  your `Cargo.toml`. An extension brings the core along, and Cargo builds it once, shared
+  by all extensions, so they can work in the same system. An extension you do not name,
+  such as SQLite with its C library, stays out of your program.
+
+  ```toml
+  [dependencies]
+  forthling = "0.1"
+  forthling-sqlite = "0.1"
+  ```
+
+  ```rust
+  let mut forth = forthling::Forth::new();
+  forth.install(&forthling_sqlite::Sqlite);
+  ```
+
 ### Options
 
 ```
