@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "forthling",
   "display_name": "forthling",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Run Forth-2012 in a sandbox: definitions stay between calls, each result shows the stacks.",
   "long_description": "forthling is a Forth-2012 system in Rust. Its MCP server gives an agent a Forth session that keeps its definitions, files (in memory) and stacks between calls, always in a sandbox: each call has a limit on steps, time and output, and the disk is out of reach. An error says where it happened, which words were running and what the stacks held. It has JSON words, SQLite for databases in memory, tracing, and a tutorial of 20 lessons (ALSO TUTORIAL).",
   "author": {

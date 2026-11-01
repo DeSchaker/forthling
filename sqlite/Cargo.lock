@@ -56,11 +56,11 @@ checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
 name = "forthling"
-version = "0.1.1"
+version = "0.2.0"
 
 [[package]]
 name = "forthling-sqlite"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "forthling",
  "rusqlite",

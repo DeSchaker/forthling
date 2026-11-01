@@ -96,8 +96,9 @@ latest stable Rust, on Linux and Windows.
 ## Releasing
 
 The version is the same for `forthling`, `forthling-sqlite`, `forthling-regex`, `forthling-http` and
-`forthling-mcp`, and in `mcp/server.json` (a test in `mcp/tests` checks the last two). To
-release: raise the version in the five `Cargo.toml`, the path dependencies and `server.json`, and push a
+`forthling-mcp`, and in `mcp/server.json` (a test in `mcp/tests` checks the last two) and
+`mcp/mcpb/manifest.json`. To
+release: raise the version in the five `Cargo.toml`, the path dependencies, `server.json` and `manifest.json`, and push a
 tag such as `v0.2.0`. `.github/workflows/release.yml` then publishes the crates to
 crates.io and the server to the MCP Registry, both through GitHub OIDC, without secrets.
 
