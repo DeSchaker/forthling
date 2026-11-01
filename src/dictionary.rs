@@ -105,7 +105,7 @@ impl Forth {
     }
 
     pub(crate) fn variable(&mut self, name: &str, addr: usize) {
-        self.define(name, Kind::Created { addr: addr as Cell, does: None });
+        self.define(name, Kind::Created { addr: to_cell(addr), does: None });
     }
 
     /// Deletes the words from index `len` on, for MARKER and FORGET.
@@ -213,7 +213,7 @@ impl Forth {
             Kind::TwoValue(addr) => {
                 format!("{} {} 2VALUE {}", self.get(*addr + CELL), self.get(*addr), w.name)
             }
-            Kind::Defer(addr) => match self.dict.get(self.get(*addr) as usize) {
+            Kind::Defer(addr) => match self.dict.get(to_index(self.get(*addr))) {
                 Some(action) => format!("DEFER {} IS {}", w.name, action.name),
                 None => format!("DEFER {}", w.name),
             },

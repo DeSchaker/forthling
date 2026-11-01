@@ -16,8 +16,8 @@ pub(crate) fn install(f: &mut Forth) {
     // In a block, \ skips to the end of its line of 64 characters.
     f.imm("\\", |f| {
         if let Origin::Block = f.sources.top().origin {
-            let line_end = (f.get(IN_ADDR) as usize / BLOCK_LINE + 1) * BLOCK_LINE;
-            f.set(IN_ADDR, line_end.min(BLOCK_SIZE) as Cell);
+            let line_end = (to_index(f.get(IN_ADDR)) / BLOCK_LINE + 1) * BLOCK_LINE;
+            f.set(IN_ADDR, to_cell(line_end.min(BLOCK_SIZE)));
             return Ok(());
         }
         let end = f.parse_area().1;
@@ -63,10 +63,12 @@ pub(crate) fn install(f: &mut Forth) {
             return Err(Throw::with(PARSED_OVERFLOW, "counted string longer than 255 characters"));
         }
         let addr = f.reserve(n + 1)?;
-        f.mem[addr] = n as u8;
+        #[allow(clippy::cast_possible_truncation, reason = "n is at most 255, checked above")]
+        let len = n as u8;
+        f.mem[addr] = len;
         f.mem.copy_within(a..a + n, addr + 1);
         f.align_here();
-        f.code.push(Instr::Lit(addr as Cell));
+        f.code.push(Instr::Lit(to_cell(addr)));
         Ok(())
     });
 
@@ -74,7 +76,7 @@ pub(crate) fn install(f: &mut Forth) {
     f.prim("COMPARE", |f| {
         let (a2, n2) = f.pop2()?;
         let (a1, n1) = f.pop2()?;
-        f.charge((n1.max(0) + n2.max(0)) as usize)?;
+        f.charge(to_index(n1.max(0) + n2.max(0)))?;
         let order = f.bytes(a1, n1)?.cmp(&f.bytes(a2, n2)?);
         f.push(order as Cell);
         Ok(())
@@ -85,7 +87,7 @@ pub(crate) fn install(f: &mut Forth) {
         let (text, key) = (f.bytes(a1, n1)?, f.bytes(a2, n2)?);
         f.charge(text.len() + key.len())?;
         let found = find(&text, &key);
-        let at = found.unwrap_or(0) as Cell;
+        let at = to_cell(found.unwrap_or(0));
         f.push(a1 + at);
         f.push(n1.max(0) - at);
         f.push(flag(found.is_some()));
@@ -97,8 +99,8 @@ pub(crate) fn install(f: &mut Forth) {
         let n = f.pop()?;
         let (src, dst) = f.pop2()?;
         let (s, d) = (f.check(src, n.max(0))?, f.check(dst, n.max(0))?);
-        f.charge(n.max(0) as usize)?;
-        for k in 0..n.max(0) as usize {
+        f.charge(to_index(n.max(0)))?;
+        for k in 0..to_index(n.max(0)) {
             f.mem[d + k] = f.mem[s + k];
         }
         Ok(())
@@ -107,8 +109,8 @@ pub(crate) fn install(f: &mut Forth) {
         let n = f.pop()?;
         let (src, dst) = f.pop2()?;
         let (s, d) = (f.check(src, n.max(0))?, f.check(dst, n.max(0))?);
-        f.charge(n.max(0) as usize)?;
-        for k in (0..n.max(0) as usize).rev() {
+        f.charge(to_index(n.max(0)))?;
+        for k in (0..to_index(n.max(0))).rev() {
             f.mem[d + k] = f.mem[s + k];
         }
         Ok(())
@@ -151,18 +153,18 @@ pub(crate) fn install(f: &mut Forth) {
     f.prim("SUBSTITUTE", |f| {
         let (a2, n2) = f.pop2()?;
         let (a1, n1) = f.pop2()?;
-        f.charge(n1.max(0) as usize)?;
+        f.charge(to_index(n1.max(0)))?;
         let (out, count) = f.substitute(&f.bytes(a1, n1)?);
         f.charge(out.len())?;
         f.push(a2);
-        if out.len() as Cell > n2 {
+        if to_cell(out.len()) > n2 {
             f.push(0);
             f.push(SUBSTITUTE_FAILED); // the result does not fit
             return Ok(());
         }
-        let d = f.check(a2, out.len() as Cell)?;
+        let d = f.check(a2, to_cell(out.len()))?;
         f.mem[d..d + out.len()].copy_from_slice(&out);
-        f.push(out.len() as Cell);
+        f.push(to_cell(out.len()));
         f.push(count);
         Ok(())
     });
@@ -171,18 +173,18 @@ pub(crate) fn install(f: &mut Forth) {
     f.prim("UNESCAPE", |f| {
         let a2 = f.pop()?;
         let (a1, n1) = f.pop2()?;
-        f.charge(2 * n1.max(0) as usize)?;
+        f.charge(2 * to_index(n1.max(0)))?;
         let mut out = Vec::new();
         for c in f.bytes(a1, n1)? {
             out.extend_from_slice(if c == b'%' { b"%%" } else { std::slice::from_ref(&c) });
         }
-        let d = f.check(a2, out.len() as Cell)?;
+        let d = f.check(a2, to_cell(out.len()))?;
         if d + out.len() > f.buffer_end(d) {
             return Err(Throw::with(INVALID_ADDRESS, "the result of UNESCAPE does not fit"));
         }
         f.mem[d..d + out.len()].copy_from_slice(&out);
         f.push(a2);
-        f.push(out.len() as Cell);
+        f.push(to_cell(out.len()));
         Ok(())
     });
 }

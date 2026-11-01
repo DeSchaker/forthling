@@ -28,7 +28,26 @@ pub const DEFAULT_MEMORY: usize = 1 << 20;
 pub const MIN_MEMORY: usize = 64 << 10;
 /// 4 GiB; 1 GiB on a 32-bit target such as WebAssembly, where 4 GiB does not
 /// fit in a usize.
+#[allow(
+    clippy::cast_possible_truncation,
+    reason = "the 4 GiB branch is only taken where usize is 64 bits wide"
+)]
 pub const MAX_MEMORY: usize = if usize::BITS >= 64 { (4u64 << 30) as usize } else { 1 << 30 };
+
+/// A length, index or address as a cell. A value that does not fit saturates at
+/// `Cell::MAX`; it cannot happen below `MAX_MEMORY`, so real values never change.
+#[inline]
+pub(crate) fn to_cell(n: usize) -> Cell {
+    Cell::try_from(n).unwrap_or(Cell::MAX)
+}
+
+/// A cell as an index, length or address. A value that does not fit saturates at
+/// `usize::MAX`, also a negative one: it stays outside every memory, so `check` and
+/// slice bounds still refuse it, where `0` would be a valid address.
+#[inline]
+pub(crate) fn to_index(c: Cell) -> usize {
+    usize::try_from(c).unwrap_or(usize::MAX)
+}
 
 impl Forth {
     /// Reads a cell at an address the system itself controls.
@@ -43,8 +62,8 @@ impl Forth {
     /// Validates a program-supplied address range of `n` bytes.
     pub(crate) fn check(&self, a: Cell, n: Cell) -> Res<usize> {
         let end = a.checked_add(n).unwrap_or(-1);
-        if a >= 0 && n >= 0 && end >= 0 && end as usize <= self.mem.len() {
-            Ok(a as usize)
+        if a >= 0 && n >= 0 && end >= 0 && to_index(end) <= self.mem.len() {
+            Ok(to_index(a))
         } else {
             Err(Throw::with(INVALID_ADDRESS, a.to_string()))
         }
@@ -79,8 +98,8 @@ impl Forth {
             let buf = SQ_BUFS + self.sq_next * LINE_MAX;
             self.sq_next = 1 - self.sq_next;
             self.mem[buf..buf + n].copy_from_slice(text);
-            self.push(buf as Cell);
-            self.push(n as Cell);
+            self.push(to_cell(buf));
+            self.push(to_cell(n));
         }
         Ok(())
     }
@@ -91,8 +110,8 @@ impl Forth {
         let a = self.reserve(n)?;
         self.mem[a..a + n].copy_from_slice(text);
         self.align_here();
-        self.code.push(Instr::Lit(a as Cell));
-        self.code.push(Instr::Lit(n as Cell));
+        self.code.push(Instr::Lit(to_cell(a)));
+        self.code.push(Instr::Lit(to_cell(n)));
         Ok(())
     }
 
@@ -101,7 +120,7 @@ impl Forth {
     pub fn pop_str(&mut self) -> Res<(usize, usize)> {
         let (a, n) = self.pop2()?;
         let n = n.max(0);
-        Ok((self.check(a, n)?, n as usize))
+        Ok((self.check(a, n)?, to_index(n)))
     }
 
     /// The end of the buffer that address a lies in: one of the system's
@@ -121,7 +140,7 @@ impl Forth {
     pub(crate) fn bytes(&self, a: Cell, n: Cell) -> Res<Vec<u8>> {
         let n = n.max(0);
         let i = self.check(a, n)?;
-        Ok(self.mem[i..i + n as usize].to_vec())
+        Ok(self.mem[i..i + to_index(n)].to_vec())
     }
 
     /// SUBSTITUTE's text replacement: each %name% of a substitution made by

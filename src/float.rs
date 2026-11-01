@@ -116,12 +116,12 @@ fn sign(r: f64) -> &'static str {
 /// zeros after the point, as in `1000.` and `0.33333`.
 pub(crate) fn fixed(r: f64, p: usize) -> String {
     let Some((digits, n)) = represent(r, p) else { return special(r) };
-    let (int, frac) = if n as usize >= p && n > 0 {
+    let (int, frac) = if to_index(n) >= p && n > 0 {
         // Too large for decimals: the digits, then zeros up to the point.
-        (digit_text(&digits) + &"0".repeat(n as usize - p), String::new())
+        (digit_text(&digits) + &"0".repeat(to_index(n) - p), String::new())
     } else {
         // Below 1 all p digits go after the point, as in 0.00024.
-        let decimals = if n <= 0 { p } else { p - n as usize };
+        let decimals = if n <= 0 { p } else { p - to_index(n) };
         let s = format!("{:.*}", decimals, r.abs());
         let (int, frac) = s.split_once('.').unwrap_or((&s, ""));
         (int.to_string(), frac.to_string())
@@ -135,13 +135,13 @@ pub(crate) fn fixed(r: f64, p: usize) -> String {
 pub(crate) fn scientific(r: f64, p: usize, engineering: bool) -> String {
     let Some((mut digits, n)) = represent(r, p) else { return special(r) };
     let exp = if r == 0.0 { 0 } else { n - 1 };
-    let shift = if engineering { exp.rem_euclid(3) as usize } else { 0 };
+    let shift = if engineering { to_index(exp.rem_euclid(3)) } else { 0 };
     while digits.len() < shift + 1 {
         digits.push(b'0');
     }
     let digits = digit_text(&digits);
     let (int, frac) = digits.split_at(shift + 1);
-    format!("{}{int}.{frac}E{} ", sign(r), exp - shift as i64)
+    format!("{}{int}.{frac}E{} ", sign(r), exp - to_cell(shift))
 }
 
 /// FROUND: to the nearest integer, and to the even one when halfway.

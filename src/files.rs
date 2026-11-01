@@ -37,7 +37,7 @@ pub(crate) fn read_line_from(file: &mut dyn FileHandle, max: usize) -> io::Resul
         None if chunk[limit..].starts_with(b"\r\n") => (limit, limit + 2),
         None => (limit, limit),
     };
-    file.seek(SeekFrom::Current(used as i64 - chunk.len() as i64))?;
+    file.seek(SeekFrom::Current(to_cell(used) - to_cell(chunk.len())))?;
     chunk.truncate(len);
     Ok(Some(chunk))
 }
@@ -126,10 +126,10 @@ impl Forth {
         let entry = Some(OpenFile { file, name: name.to_string() });
         if let Some(i) = self.files.iter().position(Option::is_none) {
             self.files[i] = entry;
-            i as Cell + 1
+            to_cell(i) + 1
         } else {
             self.files.push(entry);
-            self.files.len() as Cell
+            to_cell(self.files.len())
         }
     }
 
@@ -147,7 +147,7 @@ impl Forth {
     pub(crate) fn close_file(&mut self, fid: Cell) -> bool {
         let open = self.open_file(fid).is_some();
         if open {
-            self.files[fid as usize - 1] = None;
+            self.files[to_index(fid) - 1] = None;
         }
         open
     }

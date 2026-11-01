@@ -2,6 +2,12 @@
 //! is read one byte at a time: a byte that does not start a complete xchar
 //! is an xchar of its own, with the byte as its value.
 
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "uTF-8 encoding splits a checked code point into bytes"
+)]
+
 use crate::*;
 
 /// The largest xchar (MAX-XCHAR) and the most bytes one takes (XCHAR-MAXMEM).

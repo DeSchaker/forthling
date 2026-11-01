@@ -1,5 +1,11 @@
 //! The macro `forth_word!`: typed words, tested from outside like a host.
 
+#![allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_wrap,
+    reason = "the test words mix small cells, lengths and floats; the values are tiny"
+)]
+
 use forthling::{Cell, Forth, Res, Throw, forth_word};
 use std::cell::Cell as Shared;
 use std::rc::Rc;

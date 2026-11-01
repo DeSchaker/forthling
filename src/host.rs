@@ -71,7 +71,7 @@ impl Forth {
     pub fn wordlist(&mut self, name: &str) -> Cell {
         let upper = name.to_ascii_uppercase();
         if let Some(i) = self.wordlists.iter().position(|w| w.as_deref() == Some(upper.as_str())) {
-            return i as Cell + 1;
+            return to_cell(i) + 1;
         }
         self.wordlists.push(Some(upper.clone()));
         let wid = self.wordlists.len();
@@ -83,7 +83,7 @@ impl Forth {
             })),
         );
         self.dict[xt].wid = FORTH_WID;
-        wid as Cell
+        to_cell(wid)
     }
 
     /// Adds a word to the word list `wid` (FORTH-WORDLIST is 1). The
@@ -191,8 +191,8 @@ impl Forth {
     pub fn push_bytes(&mut self, bytes: &[u8]) -> Res {
         let a = self.heap.allocate(bytes.len(), self.here).ok_or(Throw::new(ALLOCATE_FAILED))?;
         self.mem[a..a + bytes.len()].copy_from_slice(bytes);
-        self.push(a as Cell);
-        self.push(bytes.len() as Cell);
+        self.push(to_cell(a));
+        self.push(to_cell(bytes.len()));
         Ok(())
     }
 

@@ -414,8 +414,8 @@ impl Forth {
     /// Pushes a piece of a JSON value and a flag, or 0 0 0.
     fn push_span(&mut self, span: Option<Span>) {
         let (a, n, found) = span.map_or((0, 0, 0), |(s, e)| (s, e - s, -1));
-        self.push(a as Cell);
-        self.push(n as Cell);
+        self.push(to_cell(a));
+        self.push(to_cell(n));
         self.push(found);
     }
 
@@ -503,7 +503,7 @@ impl Extension for Json {
         word(f, wid, "JSON-LENGTH", |f| {
             let v = f.pop_json()?;
             f.charge_again(v, 1)?;
-            let n = v.and_then(|v| elements(&f.mem, v)).map_or(-1, |e| e.len() as Cell);
+            let n = v.and_then(|v| elements(&f.mem, v)).map_or(-1, |e| to_cell(e.len()));
             f.push(n);
             Ok(())
         });

@@ -337,8 +337,8 @@ fn run(f: &mut Forth, code: &str) -> Res<Outcome> {
     f.set(BASE_ADDR, 10);
     let evaluate = f.state::<Progress>().evaluate;
     let result = f.push_bytes(code.as_bytes()).and_then(|()| {
-        let text = f.stack[0] as usize;
-        let caught = f.catch(evaluate as Cell);
+        let text = to_index(f.stack[0]);
+        let caught = f.catch(to_cell(evaluate));
         f.heap.free(text);
         caught
     });

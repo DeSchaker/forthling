@@ -1,5 +1,11 @@
 //! The outer interpreter, input sources and the terminal.
 
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    reason = "a number literal is stored as the bits of its unsigned cells (a double is two of them)"
+)]
+
 use crate::*;
 use std::io::Write;
 
@@ -181,7 +187,7 @@ impl Forth {
     pub(crate) fn refill(&mut self) -> Res<bool> {
         let s = self.sources.top();
         let line = match &s.origin {
-            Origin::Block => return self.load_block(s.line as Cell + 1).map(|_| true),
+            Origin::Block => return self.load_block(to_cell(s.line) + 1).map(|_| true),
             Origin::Evaluate => None,
             Origin::File { lines, .. } => lines.get(s.line).cloned(),
             Origin::Terminal => self.read_line().map(|l| String::from_utf8_lossy(&l).into_owned()),
@@ -218,7 +224,7 @@ impl Forth {
     /// SAVE-INPUT: >IN, the line number and the nesting depth.
     pub(crate) fn save_input(&mut self) {
         let s = self.sources.top();
-        let (line, depth) = (s.line as Cell, self.sources.len() as Cell);
+        let (line, depth) = (to_cell(s.line), to_cell(self.sources.len()));
         self.push(self.get(IN_ADDR));
         self.push(line);
         self.push(depth);
@@ -240,10 +246,10 @@ impl Forth {
         let line = self.pop()?;
         let to_in = self.pop()?;
         let s = self.sources.top();
-        if depth != self.sources.len() as Cell {
+        if depth != to_cell(self.sources.len()) {
             return Ok(false);
         }
-        if line != s.line as Cell {
+        if line != to_cell(s.line) {
             if let Origin::Block = s.origin {
                 self.load_block(line)?;
                 self.set(IN_ADDR, to_in);
@@ -254,7 +260,7 @@ impl Forth {
                 return Ok(false);
             };
             let text = text.clone();
-            self.sources.top_mut().line = line as usize - 1;
+            self.sources.top_mut().line = to_index(line) - 1;
             self.load_line(&text)?;
         }
         self.set(IN_ADDR, to_in);

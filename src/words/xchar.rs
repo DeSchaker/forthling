@@ -6,23 +6,23 @@ use crate::*;
 pub(crate) fn install(f: &mut Forth) {
     f.prim("X-SIZE", |f| {
         let (a, n) = f.pop2()?;
-        let size = if n <= 0 { 0 } else { decode(f.xbytes(a, n as usize)?).1 };
-        f.push(size as Cell);
+        let size = if n <= 0 { 0 } else { decode(f.xbytes(a, to_index(n))?).1 };
+        f.push(to_cell(size));
         Ok(())
     });
     f.prim("XC!+", |f| {
         let (xc, a) = f.pop2()?;
         let bytes = encode(xc);
-        let i = f.check(a, bytes.len() as Cell)?;
+        let i = f.check(a, to_cell(bytes.len()))?;
         f.mem[i..i + bytes.len()].copy_from_slice(&bytes);
-        f.push(a + bytes.len() as Cell);
+        f.push(a + to_cell(bytes.len()));
         Ok(())
     });
     f.prim("XC!+?", |f| {
         let (a, n) = f.pop2()?;
         let xc = f.pop()?;
         let bytes = encode(xc);
-        let len = bytes.len() as Cell;
+        let len = to_cell(bytes.len());
         let fits = len <= n;
         if fits {
             let i = f.check(a, len)?;
@@ -42,20 +42,20 @@ pub(crate) fn install(f: &mut Forth) {
     });
     f.prim("XC-SIZE", |f| {
         let xc = f.pop()?;
-        f.push(encode(xc).len() as Cell);
+        f.push(to_cell(encode(xc).len()));
         Ok(())
     });
     f.prim("XC@+", |f| {
         let a = f.pop()?;
         let (xc, size) = decode(f.xbytes(a, XCHAR_MAXMEM)?);
-        f.push(a + size as Cell);
+        f.push(a + to_cell(size));
         f.push(xc);
         Ok(())
     });
     f.prim("XCHAR+", |f| {
         let a = f.pop()?;
         let size = decode(f.xbytes(a, XCHAR_MAXMEM)?).1;
-        f.push(a + size as Cell);
+        f.push(a + to_cell(size));
         Ok(())
     });
     f.prim("XEMIT", |f| {
@@ -72,14 +72,14 @@ pub(crate) fn install(f: &mut Forth) {
     // XCHAR EXT
     f.prim("+X/STRING", |f| {
         let (a, n) = f.pop2()?;
-        let size = if n <= 0 { 0 } else { decode(f.xbytes(a, n as usize)?).1 as Cell };
+        let size = if n <= 0 { 0 } else { to_cell(decode(f.xbytes(a, to_index(n))?).1) };
         f.push(a + size);
         f.push(n - size);
         Ok(())
     });
     f.prim("X\\STRING-", |f| {
         let (a, n) = f.pop2()?;
-        let len = if n <= 0 { n } else { last_start(f.xbytes(a, n as usize)?) as Cell };
+        let len = if n <= 0 { n } else { to_cell(last_start(f.xbytes(a, to_index(n))?)) };
         f.push(a);
         f.push(len);
         Ok(())
@@ -88,11 +88,11 @@ pub(crate) fn install(f: &mut Forth) {
         let (a, n) = f.pop2()?;
         let mut len = n;
         if n > 0 {
-            let bytes = f.xbytes(a, n as usize)?;
+            let bytes = f.xbytes(a, to_index(n))?;
             // An xchar whose last bytes are missing.
             let j = (0..bytes.len()).rev().take(XCHAR_MAXMEM).find(|&j| !is_cont(bytes[j]));
             if let Some(j) = j.filter(|&j| lead_size(bytes[j]) > bytes.len() - j) {
-                len = j as Cell;
+                len = to_cell(j);
             }
         }
         f.push(a);
@@ -121,11 +121,11 @@ pub(crate) fn install(f: &mut Forth) {
         let a = f.pop()?;
         // Back over the continuation bytes to the start of the xchar.
         let mut b = a - 1;
-        while b > 0 && a - b < XCHAR_MAXMEM as Cell && is_cont(f.mem[f.check(b, 1)?]) {
+        while b > 0 && a - b < to_cell(XCHAR_MAXMEM) && is_cont(f.mem[f.check(b, 1)?]) {
             b -= 1;
         }
         let start = f.check(b, 1)?;
-        if decode(&f.mem[start..a as usize]).1 != (a - b) as usize {
+        if decode(&f.mem[start..to_index(a)]).1 != to_index(a - b) {
             b = a - 1;
         }
         f.push(b);

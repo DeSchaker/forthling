@@ -131,6 +131,31 @@ fn byte_addressed_memory() {
 }
 
 #[test]
+fn cell_and_index_conversions_saturate() {
+    assert_eq!(to_cell(0), 0);
+    assert_eq!(to_cell(1 << 40), 1 << 40);
+    assert_eq!(to_cell(usize::MAX), Cell::MAX);
+    assert_eq!(to_index(0), 0);
+    assert_eq!(to_index(Cell::MAX), usize::try_from(Cell::MAX).unwrap_or(usize::MAX));
+    // a negative cell is never a valid index: it stays outside every memory
+    assert_eq!(to_index(-1), usize::MAX);
+    assert_eq!(to_index(Cell::MIN), usize::MAX);
+}
+
+#[test]
+fn extreme_cells_as_addresses_and_lengths_are_refused() {
+    let max = Cell::MAX;
+    assert_eq!(err(&format!("{max} @")).code, -9);
+    assert_eq!(err(&format!("{} @", Cell::MIN)).code, -9);
+    assert_eq!(err(&format!("0 {max} TYPE")).code, -9);
+    assert_eq!(err(&format!("0 {max} 0 FILL")).code, -9);
+    assert_eq!(err(&format!("{max} 1 TYPE")).code, -9);
+    assert_eq!(err(&format!("0 8 {max} MOVE")).code, -9);
+    // a negative length counts as zero where the standard says so
+    assert_eq!(run(&format!("0 {} TYPE", Cell::MIN)), "");
+}
+
+#[test]
 fn create_does() {
     assert_eq!(run(": KONST CREATE , DOES> @ ; 7 KONST SEVEN SEVEN SEVEN + ."), "14 ");
     let counter = ": COUNTER CREATE 0 , DOES> 1 OVER +! @ ; COUNTER TICK TICK . TICK . TICK .";

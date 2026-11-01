@@ -1,5 +1,12 @@
 //! The data stack, the return stack and the double-cell helpers.
 
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_sign_loss,
+    reason = "double cells are two cells of unsigned bits, a float result is checked before it is a cell"
+)]
+
 use crate::*;
 
 pub(crate) const STACK_CELLS: usize = 1 << 16; // data stack size, reported by ENVIRONMENT?

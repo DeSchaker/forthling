@@ -90,10 +90,10 @@ impl Forth {
             q.inner
         };
         if self.current.is_some() {
-            self.code.push(Instr::Lit(xt as Cell));
+            self.code.push(Instr::Lit(to_cell(xt)));
         } else {
             self.set_state(false);
-            self.push(xt as Cell);
+            self.push(to_cell(xt));
         }
         Ok(())
     }
@@ -143,7 +143,7 @@ impl Forth {
     pub(crate) fn named_cell(&mut self, defer: bool) -> Res<usize> {
         let name = self.name()?;
         let xt = self.find_or_err(&name)?;
-        self.cell_of(xt as Cell, defer).map_err(|e| Throw { detail: Some(name), ..e })
+        self.cell_of(to_cell(xt), defer).map_err(|e| Throw { detail: Some(name), ..e })
     }
 
     /// Stores into a VALUE or DEFER cell now, or compiles the store.

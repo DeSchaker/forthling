@@ -10,7 +10,7 @@ pub(crate) fn install(f: &mut Forth) {
     });
     f.prim(":NONAME", |f| {
         let xt = f.start_def("")?;
-        f.push(xt as Cell);
+        f.push(to_cell(xt));
         Ok(())
     });
     // Quotations: [: ... ;] compiles a nameless word and leaves its xt.
@@ -40,7 +40,7 @@ pub(crate) fn install(f: &mut Forth) {
     f.prim("CREATE", |f| {
         let name = f.name()?;
         f.align_here();
-        let addr = f.here as Cell;
+        let addr = to_cell(f.here);
         f.new_word(&name, Kind::Created { addr, does: None })?;
         Ok(())
     });
@@ -126,7 +126,7 @@ pub(crate) fn install(f: &mut Forth) {
             }
             return Ok(());
         }
-        let addr = f.cell_of(xt as Cell, false).map_err(|e| Throw { detail: Some(name), ..e })?;
+        let addr = f.cell_of(to_cell(xt), false).map_err(|e| Throw { detail: Some(name), ..e })?;
         f.store_to(addr)
     });
     f.imm("IS", |f| {
@@ -157,13 +157,13 @@ pub(crate) fn install(f: &mut Forth) {
     f.prim("'", |f| {
         let name = f.name()?;
         let xt = f.find_or_err(&name)?;
-        f.push(xt as Cell);
+        f.push(to_cell(xt));
         Ok(())
     });
     f.compile_imm("[']", |f| {
         let name = f.name()?;
         let xt = f.find_or_err(&name)?;
-        f.code.push(Instr::Lit(xt as Cell));
+        f.code.push(Instr::Lit(to_cell(xt)));
         Ok(())
     });
     f.prim("EXECUTE", |f| {
@@ -171,7 +171,7 @@ pub(crate) fn install(f: &mut Forth) {
         if xt < 0 {
             return Err(Throw::with(INVALID_ARGUMENT, format!("invalid execution token {xt}")));
         }
-        f.invoke(xt as usize)
+        f.invoke(to_index(xt))
     });
     f.prim("CATCH", |f| {
         let xt = f.pop()?;

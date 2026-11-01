@@ -33,25 +33,25 @@ pub(crate) fn install(f: &mut Forth) {
     });
     f.prim("PICK", |f| {
         let n = f.pop()?;
-        let len = f.stack.len() as Cell;
+        let len = to_cell(f.stack.len());
         if n < 0 || n >= len {
             return Err(Throw::new(STACK_UNDERFLOW));
         }
-        f.push(f.stack[(len - 1 - n) as usize]);
+        f.push(f.stack[to_index(len - 1 - n)]);
         Ok(())
     });
     f.prim("ROLL", |f| {
         let n = f.pop()?;
-        let len = f.stack.len() as Cell;
+        let len = to_cell(f.stack.len());
         if n < 0 || n >= len {
             return Err(Throw::new(STACK_UNDERFLOW));
         }
-        let x = f.stack.remove((len - 1 - n) as usize);
+        let x = f.stack.remove(to_index(len - 1 - n));
         f.push(x);
         Ok(())
     });
     f.prim("DEPTH", |f| {
-        f.push(f.stack.len() as Cell);
+        f.push(to_cell(f.stack.len()));
         Ok(())
     });
     f.prim(">R", |f| {

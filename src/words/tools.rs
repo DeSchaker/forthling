@@ -29,7 +29,7 @@ pub(crate) fn install(f: &mut Forth) {
             return Err(Throw::new(RSTACK_OVERFLOW));
         }
         f.rstack.extend(f.stack.drain(len - n..));
-        f.rstack.push(n as Cell);
+        f.rstack.push(to_cell(n));
         Ok(())
     });
     f.prim("NR>", |f| {
@@ -38,7 +38,7 @@ pub(crate) fn install(f: &mut Forth) {
         let n =
             usize::try_from(n).ok().filter(|&n| n <= len).ok_or(Throw::new(RSTACK_UNDERFLOW))?;
         f.stack.extend(f.rstack.drain(len - n..));
-        f.push(n as Cell);
+        f.push(to_cell(n));
         Ok(())
     });
     // A synonym is a copy of the word: the same behaviour and immediacy.

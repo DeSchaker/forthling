@@ -1,5 +1,11 @@
 //! Memory words.
 
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "c! C, and FILL store the low byte of a cell, as the standard says"
+)]
+
 use crate::*;
 
 #[allow(
@@ -9,13 +15,13 @@ use crate::*;
 pub(crate) fn install(f: &mut Forth) {
     f.prim("@", |f| {
         let a = f.pop()?;
-        let i = f.check(a, CELL as Cell)?;
+        let i = f.check(a, to_cell(CELL))?;
         f.push(f.get(i));
         Ok(())
     });
     f.prim("!", |f| {
         let (v, a) = f.pop2()?;
-        let i = f.check(a, CELL as Cell)?;
+        let i = f.check(a, to_cell(CELL))?;
         f.set(i, v);
         Ok(())
     });
@@ -42,24 +48,24 @@ pub(crate) fn install(f: &mut Forth) {
         Ok(())
     });
     f.prim("HERE", |f| {
-        f.push(f.here as Cell);
+        f.push(to_cell(f.here));
         Ok(())
     });
     f.prim("ALLOT", |f| {
         let n = f.pop()?;
-        let new = f.here as Cell + n;
-        if new < DICT_START as Cell || new > f.data_end() as Cell {
+        let new = to_cell(f.here) + n;
+        if new < to_cell(DICT_START) || new > to_cell(f.data_end()) {
             return Err(Throw::new(DICTIONARY_OVERFLOW));
         }
-        f.here = new as usize;
+        f.here = to_index(new);
         Ok(())
     });
     f.prim("UNUSED", |f| {
-        f.push((f.data_end() - f.here) as Cell);
+        f.push(to_cell(f.data_end() - f.here));
         Ok(())
     });
     f.prim("PAD", |f| {
-        f.push(PAD_ADDR as Cell);
+        f.push(to_cell(PAD_ADDR));
         Ok(())
     });
     f.prim("FILL", |f| {
@@ -67,8 +73,8 @@ pub(crate) fn install(f: &mut Forth) {
         let (a, n) = f.pop2()?;
         if n > 0 {
             let i = f.check(a, n)?;
-            f.charge(n as usize)?;
-            f.mem[i..i + n as usize].fill(c as u8);
+            f.charge(to_index(n))?;
+            f.mem[i..i + to_index(n)].fill(c as u8);
         }
         Ok(())
     });
@@ -78,9 +84,9 @@ pub(crate) fn install(f: &mut Forth) {
         if n > 0 {
             let s = f.check(src, n)?;
             let d = f.check(dst, n)?;
-            f.charge(n as usize)?;
+            f.charge(to_index(n))?;
             // copy_within handles overlapping ranges in either direction
-            f.mem.copy_within(s..s + n as usize, d);
+            f.mem.copy_within(s..s + to_index(n), d);
         }
         Ok(())
     });

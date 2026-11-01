@@ -2,6 +2,12 @@
 //! on a stack of their own; FCONSTANT FVARIABLE and the field words are in
 //! the prelude.
 
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_precision_loss,
+    reason = "conversions between cells and floats round, and the range is checked first, as the standard says"
+)]
+
 use crate::*;
 
 #[allow(
@@ -49,32 +55,32 @@ pub(crate) fn install(f: &mut Forth) {
     // memory
     f.prim("F@", |f| {
         let a = f.pop()?;
-        let i = f.check(a, FLOAT as Cell)?;
+        let i = f.check(a, to_cell(FLOAT))?;
         f.fpush(f.fget(i))
     });
     f.prim("F!", |f| {
         let a = f.pop()?;
         let r = f.fpop()?;
-        let i = f.check(a, FLOAT as Cell)?;
+        let i = f.check(a, to_cell(FLOAT))?;
         f.fset(i, r);
         Ok(())
     });
     f.prim("SF@", |f| {
         let a = f.pop()?;
-        let i = f.check(a, SFLOAT as Cell)?;
+        let i = f.check(a, to_cell(SFLOAT))?;
         let r = f32::from_le_bytes(f.mem[i..i + SFLOAT].try_into().unwrap());
         f.fpush(f64::from(r))
     });
     f.prim("SF!", |f| {
         let a = f.pop()?;
         let r = f.fpop()? as f32;
-        let i = f.check(a, SFLOAT as Cell)?;
+        let i = f.check(a, to_cell(SFLOAT))?;
         f.mem[i..i + SFLOAT].copy_from_slice(&r.to_le_bytes());
         Ok(())
     });
     // the float stack
     f.prim("FDEPTH", |f| {
-        f.push(f.fstack.len() as Cell);
+        f.push(to_cell(f.fstack.len()));
         Ok(())
     });
     f.prim("FDROP", |f| f.fpop().map(drop));
@@ -194,8 +200,8 @@ pub(crate) fn install(f: &mut Forth) {
     f.prim("REPRESENT", |f| {
         let (a, u) = f.pop2()?;
         let r = f.fpop()?;
-        let u = u.max(0) as usize;
-        let i = f.check(a, u as Cell)?;
+        let u = to_index(u.max(0));
+        let i = f.check(a, to_cell(u))?;
         if let Some((digits, n)) = represent(r, u) {
             f.mem[i..i + u].copy_from_slice(&digits);
             f.push(n as Cell);
@@ -228,12 +234,12 @@ pub(crate) fn install(f: &mut Forth) {
         Ok(())
     });
     f.prim("PRECISION", |f| {
-        f.push(f.precision as Cell);
+        f.push(to_cell(f.precision));
         Ok(())
     });
     f.prim("SET-PRECISION", |f| {
         let u = f.pop()?;
-        f.precision = u.clamp(1, MAX_PRECISION as Cell) as usize;
+        f.precision = to_index(u.clamp(1, to_cell(MAX_PRECISION)));
         Ok(())
     });
 }

@@ -1,6 +1,12 @@
 //! The FACILITY word set; the structure words and the key constants are in
 //! prelude.fs.
 
+#![allow(
+    clippy::cast_possible_wrap,
+    clippy::cast_sign_loss,
+    reason = "the clock and a sleep time are checked non-negative and far below the limits"
+)]
+
 use crate::*;
 use std::time::Duration;
 

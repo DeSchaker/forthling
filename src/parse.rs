@@ -1,5 +1,11 @@
 //! Parsing the input buffer, numbers and pictured numeric output.
 
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "digits and bases are small and checked (2..=36); a parsed value is a cell as unsigned bits"
+)]
+
 use crate::*;
 
 /// The core of >NUMBER: accumulates digits in `base` into `ud` and stops at
@@ -32,13 +38,13 @@ impl Forth {
     /// The unparsed rest of the current input buffer, as absolute addresses.
     pub(crate) fn parse_area(&self) -> (usize, usize) {
         let s = self.sources.top();
-        let i = self.get(IN_ADDR).clamp(0, s.len as Cell) as usize;
+        let i = to_index(self.get(IN_ADDR).clamp(0, to_cell(s.len)));
         (s.buf + i, s.buf + s.len)
     }
 
     pub(crate) fn set_in(&mut self, at: usize) {
         let buf = self.sources.top().buf;
-        self.set(IN_ADDR, (at - buf) as Cell);
+        self.set(IN_ADDR, to_cell(at - buf));
     }
 
     /// Parses up to a delimiter, optionally skipping leading delimiters, and

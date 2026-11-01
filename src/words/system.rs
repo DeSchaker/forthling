@@ -37,7 +37,7 @@ pub(crate) fn install(f: &mut Forth) {
         let line = f.read_line().unwrap_or_default();
         let len = line.len().min(n);
         f.mem[i..i + len].copy_from_slice(&line[..len]);
-        f.push(len as Cell);
+        f.push(to_cell(len));
         Ok(())
     });
     f.prim("KEY", |f| {
@@ -50,11 +50,12 @@ pub(crate) fn install(f: &mut Forth) {
         let ud = f.pop_ud()?;
         let n = n.max(0);
         let i = f.check(a, n)?;
+        #[allow(clippy::cast_possible_truncation, reason = "base() returns 2..=36, or 10")]
         let base = f.base() as u32;
-        let (ud, used) = to_number(ud, &f.mem[i..i + n as usize], base);
+        let (ud, used) = to_number(ud, &f.mem[i..i + to_index(n)], base);
         f.push_ud(ud);
-        f.push(a + used as Cell);
-        f.push(n - used as Cell);
+        f.push(a + to_cell(used));
+        f.push(n - to_cell(used));
         Ok(())
     });
     f.prim("EVALUATE", |f| {
@@ -68,27 +69,27 @@ pub(crate) fn install(f: &mut Forth) {
         let (i, n) = f.pop_str()?;
         let query = f.text(i, n).to_ascii_uppercase();
         match query.as_str() {
-            "#LOCALS" => f.push(MAX_LOCALS as Cell),
+            "#LOCALS" => f.push(to_cell(MAX_LOCALS)),
             "/COUNTED-STRING" | "MAX-CHAR" => f.push(255),
-            "/HOLD" => f.push((HOLD_END - HOLD_START) as Cell),
-            "/PAD" => f.push((BLOCK_BUFS - PAD_ADDR) as Cell),
+            "/HOLD" => f.push(to_cell(HOLD_END - HOLD_START)),
+            "/PAD" => f.push(to_cell(BLOCK_BUFS - PAD_ADDR)),
             "ADDRESS-UNIT-BITS" => f.push(8),
             "FLOATING" | "FLOATING-EXT" | "FLOORED" | "MAX-U" => f.push(-1),
-            "FLOATING-STACK" => f.push(FSTACK_FLOATS as Cell),
+            "FLOATING-STACK" => f.push(to_cell(FSTACK_FLOATS)),
             "MAX-D" => f.push_d(i128::MAX),
             "MAX-FLOAT" => f.fpush(f64::MAX)?,
             "MAX-N" => f.push(Cell::MAX),
             "MAX-UD" => f.push_ud(u128::MAX),
             "MAX-XCHAR" => f.push(Cell::from(MAX_XCHAR)),
-            "RETURN-STACK-CELLS" => f.push(RSTACK_CELLS as Cell),
-            "STACK-CELLS" => f.push(STACK_CELLS as Cell),
-            "WORDLISTS" => f.push(MAX_ORDER as Cell),
+            "RETURN-STACK-CELLS" => f.push(to_cell(RSTACK_CELLS)),
+            "STACK-CELLS" => f.push(to_cell(STACK_CELLS)),
+            "WORDLISTS" => f.push(to_cell(MAX_ORDER)),
             "XCHAR-ENCODING" => {
                 let (a, n) = f.encoding_name()?;
-                f.push(a as Cell);
-                f.push(n as Cell);
+                f.push(to_cell(a));
+                f.push(to_cell(n));
             }
-            "XCHAR-MAXMEM" => f.push(XCHAR_MAXMEM as Cell),
+            "XCHAR-MAXMEM" => f.push(to_cell(XCHAR_MAXMEM)),
             _ => {
                 if let Some(&version) = f.extensions.get(&query) {
                     f.push(version);

@@ -63,7 +63,7 @@ impl Forth {
         }
         self.catches += 1;
         let base = self.frames.len();
-        let result = self.invoke(xt as usize).and_then(|_| self.run(base));
+        let result = self.invoke(to_index(xt)).and_then(|_| self.run(base));
         self.catches -= 1;
         let e = match result {
             Ok(()) => return Ok(0),
@@ -125,7 +125,7 @@ impl Forth {
         while let Some(Word { kind: Kind::Defer(addr), name, .. }) = self.dict.get(xt) {
             match self.get(*addr) {
                 -1 => return Err(Throw::with(UNSUPPORTED, format!("{name} has no action yet"))),
-                action => xt = action as usize,
+                action => xt = to_index(action),
             }
             hops += 1;
             if hops > MAX_FRAMES {

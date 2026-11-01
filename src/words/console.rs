@@ -1,5 +1,11 @@
 //! Output, input and parsing words.
 
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "a character, a digit or a delimiter is the low byte of a cell, as the standard says"
+)]
+
 use crate::*;
 
 pub(crate) fn install(f: &mut Forth) {
@@ -22,8 +28,8 @@ pub(crate) fn install(f: &mut Forth) {
     });
     f.prim("#>", |f| {
         f.pop2()?;
-        f.push(f.hld as Cell);
-        f.push((HOLD_END - f.hld) as Cell);
+        f.push(to_cell(f.hld));
+        f.push(to_cell(HOLD_END - f.hld));
         Ok(())
     });
     f.prim(".S", |f| {
@@ -44,8 +50,8 @@ pub(crate) fn install(f: &mut Forth) {
         let (a, n) = f.pop2()?;
         if n > 0 {
             let i = f.check(a, n)?;
-            f.charge(n as usize)?;
-            f.emit_memory(i, n as usize);
+            f.charge(to_index(n))?;
+            f.emit_memory(i, to_index(n));
         }
         Ok(())
     });
@@ -54,8 +60,8 @@ pub(crate) fn install(f: &mut Forth) {
     f.prim("SOURCE", |f| {
         let s = f.sources.top();
         let (buf, len) = (s.buf, s.len);
-        f.push(buf as Cell);
-        f.push(len as Cell);
+        f.push(to_cell(buf));
+        f.push(to_cell(len));
         Ok(())
     });
     f.prim("PARSE", |f| {
@@ -64,14 +70,14 @@ pub(crate) fn install(f: &mut Forth) {
             0..=0x7F => f.parse(delim as u8),
             _ => f.parse_seq(&encode(delim)),
         };
-        f.push(a as Cell);
-        f.push(n as Cell);
+        f.push(to_cell(a));
+        f.push(to_cell(n));
         Ok(())
     });
     f.prim("PARSE-NAME", |f| {
         let (a, n) = f.parse_name();
-        f.push(a as Cell);
-        f.push(n as Cell);
+        f.push(to_cell(a));
+        f.push(to_cell(n));
         Ok(())
     });
     f.prim("REFILL", |f| {
@@ -101,17 +107,17 @@ pub(crate) fn install(f: &mut Forth) {
         f.mem.copy_within(a..a + n, WORD_BUF + 1);
         f.mem[WORD_BUF] = n as u8;
         f.mem[WORD_BUF + 1 + n] = b' ';
-        f.push(WORD_BUF as Cell);
+        f.push(to_cell(WORD_BUF));
         Ok(())
     });
     f.prim("FIND", |f| {
         let a = f.pop()?;
         let i = f.check(a, 1)?;
         let n = f.mem[i] as usize;
-        f.check(a, 1 + n as Cell)?;
+        f.check(a, 1 + to_cell(n))?;
         let name = f.text(i + 1, n);
         if let Some(xt) = f.find(&name) {
-            f.push(xt as Cell);
+            f.push(to_cell(xt));
             f.push(if f.dict[xt].immediate { 1 } else { -1 });
         } else {
             f.push(a);

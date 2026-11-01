@@ -81,7 +81,7 @@ pub(crate) fn install(f: &mut Forth) {
         let mut data = Vec::new();
         let done = f.with_file(fid, |file| file.take(n as u64).read_to_end(&mut data));
         f.mem[i..i + data.len()].copy_from_slice(&data);
-        f.push(data.len() as Cell);
+        f.push(to_cell(data.len()));
         f.push(ior(done, READ_FILE_FAILED));
         Ok(())
     });
@@ -95,7 +95,7 @@ pub(crate) fn install(f: &mut Forth) {
             _ => (&[][..], false),
         };
         f.mem[i..i + data.len()].copy_from_slice(data);
-        f.push(data.len() as Cell);
+        f.push(to_cell(data.len()));
         f.push(flag(more));
         f.push(ior(line, READ_LINE_FAILED));
         Ok(())

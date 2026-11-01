@@ -109,7 +109,12 @@ impl Forth {
         let len = file.size().map_err(err)?;
         if len < offset {
             file.seek(SeekFrom::End(0)).map_err(err)?;
-            file.write_all(&vec![b' '; (offset - len) as usize]).map_err(err)?;
+            #[allow(
+                clippy::cast_possible_truncation,
+                reason = "only a 32-bit target can lose bits, and a file that large fails to write anyway"
+            )]
+            let blank = (offset - len) as usize;
+            file.write_all(&vec![b' '; blank]).map_err(err)?;
         }
         file.seek(SeekFrom::Start(offset)).map_err(err)?;
         file.write_all(&data).map_err(err)?;
@@ -166,7 +171,7 @@ impl Forth {
         let s = self.sources.top_mut();
         let buf = s.buf;
         s.len = BLOCK_SIZE;
-        s.line = u as usize;
+        s.line = to_index(u);
         self.mem.copy_within(a..a + BLOCK_SIZE, buf);
         self.set(IN_ADDR, 0);
         self.sync_blk();
@@ -176,7 +181,7 @@ impl Forth {
     /// BLK is the block being interpreted, or 0.
     pub(crate) fn sync_blk(&mut self) {
         let s = self.sources.top();
-        let blk = if let Origin::Block = s.origin { s.line as Cell } else { 0 };
+        let blk = if let Origin::Block = s.origin { to_cell(s.line) } else { 0 };
         self.set(BLK_ADDR, blk);
     }
 

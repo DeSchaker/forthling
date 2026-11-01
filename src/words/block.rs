@@ -7,13 +7,13 @@ pub(crate) fn install(f: &mut Forth) {
     f.prim("BLOCK", |f| {
         let u = f.pop()?;
         let a = f.block(u, true)?;
-        f.push(a as Cell);
+        f.push(to_cell(a));
         Ok(())
     });
     f.prim("BUFFER", |f| {
         let u = f.pop()?;
         let a = f.block(u, false)?;
-        f.push(a as Cell);
+        f.push(to_cell(a));
         Ok(())
     });
     f.prim("UPDATE", |f| {

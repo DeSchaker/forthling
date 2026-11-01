@@ -1,5 +1,12 @@
 //! Double-cell words, including mixed single/double arithmetic.
 
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_sign_loss,
+    reason = "double-cell and unsigned arithmetic reinterpret the bits of a cell on purpose"
+)]
+
 use crate::*;
 
 /// The core of M*/: d * n1 / n2, floored, through a 192-bit product so that
@@ -110,7 +117,7 @@ pub(crate) fn install(f: &mut Forth) {
     });
     f.prim("2@", |f| {
         let a = f.pop()?;
-        let i = f.check(a, 2 * CELL as Cell)?;
+        let i = f.check(a, 2 * to_cell(CELL))?;
         f.push(f.get(i + CELL));
         f.push(f.get(i));
         Ok(())
@@ -118,7 +125,7 @@ pub(crate) fn install(f: &mut Forth) {
     f.prim("2!", |f| {
         let a = f.pop()?;
         let (x1, x2) = f.pop2()?;
-        let i = f.check(a, 2 * CELL as Cell)?;
+        let i = f.check(a, 2 * to_cell(CELL))?;
         f.set(i, x2);
         f.set(i + CELL, x1);
         Ok(())

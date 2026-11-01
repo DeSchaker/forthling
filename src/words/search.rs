@@ -8,7 +8,7 @@ use crate::*;
 
 pub(crate) fn install(f: &mut Forth) {
     f.prim("FORTH-WORDLIST", |f| {
-        f.push(FORTH_WID as Cell);
+        f.push(to_cell(FORTH_WID));
         Ok(())
     });
     f.prim("WORDLIST", |f| {
@@ -17,11 +17,11 @@ pub(crate) fn install(f: &mut Forth) {
             f.wordlists.pop();
             return Err(e);
         }
-        f.push(f.wordlists.len() as Cell);
+        f.push(to_cell(f.wordlists.len()));
         Ok(())
     });
     f.prim("GET-CURRENT", |f| {
-        f.push(f.current_wid as Cell);
+        f.push(to_cell(f.current_wid));
         Ok(())
     });
     f.prim("SET-CURRENT", |f| {
@@ -30,9 +30,9 @@ pub(crate) fn install(f: &mut Forth) {
     });
     f.prim("GET-ORDER", |f| {
         for i in (0..f.order.len()).rev() {
-            f.push(f.order[i] as Cell);
+            f.push(to_cell(f.order[i]));
         }
-        f.push(f.order.len() as Cell);
+        f.push(to_cell(f.order.len()));
         Ok(())
     });
     f.prim("SET-ORDER", |f| {
@@ -62,7 +62,7 @@ pub(crate) fn install(f: &mut Forth) {
         let name = f.text(i, n);
         match f.find_in(&name, wid) {
             Some(xt) => {
-                f.push(xt as Cell);
+                f.push(to_cell(xt));
                 f.push(if f.dict[xt].immediate { 1 } else { -1 });
             }
             None => f.push(0),
@@ -114,7 +114,7 @@ pub(crate) fn install(f: &mut Forth) {
             f.dict[..nt.min(f.dict.len())].iter().rposition(|w| w.wid == wid && !w.hidden)
         {
             nt = i;
-            f.push(nt as Cell);
+            f.push(to_cell(nt));
             f.execute(xt)?;
             if f.pop()? == 0 {
                 break;
@@ -125,21 +125,21 @@ pub(crate) fn install(f: &mut Forth) {
     f.prim("NAME>STRING", |f| {
         let nt = f.pop_nt()?;
         let a = f.name_in_memory(nt)?;
-        f.push(a as Cell);
-        f.push(f.dict[nt].name.len() as Cell);
+        f.push(to_cell(a));
+        f.push(to_cell(f.dict[nt].name.len()));
         Ok(())
     });
     f.prim("NAME>INTERPRET", |f| {
         let nt = f.pop_nt()?;
-        f.push(nt as Cell);
+        f.push(to_cell(nt));
         Ok(())
     });
     // Compiling a word is executing it if it is immediate, else COMPILE, it.
     f.prim("NAME>COMPILE", |f| {
         let nt = f.pop_nt()?;
-        f.push(nt as Cell);
+        f.push(to_cell(nt));
         let action = if f.dict[nt].immediate { "EXECUTE" } else { "COMPILE," };
-        f.push(f.find_in(action, FORTH_WID).unwrap() as Cell);
+        f.push(to_cell(f.find_in(action, FORTH_WID).unwrap()));
         Ok(())
     });
 }

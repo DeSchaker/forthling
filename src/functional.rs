@@ -144,13 +144,13 @@ impl Forth {
         let n = self.pop()?;
         let a = self.pop()?;
         let bytes = n
-            .checked_mul(CELL as Cell)
+            .checked_mul(to_cell(CELL))
             .ok_or_else(|| Throw::with(INVALID_ARGUMENT, format!("{who}: bad cell count {n}")))?;
         if n < 0 {
             return Err(Throw::with(INVALID_ARGUMENT, format!("{who}: bad cell count {n}")));
         }
         let a = self.check(a, bytes)?;
-        Ok((a, n as usize))
+        Ok((a, to_index(n)))
     }
 }
 
@@ -219,7 +219,7 @@ impl Extension for Functional {
                 }
             }
             f.stack.extend(&out);
-            f.push(out.len() as Cell);
+            f.push(to_cell(out.len()));
             Ok(())
         });
         // MAP-CELLS ( addr n xt -- ): xt is ( x -- y ); every cell is
@@ -283,7 +283,7 @@ impl Extension for Functional {
                     kept += 1;
                 }
             }
-            f.push(kept as Cell);
+            f.push(to_cell(kept));
             Ok(())
         });
         // ANY? ( x1 .. xn n xt -- flag ): xt is ( x -- flag ); stops at the
@@ -356,7 +356,7 @@ impl Extension for Functional {
                 }
             }
             f.push_all(&out)?;
-            f.push(out.len() as Cell);
+            f.push(to_cell(out.len()));
             Ok(())
         });
         // ITERATE ( x n xt -- x1 .. xn ): x1 is x, every next item is xt of
@@ -394,14 +394,14 @@ impl Extension for Functional {
         word(f, wid, "TAKE", |f| {
             let (items, k) = f.pop_split("TAKE")?;
             f.stack.extend(&items[..k]);
-            f.push(k as Cell);
+            f.push(to_cell(k));
             Ok(())
         });
         // DROP-N ( x1 .. xm m n -- xk+1 .. xm m-k ): without the first n items.
         word(f, wid, "DROP-N", |f| {
             let (items, k) = f.pop_split("DROP-N")?;
             f.stack.extend(&items[k..]);
-            f.push((items.len() - k) as Cell);
+            f.push(to_cell(items.len() - k));
             Ok(())
         });
         // ZIP ( a1 .. an b1 .. bn n -- a1 b1 .. an bn 2n )
@@ -418,7 +418,7 @@ impl Extension for Functional {
                 f.stack.push(x);
                 f.stack.push(y);
             }
-            f.push((2 * n) as Cell);
+            f.push(to_cell(2 * n));
             Ok(())
         });
         // SUM, PRODUCT ( x1 .. xn n -- r ): wrapping; 0 and 1 for n = 0.
@@ -538,6 +538,10 @@ impl Extension for Functional {
             if n > 0 && n >= (STACK_CELLS - f.stack.len()) as i128 {
                 return Err(Throw::new(STACK_OVERFLOW));
             }
+            #[allow(
+                clippy::cast_possible_truncation,
+                reason = "n is at most STACK_CELLS here, checked above"
+            )]
             let n = n.max(0) as Cell;
             f.stack.extend(a..a + n);
             f.push(n);
