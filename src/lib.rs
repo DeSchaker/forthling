@@ -26,6 +26,7 @@
     clippy::single_match_else,
     clippy::struct_excessive_bools,
     clippy::unnecessary_literal_bound,
+    clippy::unnecessary_wraps,
     clippy::uninlined_format_args
 )]
 

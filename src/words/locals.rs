@@ -10,7 +10,8 @@ pub(crate) fn install(f: &mut Forth) {
     f.compile_prim("(LOCAL)", |f| {
         let (a, n) = f.pop2()?;
         if n == 0 {
-            return f.end_stack_order_locals();
+            f.end_stack_order_locals();
+            return Ok(());
         }
         let name = f.bytes(a, n)?;
         f.declare_local(&String::from_utf8_lossy(&name))
@@ -39,13 +40,17 @@ pub(crate) fn install(f: &mut Forth) {
                 }
             }
         }
-        f.end_locals(vals)
+        f.end_locals(vals);
+        Ok(())
     });
     // LOCALS| a b c |, which works like (LOCAL)
     f.compile_imm("LOCALS|", |f| {
         loop {
             match f.word() {
-                Some(w) if w == "|" => return f.end_stack_order_locals(),
+                Some(w) if w == "|" => {
+                    f.end_stack_order_locals();
+                    return Ok(());
+                }
                 Some(w) => f.declare_local(&w)?,
                 None => return Err(Throw::with(CONTROL_MISMATCH, "LOCALS| without |")),
             }
@@ -66,18 +71,17 @@ impl Forth {
 
     /// Ends a group of declarations: compiles code that takes the new
     /// locals from the stack, except the last `zeroed` ones, which start at 0.
-    pub(crate) fn end_locals(&mut self, zeroed: usize) -> Res {
+    pub(crate) fn end_locals(&mut self, zeroed: usize) {
         let take = self.local_names.len() - self.locals_bound - zeroed;
         self.code.push(Instr::Locals(take, zeroed));
         self.locals_bound = self.local_names.len();
-        Ok(())
     }
 
     /// Ends declarations made by (LOCAL), where the first local gets the top
     /// of the stack, unlike with {:.
-    pub(crate) fn end_stack_order_locals(&mut self) -> Res {
+    pub(crate) fn end_stack_order_locals(&mut self) {
         self.local_names[self.locals_bound..].reverse();
-        self.end_locals(0)
+        self.end_locals(0);
     }
 
     /// The index of a local of the definition being compiled; the latest

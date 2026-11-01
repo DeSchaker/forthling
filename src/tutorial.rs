@@ -190,6 +190,7 @@ impl Forth {
 }
 
 /// LESSONS ( -- ): the list, with a mark at the lessons done.
+#[allow(clippy::unnecessary_wraps, reason = "a word body must return Res")]
 fn list(f: &mut Forth) -> Res {
     let passed = f.state::<Progress>().passed.clone();
     let mut text = String::new();
@@ -249,6 +250,7 @@ fn current(f: &mut Forth) -> Option<&'static Lesson> {
 }
 
 /// HINT ( -- ): a hint for the current lesson.
+#[allow(clippy::unnecessary_wraps, reason = "a word body must return Res")]
 fn hint(f: &mut Forth) -> Res {
     if let Some(l) = current(f) {
         f.emit_str(&format!("Hint: {}\n", l.hint));
@@ -257,6 +259,7 @@ fn hint(f: &mut Forth) -> Res {
 }
 
 /// NEXT ( -- ): the lesson after the current one.
+#[allow(clippy::unnecessary_wraps, reason = "a word body must return Res")]
 fn next(f: &mut Forth) -> Res {
     let n = f.state::<Progress>().current + 1;
     if n > lessons().len() {
