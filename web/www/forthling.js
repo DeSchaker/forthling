@@ -17,6 +17,7 @@
 //   forth.writeFile("square.fs", ": SQUARE DUP * ;");
 //   forth.eval("INCLUDE square.fs 7 SQUARE .");   // output: "49 "
 //   forth.readFile("square.fs");                    // the text, or null
+//   forth.deleteFile("square.fs");                  // true, or false for none
 //   forth.files();                                  // [{ name, size }, ...]
 
 const encoder = new TextEncoder();
@@ -78,6 +79,13 @@ export class Forth {
     const bytes = encoder.encode(name);
     this.#input(bytes.length, (input) => input.set(bytes));
     return this.#answer(this.#wasm.fl_read_file());
+  }
+
+  /** Removes a file of the session; false when there was none. */
+  deleteFile(name) {
+    const bytes = encoder.encode(name);
+    this.#input(bytes.length, (input) => input.set(bytes));
+    return this.#answer(this.#wasm.fl_delete_file());
   }
 
   /** The session's files: [{ name, size }], sorted by name. */

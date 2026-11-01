@@ -532,15 +532,16 @@ document. In the sandbox:
   the limit is dropped. `MS` that would pass the time limit throws at once. The time limit
   does not exist in WebAssembly.
 - **Files** are those of the file system the host gives (`set_file_system`): by default
-  the disk, in `Forth::sandboxed()` and the MCP server files in memory (at most 4 MiB in
-  all; a write past that fails with the word's ior), so a program there can write, read
-  and `INCLUDE` files without reaching the disk. The FILE words, `INCLUDE` and the like,
+  the disk, in the sandbox (`Forth::sandboxed()`, `--sandbox`, Python's `sandbox=True`,
+  the MCP server and the playground) files in memory (at most 4 MiB in all; a write past
+  that fails with the word's ior), so a program there can write, read and `INCLUDE` files
+  without reaching the disk. With `--sandbox` they start as copies of the files on the
+  command line and of the `--blocks` file. The FILE words, `INCLUDE` and the like,
   the block file and the host's `include` all use it.
 - **Without `Permission::Files`** the FILE words that name a file (`OPEN-FILE`,
   `CREATE-FILE`, `DELETE-FILE`, `RENAME-FILE`, `FILE-STATUS`) give the ior -259;
   `INCLUDE`, `INCLUDED`, `REQUIRE`, `REQUIRED` and the block words, which have no ior,
-  throw -259. A file that the host itself includes is still read. `--sandbox` in the
-  program takes files away in this way.
+  throw -259. A file that the host itself includes is still read.
 
 ## Extensions
 

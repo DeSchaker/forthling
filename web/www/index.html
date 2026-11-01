@@ -77,6 +77,27 @@
     animation: arrive 0.25s ease-out;
   }
   .cell.more, .cell.none { border-style: dashed; color: var(--muted); background: none; }
+  #files {
+    margin: 0 0 16px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--panel);
+  }
+  #files[hidden] { display: none; }
+  #files .step-head #files-close { margin-left: auto; padding: 2px 10px; }
+  #file-list { list-style: none; margin: 8px 0; padding: 0; }
+  #file-list li { display: flex; align-items: center; gap: 10px; padding: 2px 0; min-width: 0; }
+  #file-list .name {
+    border: none; background: none; padding: 2px 0; color: var(--accent); text-decoration: underline;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+  }
+  #file-list .size { color: var(--muted); flex: none; }
+  #file-list .del { margin-left: auto; padding: 2px 10px; flex: none; font-size: 14px; }
+  #file-list .empty { color: var(--muted); font-family: inherit; }
+  input[type="text"] {
+    flex: 1 1 10em; min-width: 0; font: inherit; padding: 7px 10px; border-radius: 6px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--fg);
+  }
+  input[type="text"]:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  #file-text { min-height: 100px; margin-top: 8px; }
   @keyframes arrive { from { transform: translateY(-8px); opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .cell.changed { animation: none; } }
 </style>
@@ -110,6 +131,24 @@
     </div>
   </section>
 
+  <section id="files" hidden aria-label="Files">
+    <div class="step-head">
+      <strong>Files</strong>
+      <span id="files-note" class="hint" style="margin:0"></span>
+      <button id="files-close" aria-label="Close">×</button>
+    </div>
+    <ul id="file-list" class="mono"></ul>
+    <div class="bar">
+      <input id="file-name" type="text" class="mono" placeholder="name.fs" aria-label="File name"
+        spellcheck="false" autocapitalize="off" autocomplete="off">
+      <button id="file-save" disabled>Save</button>
+      <button id="file-upload-button" disabled title="Put files from your computer here">Upload…</button>
+      <input id="file-upload" type="file" multiple hidden>
+    </div>
+    <textarea id="file-text" class="mono" spellcheck="false" autocapitalize="off" autocomplete="off"
+      placeholder="The text of the file" aria-label="Text of the file"></textarea>
+  </section>
+
   <label for="code" class="hint" style="margin:0">Forth code</label>
   <textarea id="code" class="mono" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
   <div class="bar">
@@ -119,13 +158,15 @@
       <option value="">Examples…</option>
     </select>
     <button id="words" disabled>My words</button>
+    <button id="files-button" aria-expanded="false" aria-controls="files">Files</button>
     <button id="reset" disabled>Start over</button>
     <span class="hint">Ctrl+Enter runs</span>
   </div>
 
   <footer>
     Words you define stay until you start over. Each run may take 10 million steps and print 1 MiB.
-    Files live in this page's memory until you start over: <code>INCLUDE</code>, the FILE words and <code>BLOCK</code> use them. Try <code>WORDS</code>, <code>SEE SQUARE</code>, <code>ALSO JSON</code> for the JSON words, or
+    <em>Files</em> are kept in this browser, also when you start over, up to 4 MiB: <code>INCLUDE name.fs</code>,
+    the FILE words and <code>BLOCK</code> use them, and what a program writes is kept too. Try <code>WORDS</code>, <code>SEE SQUARE</code>, <code>ALSO JSON</code> for the JSON words, or
     <code>ALSO DEBUG TRACE-ON</code> to see each word run (<code>TRACE-OFF</code> stops it).
     <em>Step through</em> runs the code, then lets you follow it word by word, forwards and back,
     with the stack before and after each word; <code>BREAK</code> (after <code>ALSO DEBUG</code>) marks a place to jump to.
@@ -142,12 +183,13 @@ const examples = {
   "JSON": "ALSO JSON\n: DOC  S\\\" {\\\"name\\\": \\\"Ada\\\", \\\"langs\\\": [\\\"en\\\", \\\"fr\\\"]}\" ;\nDOC S\" langs[1]\" JSON@ DROP TYPE CR\nJSON{ S\" sum\" JSON-KEY 1 2 + JSON-NUMBER S\" ok\" JSON-KEY -1 JSON-FLAG JSON}",
   "Trace": "\\ Each word that runs, with the stack when it starts\nALSO DEBUG\n: SQUARE ( n -- n*n ) DUP * ;\n: SUM-SQUARES ( a b -- n ) SQUARE SWAP SQUARE + ;\nTRACE-ON 3 4 SUM-SQUARES . TRACE-OFF",
   "Step through": "\\ Press \"Step through\" to follow each word and its stack;\n\\ BREAK marks a place that \"Next BREAK\" jumps to\nALSO DEBUG\n: SQUARE ( n -- n*n ) DUP * ;\n: SUM-SQUARES ( a b -- n ) SQUARE SWAP BREAK SQUARE + ;\n3 4 SUM-SQUARES .",
+  "Files": "\\ Write a file, then INCLUDE it; see it under Files\nS\" hello.fs\" W/O CREATE-FILE THROW VALUE OUT\nS\\\" : HELLO .\\\" Hello from a file\\\" ;\" OUT WRITE-LINE THROW\nOUT CLOSE-FILE THROW\nINCLUDE hello.fs  HELLO",
   "The sandbox":"\\ An endless loop: the sandbox stops it\n: FOREVER BEGIN AGAIN ; FOREVER",
 };
 
 const $ = (id) => document.getElementById(id);
 const transcript = $("transcript"), code = $("code"), cells = $("cells");
-const buttons = [$("run"), $("debug"), $("words"), $("reset")];
+const buttons = [$("run"), $("debug"), $("words"), $("reset"), $("file-save"), $("file-upload-button")];
 const MAX_TRACE = 10000; // words recorded for Step through
 for (const name of Object.keys(examples)) $("examples").add(new Option(name, name));
 
@@ -190,6 +232,7 @@ function start() {
     if (data.ready) {
       busy(false);
       cells.textContent = "empty";
+      restoreFiles();
       return;
     }
     if (!waiting || data.id !== waiting.id) return;
@@ -197,7 +240,7 @@ function start() {
     const done = waiting.done;
     waiting = null;
     busy(false);
-    if (data.answer.crashed) {
+    if (data.answer?.crashed) {
       show(`forthling stopped unexpectedly (${data.answer.crashed}); starting over.\n`, "err");
       start();
       return;
@@ -209,10 +252,12 @@ function start() {
   };
 }
 
-function ask(action, code, done, trace = 0) {
+// Sends the worker a message, such as { action: "eval", code }, and calls
+// done with its answer.
+function ask(message, done) {
   waiting = { id: ++nextId, done };
   busy(true);
-  worker.postMessage({ id: waiting.id, action, code, trace });
+  worker.postMessage({ id: waiting.id, ...message });
   // The sandbox counts steps; this is a last resort if something still runs on.
   watchdog = setTimeout(() => {
     waiting = null;
@@ -225,14 +270,111 @@ function run(trace = 0) {
   const text = code.value;
   if (!text.trim() || waiting) return;
   show(text.replace(/\n?$/, "\n"), "in");
-  ask("eval", text, (answer) => {
+  ask({ action: "eval", code: text, trace }, (answer) => {
     if (answer.output) show(answer.output);
     if (answer.error) show((answer.output && !answer.output.endsWith("\n") ? "\n" : "") + errorText(answer.error), "err");
     else show(answer.compiling ? " compiled\n" : " ok\n", "ok");
     showStack(answer);
     if (trace) openStepper(answer);
-  }, trace);
+    keepFiles(); // the program may have written some
+  });
 }
+
+// Files: those of the session, kept in this browser's localStorage so that
+// they outlast a reload and Start over. The page keeps them after each run;
+// a new session gets them back.
+const STORE = "forthling.files";
+const encoder = new TextEncoder();
+let stored = {}; // { name: text }
+try {
+  stored = JSON.parse(localStorage.getItem(STORE)) ?? {};
+} catch {
+  stored = {};
+}
+
+function save(files, note = "") {
+  stored = files;
+  try {
+    localStorage.setItem(STORE, JSON.stringify(files));
+  } catch {
+    note = "Too large to keep in this browser; they are gone when you leave the page.";
+  }
+  renderFiles(note);
+}
+
+function renderFiles(note = "") {
+  const names = Object.keys(stored).sort();
+  const rows = names.map((name) => {
+    const li = document.createElement("li");
+    const open = document.createElement("button");
+    open.className = "name";
+    open.textContent = name;
+    open.title = "Show this file";
+    open.onclick = () => {
+      $("file-name").value = name;
+      $("file-text").value = stored[name];
+    };
+    const size = document.createElement("span");
+    size.className = "size";
+    const bytes = encoder.encode(stored[name]).length;
+    size.textContent = `${bytes} byte${bytes === 1 ? "" : "s"}`;
+    const del = document.createElement("button");
+    del.className = "del";
+    del.textContent = "Delete";
+    del.setAttribute("aria-label", `Delete ${name}`);
+    del.onclick = () => !waiting && ask({ action: "deleteFile", name }, () => keepFiles());
+    li.append(open, size, del);
+    return li;
+  });
+  if (!rows.length) {
+    const li = document.createElement("li");
+    li.className = "empty";
+    li.textContent = "No files yet. Save one here, upload one, or write one with CREATE-FILE; INCLUDE name.fs runs it.";
+    rows.push(li);
+  }
+  $("file-list").replaceChildren(...rows);
+  $("files-note").textContent = note || (names.length ? "kept in this browser" : "");
+}
+
+// Reads the session's files back and keeps them.
+function keepFiles(note) {
+  ask({ action: "snapshot" }, (files) => save(files, note));
+}
+
+// Gives a new session the files kept in this browser.
+function restoreFiles() {
+  renderFiles();
+  if (!Object.keys(stored).length) return;
+  ask({ action: "putFiles", files: stored }, (failed) => {
+    keepFiles(failed.length ? `Did not fit: ${failed.join(", ")}` : "");
+  });
+}
+
+$("files-button").onclick = () => {
+  const panel = $("files");
+  panel.hidden = !panel.hidden;
+  $("files-button").setAttribute("aria-expanded", String(!panel.hidden));
+  if (!panel.hidden) renderFiles($("files-note").textContent);
+};
+$("files-close").onclick = () => {
+  $("files").hidden = true;
+  $("files-button").setAttribute("aria-expanded", "false");
+};
+$("file-save").onclick = () => {
+  const name = $("file-name").value.trim();
+  if (!name || waiting) return;
+  ask({ action: "writeFile", name, text: $("file-text").value }, (failed) => keepFiles(failed ?? ""));
+};
+$("file-upload-button").onclick = () => $("file-upload").click();
+$("file-upload").onchange = async (e) => {
+  const files = {};
+  for (const file of e.target.files) files[file.name] = await file.text();
+  e.target.value = "";
+  if (!Object.keys(files).length || waiting) return;
+  ask({ action: "putFiles", files }, (failed) => {
+    keepFiles(failed.length ? `Did not fit: ${failed.join(", ")}` : "");
+  });
+};
 
 // Step through: the run is recorded word by word and played back here. The
 // sandbox makes a run come out the same each time, so the record is faithful.
@@ -350,13 +492,14 @@ $("examples").onchange = (e) => {
   e.target.value = "";
   code.focus();
 };
-$("words").onclick = () => ask("words", "", (words) => {
+$("words").onclick = () => ask({ action: "words" }, (words) => {
   show(words.length ? `Your words: ${words.join(" ")}\n` : "You have not defined any words yet.\n", "ok");
 });
-$("reset").onclick = () => ask("reset", "", (answer) => {
+$("reset").onclick = () => ask({ action: "reset" }, (answer) => {
   transcript.textContent = "";
-  show("Started over.\n", "ok");
+  show("Started over; your files are still there.\n", "ok");
   showStack(answer);
+  restoreFiles();
 });
 
 code.value = examples["Square"];

@@ -54,3 +54,29 @@ fn quit_interrupts_and_the_end_of_input_continues() {
     let out = run(PROGRAM, "x\n");
     assert!(out.ends_with(&format!("{PROMPT}{PROMPT}14 ")), "{out:?}");
 }
+
+#[test]
+fn the_sandbox_has_files_in_memory() {
+    let dir = std::env::temp_dir().join(format!("forthling-cli-sandbox-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("lib.fs"), ": SQ DUP * ;").unwrap();
+    let program = "INCLUDE lib.fs 6 SQ .\n\
+        S\" out.txt\" W/O CREATE-FILE THROW VALUE OUT  S\" hi\" OUT WRITE-FILE THROW  OUT CLOSE-FILE THROW\n\
+        CREATE B 9 ALLOT  S\" out.txt\" R/O OPEN-FILE THROW VALUE IN  B 9 IN READ-FILE THROW B SWAP TYPE\n\
+        S\" main.fs\" FILE-STATUS NIP .  S\" other.fs\" FILE-STATUS NIP .\n";
+    std::fs::write(dir.join("main.fs"), program).unwrap();
+    std::fs::write(dir.join("other.fs"), "1").unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_forthling"))
+        .args(["--sandbox", "lib.fs", "main.fs"])
+        .current_dir(&dir)
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    let text =
+        String::from_utf8_lossy(&out.stdout).into_owned() + &String::from_utf8_lossy(&out.stderr);
+    // The files given are there, what it writes it can read back, the other
+    // file on the disk is not there, and nothing is written to the disk.
+    assert_eq!(text, "36 hi0 -67 ");
+    assert!(!dir.join("out.txt").exists());
+    std::fs::remove_dir_all(&dir).unwrap();
+}

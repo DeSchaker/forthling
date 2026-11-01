@@ -18,9 +18,11 @@ Runs the files in order, or else starts a REPL.
 options:
   -m, --memory SIZE  memory for data space and heap, such as 4M (default 1M)
   -b, --blocks FILE  the block file (default blocks.fb in the current directory)
-      --sandbox      no file access from Forth, and the limits below: 10000000
-                     steps, 5s and 1M of output per line of the REPL or per file,
-                     and 4M of space for definitions and the like in all
+      --sandbox      files only in memory (the files given here and the block
+                     file are copied in; what Forth writes is gone at the end),
+                     and the limits below: 10000000 steps, 5s and 1M of output
+                     per line of the REPL or per file, and 4M of space for
+                     definitions and the like in all
       --max-steps N  at most N steps (instructions and words) per evaluation
       --max-time T   at most T per evaluation, such as 5s or 500ms
       --max-output SIZE  at most SIZE bytes of output per evaluation
@@ -46,7 +48,7 @@ struct Settings {
 struct Run {
     memory: usize,
     blocks: Option<String>, // None: the default block file
-    sandbox: bool,          // no file access from Forth
+    sandbox: bool,          // files only in memory
     limits: Limits,
     files: Vec<String>,
 }
@@ -281,12 +283,26 @@ fn run_forth(run: Run, extensions: Extensions) -> i32 {
     for &extension in extensions {
         forth.install(extension);
     }
-    if let Some(path) = run.blocks {
+    if let Some(path) = &run.blocks {
         forth.set_block_file(path).expect("no block buffers in use yet");
     }
-    // The files on the command line are the user's own; Forth code that the
-    // sandbox runs cannot open others.
-    forth.permit(Permission::Files, !run.sandbox);
+    // The files on the command line are the user's own; in the sandbox the
+    // Forth code has only copies of them, in memory, and not the disk.
+    if run.sandbox {
+        let files = MemoryFs::with_limit(MemoryFs::SANDBOX_LIMIT);
+        for path in run.files.iter().chain(&run.blocks) {
+            // A file that cannot be read fails when it is included.
+            let Ok(bytes) = fs::read(path) else { continue };
+            if let Err(e) = files.insert(path, bytes) {
+                eprintln!(
+                    "{path}: {e} (the sandbox holds {} bytes of files)",
+                    MemoryFs::SANDBOX_LIMIT
+                );
+                return 1;
+            }
+        }
+        forth.set_file_system(Box::new(files)).expect("no block buffers in use yet");
+    }
     forth.set_limits(run.limits);
     forth.set_interactive(true);
     forth.set_debugger(Some(Box::new(debugger)));

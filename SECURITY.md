@@ -5,8 +5,8 @@ write and delete files. Running untrusted Forth code that way is therefore unsaf
 not a vulnerability.
 
 For code you do not trust there is the sandbox (`Forth::sandboxed()`, `--sandbox`, or
-`sandbox=True` in Python): no files on the disk for Forth (`Forth::sandboxed()` and the
-MCP server give it files in memory instead), limits on the steps, the time and
+`sandbox=True` in Python): no files on the disk for Forth, which gets files in memory
+instead, limits on the steps, the time and
 the output of each evaluation, and a limit on the space a program takes outside its Forth
 memory. Getting around it is a vulnerability: reaching a file on the disk, running on after a limit
 was reached, one step that takes far longer than the time limit, or memory of the host

@@ -125,8 +125,19 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
 
 - **Next step:** step 16, publishing `forthling-mcp` in the MCP Registry, which needs a
   choice of package first; or step 17, a tutorial extension, which needs a few choices
-  first (see there). Open from step 13: files in the playground's UI (a panel, kept in
-  `localStorage`), and files for `--sandbox` and Python's `sandbox=True`.
+  first (see there).
+- **Files everywhere in the sandbox (2026-11-01):** the follow-ups of step 13. The
+  playground has a **Files** panel (list, show, save, upload, delete); after each run
+  it reads the session's files back (worker action `snapshot`) and keeps them in
+  `localStorage` (`forthling.files`, as text), and a new session, after a reload, Start
+  over or a restarted worker, gets them back (`putFiles`); so the files a program writes
+  are kept too. The web module got `fl_delete_file` (`deleteFile`), the core
+  `MemoryFs::remove`. Tested in headless Chrome (13 checks, also at phone width).
+  `--sandbox` now puts copies of the files on the command line and of the `--blocks`
+  file in a `MemoryFs` of 4 MiB instead of denying files; Python's `sandbox=True` has
+  one too, with `write_file`, `read_file` (bytes), `delete_file` and `files`, and its
+  `include` copies the file from the disk in first. So every sandbox now has files in
+  memory; only `permit(Permission::Files, false)` takes them away.
   The website (robbertwesterink.nl, private repo `DeSchaker/website`) links to the
   playground since 2026-10-31.
 - **Virtual file system (2026-11-01):** step 13 is done, in `src/vfs.rs`. The trait
@@ -145,7 +156,7 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
   `files` of `forth_eval`, `{name: text}`, puts files in; `forth_reset` empties them),
   and the web module (`fl_write_file`, `fl_read_file`, `fl_files`; in JavaScript
   `writeFile`, `readFile`, `files`, also through the worker). `--sandbox` and Python's
-  `sandbox=True` still deny files, unchanged. Since `Permission::Files` no longer means
+  `sandbox=True` still denied files then (changed the same day, see above). Since `Permission::Files` no longer means
   the disk, `Forth::disk_files()` (Files permitted and `is_disk`) is what SQLite's
   `DB-OPEN` checks now, so a database file stays out of reach in MCP. READ-FILE,
   READ-LINE, WRITE-FILE and WRITE-LINE now `charge` their bytes. Tested: the suite's

@@ -8,11 +8,11 @@
 //! f.add_word("HYPOT", math.hypot, inputs=2)     # pushes a float
 //! ```
 
-use forthling::{Cell, Extension, Forth, Limits, MAX_MEMORY, MIN_MEMORY, Permission, Throw};
+use forthling::{Cell, Extension, Forth, Limits, MAX_MEMORY, MIN_MEMORY, MemoryFs, Throw};
 use pyo3::create_exception;
 use pyo3::exceptions::{PyException, PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyBool, PyFloat, PyInt, PyTuple};
+use pyo3::types::{PyBool, PyBytes, PyFloat, PyInt, PyTuple};
 use std::cell::RefCell;
 use std::io;
 use std::rc::Rc;
@@ -46,6 +46,9 @@ struct PyForth {
     // The Python exception that made a word throw PYTHON_EXCEPTION, to raise
     // again when the Forth code does not catch it.
     pending: Rc<RefCell<Option<PyErr>>>,
+    // The files of the sandbox, in memory; None outside it, where the files
+    // are those of the disk.
+    files: Option<MemoryFs>,
 }
 
 /// A value a Python function gives back to Forth.
@@ -76,6 +79,13 @@ fn values(v: &Bound<'_, PyAny>, out: &mut Vec<Value>) -> PyResult<()> {
 }
 
 impl PyForth {
+    /// The files in memory, which only the sandbox has.
+    fn memory_files(&self) -> PyResult<&MemoryFs> {
+        self.files.as_ref().ok_or_else(|| {
+            PyValueError::new_err("only a sandbox (sandbox=True) has files in memory")
+        })
+    }
+
     /// The Python exception for a Forth exception.
     fn error(&self, py: Python<'_>, e: Throw, output: String) -> PyErr {
         if e.code == PYTHON_EXCEPTION {
@@ -161,10 +171,14 @@ impl PyForth {
             limits.time = Some(time);
         }
         forth.set_limits(limits);
-        forth.permit(Permission::Files, !sandbox);
+        // In the sandbox the files are in memory, not on the disk.
+        let files = sandbox.then(|| MemoryFs::with_limit(MemoryFs::SANDBOX_LIMIT));
+        if let Some(files) = &files {
+            forth.set_file_system(Box::new(files.clone())).expect("no block buffers in use yet");
+        }
         forth.install(&forthling::Json);
         forth.install(&PythonHost);
-        Ok(PyForth { forth, pending: Rc::default() })
+        Ok(PyForth { forth, pending: Rc::default(), files })
     }
 
     /// Interprets Forth source and returns what it printed. Raises
@@ -173,9 +187,41 @@ impl PyForth {
         self.run(py, |f| f.interpret(text))
     }
 
-    /// Runs a Forth source file and returns what it printed.
+    /// Runs a Forth source file and returns what it printed. In the sandbox
+    /// the file is read from the disk and put in the files in memory first,
+    /// so that the Forth code sees it there.
     fn include(&mut self, py: Python<'_>, path: &str) -> PyResult<String> {
+        if let (Some(files), Ok(bytes)) = (&self.files, std::fs::read(path)) {
+            files.insert(path, bytes).map_err(|e| PyValueError::new_err(format!("{path}: {e}")))?;
+        }
         self.run(py, |f| f.include(path))
+    }
+
+    /// Puts a file in the sandbox's files, replacing one of the same name;
+    /// `data` is str (written as UTF-8) or bytes.
+    fn write_file(&self, name: &str, data: &Bound<'_, PyAny>) -> PyResult<()> {
+        let bytes: Vec<u8> = match data.extract::<String>() {
+            Ok(text) => text.into_bytes(),
+            Err(_) => data.extract()?,
+        };
+        let files = self.memory_files()?;
+        files.insert(name, bytes).map_err(|e| PyValueError::new_err(format!("{name}: {e}")))
+    }
+
+    /// The contents of a file of the sandbox, as bytes, or None when there
+    /// is no such file.
+    fn read_file<'py>(&self, py: Python<'py>, name: &str) -> PyResult<Option<Bound<'py, PyBytes>>> {
+        Ok(self.memory_files()?.get(name).map(|bytes| PyBytes::new(py, &bytes)))
+    }
+
+    /// Removes a file of the sandbox; False when there was none.
+    fn delete_file(&self, name: &str) -> PyResult<bool> {
+        Ok(self.memory_files()?.remove(name).is_ok())
+    }
+
+    /// The names of the sandbox's files, sorted.
+    fn files(&self) -> PyResult<Vec<String>> {
+        Ok(self.memory_files()?.paths())
     }
 
     /// Adds a word that calls `func` with `inputs` cells from the data

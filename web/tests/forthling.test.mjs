@@ -65,6 +65,7 @@ test("files live in the session's memory", async () => {
   forth.eval("S\" out.txt\" W/O CREATE-FILE THROW S\" héllo\" ROT WRITE-LINE THROW");
   assert.equal(forth.readFile("out.txt"), "héllo\n");
   assert.equal(forth.readFile("none.txt"), null);
+  assert.equal(forth.deleteFile("none.txt"), false);
   assert.deepEqual(forth.files(), [
     { name: "lib/square.fs", size: 16 }, { name: "main.fs", size: 32 }, { name: "out.txt", size: 7 },
   ]);
@@ -72,6 +73,8 @@ test("files live in the session's memory", async () => {
   forth.eval("1 BLOCK 1024 BLANK S\" 6 7 * .\" 1 BLOCK SWAP MOVE UPDATE SAVE-BUFFERS");
   assert.equal(forth.eval("EMPTY-BUFFERS 1 LOAD").output, "42 ");
   assert.throws(() => forth.writeFile("big", "x".repeat(4 * 1024 * 1024)), /full/);
+  assert.equal(forth.deleteFile("main.fs"), true);
+  assert.equal(forth.eval("INCLUDE main.fs").error.code, -38);
   forth.reset();
   assert.deepEqual(forth.files(), []);
 });

@@ -29,7 +29,7 @@ functions, and `forthling.js` wraps them.
 ## The playground
 
 `index.html` has a transcript, the stack, an editor (Ctrl+Enter runs), examples, the
-words defined so far and "Start over". forthling runs in a Web Worker, so the page never
+words defined so far, the files (kept in the browser) and "Start over". forthling runs in a Web Worker, so the page never
 freezes; should a run still not end, the page stops the worker after 15 seconds and
 starts a new one.
 
@@ -65,11 +65,14 @@ them, and the page can too:
 forth.writeFile("square.fs", ": SQUARE DUP * ;");
 forth.eval("INCLUDE square.fs 7 SQUARE .");   // output: "49 "
 forth.readFile("square.fs");                    // ": SQUARE DUP * ;", or null for no such file
+forth.deleteFile("square.fs");                  // true, or false for no such file
 forth.files();                                  // [{ name: "square.fs", size: 16 }]
 ```
 
 `writeFile` throws when the files would pass 4 MiB in all; `reset()` starts with no
-files.
+files. The playground's **Files** lists them, shows, saves, uploads and deletes them, and
+keeps them in the browser's `localStorage`, as text, after each run: a reload or *Start
+over* gives them back to the new session, also the files a program wrote.
 
 ## In WebAssembly
 

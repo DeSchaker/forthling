@@ -52,9 +52,11 @@ Run a file: `cargo run --release -- examples/demo.fs`
 forthling [options] [file ...]
   -m, --memory SIZE  memory for data space and heap, such as 4M (default 1M)
   -b, --blocks FILE  the block file (default blocks.fb in the current directory)
-      --sandbox      no file access from Forth, and the limits below: 10000000
-                     steps, 5s and 1M of output per line of the REPL or per file,
-                     and 4M of space for definitions and the like in all
+      --sandbox      files only in memory (the files given here and the block
+                     file are copied in; what Forth writes is gone at the end),
+                     and the limits below: 10000000 steps, 5s and 1M of output
+                     per line of the REPL or per file, and 4M of space for
+                     definitions and the like in all
       --max-steps N  at most N steps (instructions and words) per evaluation
       --max-time T   at most T per evaluation, such as 5s or 500ms
       --max-output SIZE  at most SIZE bytes of output per evaluation
@@ -234,8 +236,7 @@ code, word lists, `REPLACES` texts, JSON strings) is limited to 4 MiB in all, it
 `space`. `set_limits(Limits { … })` and `permit(Permission::Files, …)` set them one by
 one. A limit that is reached throws -258, and every step after it throws again, so
 `CATCH` cannot go on. `permit(Permission::Files, false)` takes files away altogether (the
-FILE words give the ior -259, `INCLUDE` and the block words throw -259); the program's
-`--sandbox` does that. The sandbox restricts the Forth program, not the host: `include`
+FILE words give the ior -259, `INCLUDE` and the block words throw -259). The sandbox restricts the Forth program, not the host: `include`
 called by the host still reads its file. Extensions follow the permissions too; SQLite
 opens only `:memory:` unless the program may use the disk (`Forth::disk_files()`).
 
@@ -263,7 +264,10 @@ In a `MemoryFs` a name is a path in which `/` and `\` both separate the parts, s
 `lib/../square.fs` is `square.fs`; `MemoryFs::with_limit(bytes)` caps the files in all,
 and a write past it fails with the word's ior. `Forth::sandboxed()` starts with an empty
 one of 4 MiB (`MemoryFs::SANDBOX_LIMIT`), and so does each session of the MCP server and
-the playground.
+the playground, which keeps its files in the browser. With `--sandbox` the program puts
+copies of the files on its command line (and of the `--blocks` file) in one, and Python's
+`sandbox=True` has one too (`write_file`, `read_file`, `delete_file`, `files`); what the
+Forth code writes there never reaches the disk.
 
 ### Error reports
 

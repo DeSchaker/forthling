@@ -181,6 +181,11 @@ impl MemoryFs {
         Ok(())
     }
 
+    /// Removes a file, as DELETE-FILE does.
+    pub fn remove(&self, path: &str) -> io::Result<()> {
+        self.clone().delete(path)
+    }
+
     /// The contents of a file.
     pub fn get(&self, path: &str) -> Option<Vec<u8>> {
         let path = normalize(path).ok()?;

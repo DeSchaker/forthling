@@ -550,16 +550,17 @@ beschrijft. In de zandbak:
   ziet maar niet verder kan. Uitvoer voorbij de limiet vervalt. `MS` dat de tijdlimiet
   zou passeren, gooit meteen. In WebAssembly bestaat de tijdlimiet niet.
 - **Bestanden** zijn die van het bestandssysteem dat de host geeft (`set_file_system`):
-  standaard de schijf, in `Forth::sandboxed()` en de MCP-server bestanden in het geheugen
-  (samen hoogstens 4 MiB; een schrijfactie daarboven mislukt met de ior van het woord),
-  zodat een programma daar bestanden kan schrijven, lezen en `INCLUDE`n zonder de schijf
-  te bereiken. De FILE-woorden, `INCLUDE` en dergelijke, het blokbestand en `include` van
+  standaard de schijf, in de zandbak (`Forth::sandboxed()`, `--sandbox`, `sandbox=True`
+  in Python, de MCP-server en de playground) bestanden in het geheugen (samen hoogstens
+  4 MiB; een schrijfactie daarboven mislukt met de ior van het woord), zodat een
+  programma daar bestanden kan schrijven, lezen en `INCLUDE`n zonder de schijf te
+  bereiken. Met `--sandbox` beginnen ze als kopieën van de bestanden op de opdrachtregel
+  en van het bestand van `--blocks`. De FILE-woorden, `INCLUDE` en dergelijke, het blokbestand en `include` van
   de host gebruiken het allemaal.
 - **Zonder `Permission::Files`** geven de FILE-woorden die een bestand noemen
   (`OPEN-FILE`, `CREATE-FILE`, `DELETE-FILE`, `RENAME-FILE`, `FILE-STATUS`) de ior -259;
   `INCLUDE`, `INCLUDED`, `REQUIRE`, `REQUIRED` en de BLOCK-woorden, die geen ior hebben,
-  gooien -259. Een bestand dat de host zelf inleest, wordt nog wel gelezen. `--sandbox`
-  in het programma neemt bestanden op deze manier weg.
+  gooien -259. Een bestand dat de host zelf inleest, wordt nog wel gelezen.
 
 ## Extensies
 

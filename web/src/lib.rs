@@ -6,7 +6,8 @@
 //! it), calls `fl_eval`, and reads the answer, a JSON text, from `fl_answer`.
 //! The answer has the same shape as a result of the MCP server: `output`,
 //! `stack`, `fstack`, `compiling` and `error`. The session's files are in
-//! memory; `fl_write_file`, `fl_read_file` and `fl_files` reach them.
+//! memory; `fl_write_file`, `fl_read_file`, `fl_delete_file` and `fl_files`
+//! reach them.
 
 use forthling::{Debugger, Forth, Json, MemoryFs, Throw, TraceEntry};
 use std::cell::{Cell, RefCell};
@@ -129,6 +130,16 @@ pub extern "C" fn fl_read_file() -> usize {
     let name = INPUT.with(|i| String::from_utf8_lossy(&i.borrow()).into_owned());
     let contents = FILES.with(|f| f.borrow().get(&name));
     set_answer(contents.map_or_else(|| "null".into(), |c| quoted(&String::from_utf8_lossy(&c))))
+}
+
+/// Removes the file named by the input; the answer is `true`, or `false`
+/// when there was none; returns its length.
+#[unsafe(no_mangle)]
+pub extern "C" fn fl_delete_file() -> usize {
+    with_session(|_| ());
+    let name = INPUT.with(|i| String::from_utf8_lossy(&i.borrow()).into_owned());
+    let removed = FILES.with(|f| f.borrow().remove(&name).is_ok());
+    set_answer(removed.to_string())
 }
 
 /// The session's files as a JSON array of `{"name", "size"}`, sorted by

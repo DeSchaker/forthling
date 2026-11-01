@@ -38,7 +38,7 @@ except forthling.ForthError as e:
 - `Forth(memory=None, input="", sandbox=False, max_steps=None, max_time=None,
   max_output=None, max_space=None)`: `memory` is the size in bytes (1 MiB by default); `input` is what
   `KEY`, `ACCEPT` and `REFILL` read from the terminal. `sandbox=True` is for code you do
-  not trust: no file access, each `interpret` is limited to 10 million steps, 5 seconds
+  not trust: files only in memory (see below), each `interpret` is limited to 10 million steps, 5 seconds
   and 1 MiB of output, and definitions and the like to 4 MiB in all. `max_steps`,
   `max_time` (seconds), `max_output` and `max_space` (bytes) set a limit of their own,
   with or without the sandbox. A limit that is reached raises
@@ -50,6 +50,20 @@ except forthling.ForthError as e:
   running, such as `["MAIN", "STEP", "/"]`), `source`, `line`, `column` and `token`;
   these are None for an error that did not come from `interpret` or `include`. `hint`
   says how to put it right, such as `ALSO JSON` for a JSON word, or is None.
+- In the sandbox the files are in memory, at most 4 MiB in all: the FILE words,
+  `INCLUDE` and `BLOCK` use them, and nothing reaches the disk. `include(path)` reads the
+  file from the disk and puts a copy there first. `write_file(name, data)` (str or bytes)
+  puts a file in, `read_file(name)` gives its bytes or None, `delete_file(name)` removes
+  it, and `files()` lists the names. Without the sandbox these raise `ValueError`, since
+  the files are then those of the disk.
+
+  ```python
+  f = forthling.Forth(sandbox=True)
+  f.write_file("square.fs", ": SQUARE DUP * ;")
+  f.interpret("INCLUDE square.fs 7 SQUARE .")       # "49 "
+  f.interpret('S" out.txt" W/O CREATE-FILE THROW S" hi" ROT WRITE-FILE THROW')
+  f.read_file("out.txt")                             # b"hi"
+  ```
 - `push(n)`, `pop()`, `fpush(r)`, `fpop()`, and `stack` (a list, the top last).
 - `add_word(name, func, inputs=0, wordlist=None)` adds a word that calls `func` with
   `inputs` cells from the stack, the deepest first. Its result is pushed: `None`

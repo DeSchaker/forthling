@@ -2,6 +2,8 @@
 
 import json
 import math
+import os
+import tempfile
 import unittest
 
 import forthling
@@ -100,14 +102,45 @@ class SandboxTest(unittest.TestCase):
 
     def test_sandbox(self):
         f = forthling.Forth(sandbox=True)
-        self.assertEqual(f.interpret('S" x.txt" R/O OPEN-FILE . .'), "-259 0 ")
+        # Files are in memory: those on the disk are not there.
+        self.assertEqual(f.interpret('S" x.txt" R/O OPEN-FILE . .'), "-69 0 ")
         with self.assertRaises(forthling.ForthError) as cm:
             f.interpret("INCLUDE x.fs")
-        self.assertEqual(cm.exception.code, -259)
+        self.assertEqual(cm.exception.code, -38)
         with self.assertRaises(forthling.ForthError) as cm:
             f.interpret(": FOREVER BEGIN AGAIN ; FOREVER")
         self.assertEqual(cm.exception.code, -258)
         self.assertEqual(f.interpret("6 7 * ."), "42 ")
+
+
+class FilesTest(unittest.TestCase):
+    def test_files_in_memory(self):
+        f = forthling.Forth(sandbox=True)
+        f.write_file("lib/square.fs", ": SQUARE DUP * ;")
+        f.write_file("data.bin", b"\x00\x01\xff")
+        self.assertEqual(f.interpret("INCLUDE lib/square.fs 9 SQUARE ."), "81 ")
+        f.interpret('S" out.txt" W/O CREATE-FILE THROW S" hi" ROT WRITE-FILE THROW')
+        self.assertEqual(f.read_file("out.txt"), b"hi")
+        self.assertEqual(f.read_file("data.bin"), b"\x00\x01\xff")
+        self.assertIsNone(f.read_file("none.txt"))
+        self.assertEqual(f.files(), ["data.bin", "lib/square.fs", "out.txt"])
+        self.assertTrue(f.delete_file("out.txt"))
+        self.assertFalse(f.delete_file("out.txt"))
+        with self.assertRaises(ValueError):
+            f.write_file("big", b"x" * (4 * 1024 * 1024 + 1))
+
+    def test_include_puts_the_file_in_the_sandbox(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "prog.fs")
+            with open(path, "w") as out:
+                out.write(": TWICE 2 * ; 21 TWICE .")
+            f = forthling.Forth(sandbox=True)
+            self.assertEqual(f.include(path), "42 ")
+            self.assertIn(path.replace("\\", "/").lstrip("/"), f.files())
+
+    def test_only_the_sandbox_has_files_in_memory(self):
+        with self.assertRaises(ValueError):
+            forthling.Forth().files()
 
 
 class AddWordTest(unittest.TestCase):
