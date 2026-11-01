@@ -72,7 +72,7 @@ Writing goes to the output, or between `<JSON` and `JSON>` to a string; the comm
 ## Links
 
 - [README](https://github.com/DeSchaker/forthling/blob/main/README.md): features, the sandbox, standard compliance
-- [The MCP server](https://github.com/DeSchaker/forthling/blob/main/mcp/README.md): installing, tools, limits
+- [The MCP server](https://github.com/DeSchaker/forthling/blob/main/mcp/README.md): installing (`cargo install forthling-mcp`), tools, limits
 - [SQLite words](https://github.com/DeSchaker/forthling/blob/main/sqlite/README.md)
 - [Playground](https://deschaker.github.io/forthling/): Forth in the browser
 - [Forth-2012 standard](https://forth-standard.org/standard/words)

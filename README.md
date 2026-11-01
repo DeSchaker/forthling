@@ -40,6 +40,15 @@ to install.
 The extensions (Python, SQLite, MCP, WebAssembly) live in crates of their own. MIT
 licence.
 
+Install the program from [crates.io](https://crates.io/crates/forthling) with Rust 1.85 or
+newer, and run `forthling`:
+
+```
+cargo install forthling
+```
+
+From a clone of the repository, `cargo run --release` does the same:
+
 ```
 $ cargo run --release
 forthling — WORDS shows the dictionary, BYE quits.
@@ -132,7 +141,7 @@ Part of the dictionary is written in Forth itself (`src/prelude.fs`).
 
 The interpreter is a library crate (`src/lib.rs`, with one module per part: stacks, memory,
 parsing, the inner and outer interpreter, and the primitives in `src/words/`); `src/main.rs`
-only holds the REPL. Another Rust program can embed it:
+only holds the REPL. Another Rust program can embed it (`cargo add forthling`):
 
 ```rust
 let mut forth = forthling::Forth::new();
@@ -416,7 +425,9 @@ sandbox. Try it at **https://deschaker.github.io/forthling/**; see
 
 `mcp/` holds `forthling-mcp`, an [MCP](https://modelcontextprotocol.io/) server: AI agents
 run Forth through it, in a session that keeps their definitions and files, always in the
-sandbox, with files only in memory. With Claude Code: `claude mcp add forthling -- forthling-mcp`. Its
+sandbox, with files only in memory. Install it with `cargo install forthling-mcp`; with
+Claude Code: `claude mcp add forthling -- forthling-mcp`. It is in the
+[MCP Registry](https://registry.modelcontextprotocol.io) as `io.github.DeSchaker/forthling`. Its
 tools are `forth_eval`, `forth_stack`, `forth_words` and `forth_reset`; each result has
 the output and the stacks as text and as JSON. See [mcp/README.md](mcp/README.md), also
 for what enforces the sandbox when a user asks the AI to get around it.

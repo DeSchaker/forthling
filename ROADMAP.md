@@ -124,8 +124,16 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
 
 ### Next session: resume here
 
-- **Next step:** finish step 16: publish the crates and tag `v0.1.0` (see "Publishing"
-  below); then MCPB bundles as its part 2, or step 14, practical glue.
+- **Next step:** step 16, part 2: MCPB bundles for users without Rust (a second package
+  in `server.json`); or step 14, practical glue. Open for the maintainer: trusted
+  publishing on crates.io for the three crates (owner `DeSchaker`, repository
+  `forthling`, workflow `release.yml`), then revoke the API token and empty `.env`.
+- **Published (2026-11-01):** `forthling`, `forthling-sqlite` and `forthling-mcp` 0.1.0
+  are on crates.io, published by hand with the maintainer's token from `.env`
+  (gitignored), after the maintainer verified an e-mail address there (crates.io asks
+  for one). `cargo install forthling-mcp` was tried from crates.io in the scratchpad and
+  runs. The tag `v0.1.0` starts `release.yml`, which skips the crates (they are there)
+  and publishes `mcp/server.json` to the MCP Registry.
 - **Publishing (2026-11-01, step 16, part 1 prepared):** the maintainer chose crates.io
   first (the Registry now knows `cargo`) and MCPB bundles later, as a second package in
   the same `server.json`; it all costs nothing for a public repository. Prepared: the
