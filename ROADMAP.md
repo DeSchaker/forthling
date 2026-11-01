@@ -124,6 +124,9 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
 
 ### Next session: resume here
 
+- **Where the roadmap lives (since 2026-11-01):** the open steps are issues in the
+  GitHub Project "forthling roadmap" (https://github.com/users/DeSchaker/projects/1).
+  This file keeps the design decisions and the record of what was built and why.
 - **Next step:** to be chosen with the maintainer: step 14, part 3 (processes, possibly
   left out), step 18 (review of the Rust code with `rust-skills`) or the release that
   bundles part 1 and 2 (all five crates get one new version; see below). Parts 1
@@ -1092,7 +1095,7 @@ positioning and what agents need. The old step 8 (debugging and tracing) became 
     each with its own extension.
 15. **Later, as hobby projects:** graphics, Windows words and the FFI (as designed above),
     and editor support (an LSP with stack effects on hover), once there are users.
-16. **Publish `forthling-mcp` in the MCP Registry** (added 2026-10-31, at the
+16. ✅ **Publish `forthling-mcp` in the MCP Registry** (done 2026-11-01, released as 0.1.1; see "Next session") (added 2026-10-31, at the
     maintainer's wish), so that agents and MCP clients find it. The official registry
     (https://registry.modelcontextprotocol.io) lists a server by a reverse-DNS name, such
     as `io.github.deschaker/forthling`, in a `server.json`, and points to a package it
