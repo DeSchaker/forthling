@@ -23,17 +23,37 @@ pub struct Access {
 /// An open file.
 pub trait FileHandle: Read + Write + Seek {
     /// The size of the file in bytes.
+    ///
+    /// # Errors
+    /// Returns the error of the file system.
     fn size(&mut self) -> io::Result<u64>;
     /// Makes the file `size` bytes long, cutting it off or adding zeros.
+    ///
+    /// # Errors
+    /// Returns the error of the file system.
     fn set_size(&mut self, size: u64) -> io::Result<()>;
 }
 
 /// Where the files of a Forth program are. Paths are the text the program
 /// gives; what they mean is up to the file system.
 pub trait FileSystem {
+    /// Opens the file at `path` as `access` says.
+    ///
+    /// # Errors
+    /// Returns an error when the file cannot be opened, such as one of kind
+    /// `NotFound`.
     fn open(&mut self, path: &str, access: Access) -> io::Result<Box<dyn FileHandle>>;
+    /// Deletes the file at `path`.
+    ///
+    /// # Errors
+    /// Returns an error when there is no such file or it cannot be deleted.
     fn delete(&mut self, path: &str) -> io::Result<()>;
+    /// Renames the file `from` to `to`.
+    ///
+    /// # Errors
+    /// Returns an error when `from` does not exist or the rename fails.
     fn rename(&mut self, from: &str, to: &str) -> io::Result<()>;
+    /// Whether there is a file at `path`.
     fn exists(&self, path: &str) -> bool;
     /// The name under which REQUIRED remembers a file, the same for every
     /// path to it.
@@ -162,8 +182,11 @@ impl MemoryFs {
         MemoryFs(Rc::new(RefCell::new(Store { files: BTreeMap::new(), used: 0, limit })))
     }
 
-    /// Puts a file in, replacing one of the same name; fails when it does
-    /// not fit.
+    /// Puts a file in, replacing one of the same name.
+    ///
+    /// # Errors
+    /// Returns an error when the path is not valid or the file does not fit
+    /// within the limit.
     pub fn insert(&self, path: &str, contents: impl Into<Vec<u8>>) -> io::Result<()> {
         let contents = contents.into();
         let mut store = self.0.borrow_mut();
@@ -185,6 +208,9 @@ impl MemoryFs {
     }
 
     /// Removes a file, as DELETE-FILE does.
+    ///
+    /// # Errors
+    /// Returns an error when there is no such file.
     pub fn remove(&self, path: &str) -> io::Result<()> {
         self.clone().delete(path)
     }
@@ -389,6 +415,10 @@ impl Forth {
     /// written back to the old one first; files that are open stay open on
     /// it. `Permission::Files` still decides whether the program may use
     /// files at all.
+    ///
+    /// # Errors
+    /// Throws -34 when a block buffer cannot be written back to the old
+    /// file system.
     pub fn set_file_system(&mut self, fs: Box<dyn FileSystem>) -> Result<(), Throw> {
         self.save_buffers()?;
         self.empty_buffers();

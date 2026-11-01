@@ -39,6 +39,9 @@ fn buffer_addr(i: usize) -> usize {
 impl Forth {
     /// Uses another block file from now on. The buffers are written back
     /// to the old file first.
+    ///
+    /// # Errors
+    /// Throws -34 when a buffer cannot be written back to the old file.
     pub fn set_block_file(&mut self, path: impl Into<PathBuf>) -> Result<(), Throw> {
         self.save_buffers()?;
         self.empty_buffers();

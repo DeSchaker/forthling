@@ -117,6 +117,10 @@ impl Forth {
 
     /// Pops a string ( c-addr u ) and checks it; returns its index in memory
     /// and its length. A negative length counts as zero.
+    ///
+    /// # Errors
+    /// Throws -4 when the stack is short, or -9 when the string is not in
+    /// memory.
     pub fn pop_str(&mut self) -> Res<(usize, usize)> {
         let (a, n) = self.pop2()?;
         let n = n.max(0);

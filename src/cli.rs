@@ -97,6 +97,9 @@ pub struct ExtraOption {
 /// ```no_run
 /// forthling::cli::main_with(&[], &[]); // what main does
 /// ```
+///
+/// # Panics
+/// Panics when the thread for the interpreter cannot be started.
 pub fn main_with(extensions: Extensions, extra: &[ExtraOption]) -> ! {
     let run = match options(extra) {
         Ok(Some(run)) => run,
@@ -162,6 +165,9 @@ fn limit<T>(s: &str, parse: impl Fn(&str) -> Result<T, String>) -> Result<Option
 }
 
 /// A time such as 5s, 500ms or 2m; a plain number is seconds.
+///
+/// # Errors
+/// Returns a message when `s` is not a time.
 pub fn parse_duration(s: &str) -> Result<Duration, String> {
     let invalid = || format!("invalid time {s}");
     let digits = s.find(|c: char| !c.is_ascii_digit()).unwrap_or(s.len());
@@ -251,6 +257,10 @@ fn parse_config(text: &str) -> Result<Settings, String> {
 }
 
 /// A memory size such as 65536, 512K, 4M or 1G.
+///
+/// # Errors
+/// Returns a message when `s` is not a size, is outside 64K to 4G, or is not a
+/// multiple of 8 bytes.
 pub fn parse_size(s: &str) -> Result<usize, String> {
     let size = parse_bytes(s).map_err(|_| format!("invalid memory size {s}"))?;
     if !(MIN_MEMORY..=MAX_MEMORY).contains(&size) {
@@ -263,6 +273,9 @@ pub fn parse_size(s: &str) -> Result<usize, String> {
 }
 
 /// A number of bytes such as 65536, 512K, 4M or 1G.
+///
+/// # Errors
+/// Returns a message when `s` is not a number of bytes.
 pub fn parse_bytes(s: &str) -> Result<usize, String> {
     let invalid = || format!("invalid size {s}");
     let s = s.trim();

@@ -18,7 +18,10 @@ impl Forth {
         self.stack.push(v);
     }
 
-    /// Pops a cell from the data stack; throws -4 when it is empty.
+    /// Pops a cell from the data stack.
+    ///
+    /// # Errors
+    /// Throws -4 when the stack is empty.
     pub fn pop(&mut self) -> Res<Cell> {
         self.stack.pop().ok_or(Throw::new(STACK_UNDERFLOW))
     }

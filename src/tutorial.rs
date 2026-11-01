@@ -173,6 +173,10 @@ impl Forth {
     /// number from the stack, `CHECK`, `HINT` or `NEXT`) as the program
     /// would, also when TUTORIAL is not in the search order; for a page or
     /// a tool with buttons. The tutorial must be installed.
+    ///
+    /// # Errors
+    /// Throws -13 when `word` is not a word of the tutorial, or what that
+    /// word throws.
     pub fn tutorial(&mut self, word: &str) -> Res {
         let found = WORDS.iter().find(|(name, _)| name.eq_ignore_ascii_case(word));
         let Some(&(_, run)) = found else {

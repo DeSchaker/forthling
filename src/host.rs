@@ -88,8 +88,10 @@ impl Forth {
 
     /// Adds a word to the word list `wid` (FORTH-WORDLIST is 1). The
     /// closure runs each time the word executes; it can keep state of its
-    /// own, or use `Forth::state`. Throws -24 for an unknown word list and
-    /// -16 for an empty name.
+    /// own, or use `Forth::state`.
+    ///
+    /// # Errors
+    /// Throws -24 for an unknown word list and -16 for an empty name.
     pub fn add_word(
         &mut self,
         wid: Cell,
@@ -107,6 +109,10 @@ impl Forth {
 
     /// The state of type `T` that an extension keeps, such as its open
     /// connections; made with `T::default()` the first time it is asked for.
+    ///
+    /// # Panics
+    /// Never in practice: each state is stored under its own type, so the
+    /// downcast cannot fail.
     pub fn state<T: Any + Default>(&mut self) -> &mut T {
         self.host_state
             .entry(TypeId::of::<T>())
@@ -180,14 +186,20 @@ impl Forth {
     }
 
     /// Pops a string ( c-addr u ) and returns a copy of it.
+    ///
+    /// # Errors
+    /// Throws -4 when the stack is short, or -9 when the string is not in
+    /// memory.
     pub fn pop_bytes(&mut self) -> Res<Vec<u8>> {
         let (i, n) = self.pop_str()?;
         Ok(self.mem[i..i + n].to_vec())
     }
 
     /// Copies `bytes` to a new block on the heap and pushes it as
-    /// ( c-addr u ); the program frees it with FREE. Throws -59 when the
-    /// heap is full.
+    /// ( c-addr u ); the program frees it with FREE.
+    ///
+    /// # Errors
+    /// Throws -59 when the heap is full.
     pub fn push_bytes(&mut self, bytes: &[u8]) -> Res {
         let a = self.heap.allocate(bytes.len(), self.here).ok_or(Throw::new(ALLOCATE_FAILED))?;
         self.mem[a..a + bytes.len()].copy_from_slice(bytes);

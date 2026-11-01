@@ -44,6 +44,10 @@ pub(crate) fn read_line_from(file: &mut dyn FileHandle, max: usize) -> io::Resul
 
 impl Forth {
     /// INCLUDED: opens a file, remembers it for REQUIRED and interprets it.
+    ///
+    /// # Errors
+    /// Throws -38 when the file cannot be opened, or what the interpreted
+    /// text throws.
     pub fn include(&mut self, path: &str) -> Res {
         self.evaluation(|f| f.include_path(path))
     }

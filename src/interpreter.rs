@@ -89,6 +89,10 @@ pub(crate) enum Origin {
 
 impl Forth {
     /// Interprets text line by line, as if typed at the terminal.
+    ///
+    /// # Errors
+    /// Throws what the text throws, including -258 when a limit of the
+    /// sandbox is reached.
     pub fn interpret(&mut self, src: &str) -> Res {
         let first = self.sources.bottom().line;
         let outer = std::mem::replace(&mut self.first_line, first);

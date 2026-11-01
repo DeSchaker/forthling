@@ -17,6 +17,10 @@ pub trait FromForth: Sized {
     const FLOATS: usize;
 
     /// Takes the value from the stacks.
+    ///
+    /// # Errors
+    /// Throws when a stack is short or the value is not valid, such as a
+    /// string outside memory.
     fn from_forth(f: &mut Forth) -> Res<Self>;
 }
 
@@ -27,6 +31,10 @@ pub trait FromForth: Sized {
 /// nothing; and `Res<T>` as T, or the THROW of its error.
 pub trait IntoForth {
     /// Puts the value on the stacks.
+    ///
+    /// # Errors
+    /// Throws when a stack is full, or the heap is full for a string; for a
+    /// `Res<T>` that is an `Err`, its error.
     fn into_forth(self, f: &mut Forth) -> Res;
 }
 

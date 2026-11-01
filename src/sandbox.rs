@@ -239,6 +239,9 @@ impl Forth {
     /// clock when that passes a multiple of 4096 steps; throws -258 when a
     /// limit is reached. A word that handles much data at once calls it, so
     /// that the limits hold for it too; an extension as well.
+    ///
+    /// # Errors
+    /// Throws -258 when a limit is reached.
     pub fn charge(&mut self, bytes: usize) -> Res {
         let cost = (bytes / BYTES_PER_STEP) as u64;
         if cost == 0 {
@@ -281,6 +284,9 @@ impl Forth {
 
     /// Throws -258 when the time of the evaluation is up; for an extension
     /// that has just done something that took long.
+    ///
+    /// # Errors
+    /// Throws -258 when the time is up.
     pub fn check_time(&mut self) -> Res {
         self.check_clock()
     }
