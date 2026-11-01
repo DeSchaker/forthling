@@ -279,6 +279,7 @@ impl Forth {
         self.loops.clear();
         self.frames.clear();
         self.locals.clear();
+        self.unwind_quotes(0);
         self.ctrl.clear();
         self.end_local_scope();
         self.sources.truncate(1);

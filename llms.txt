@@ -42,6 +42,17 @@ Keeping track of the stack in your head goes wrong easily. Instead of `ROT`, `PI
 
 `{: a b | tmp -- out :}`: the names before `|` take their values from the stack (the last name gets the top), the names after it start at 0, and what follows `--` is only a comment. `x TO a` assigns. Locals work only inside a definition.
 
+## Quotations: nameless words in place
+
+`[: ... ;]` makes a nameless word and leaves its xt, inside a definition or at the prompt. Use it where a word needs an xt and a named definition would be too much.
+
+```forth
+: APPLY-TWICE ( x xt -- y )  DUP >R EXECUTE R> EXECUTE ;
+3 [: 2 * ;] APPLY-TWICE .        \ 12
+```
+
+A quotation does not see the locals of the definition around it; pass values on the stack.
+
 ## JSON
 
 `ALSO JSON` makes the JSON words visible. A JSON value is its text, `( c-addr u )`; the reading words give back pieces of it. A missing key or a value of the wrong kind gives the flag 0, not an error.

@@ -562,6 +562,20 @@ beschrijft. In de zandbak:
   `INCLUDE`, `INCLUDED`, `REQUIRE`, `REQUIRED` en de BLOCK-woorden, die geen ior hebben,
   gooien -259. Een bestand dat de host zelf inleest, wordt nog wel gelezen.
 
+## Woorden uit Forth 2019
+
+forthling heeft de quotations van Forth 2019, `[:` en `;]`. Ze horen niet bij Forth-2012,
+dus de verklaring hierboven dekt ze niet:
+
+- `[: ... ;]` maakt een woord zonder naam en laat het execution token achter, zoals
+  `:NONAME`. Het werkt binnen een definitie, waar het het xt als literal compileert, en
+  erbuiten, waar het het xt op de stack laat. Quotations mogen genest worden.
+- Een quotation ziet de locals van de definitie eromheen niet; hun namen worden erin niet
+  gevonden. `RECURSE` in een quotation roept de quotation aan.
+- Een quotation met één primitief en verder niets laat het xt van die primitief achter:
+  `[: + ;]` en `' +` zijn hetzelfde xt.
+- `;` in een quotation en `;]` zonder `[:` gooien -22.
+
 ## Extensies
 
 Een Rust-programma dat forthling inbouwt, kan eigen woorden toevoegen via de host-API

@@ -57,6 +57,7 @@ impl Forth {
         let (locals, fdepth) = (self.locals.len(), self.fstack.len());
         let (sources, to_in) = (self.sources.len(), self.get(IN_ADDR));
         let (current, state, ctrl) = (self.current, self.get(STATE_ADDR), self.ctrl.len());
+        let quotes = self.quotes.len();
         if self.catches == MAX_CATCHES {
             return Err(Throw::with(RSTACK_OVERFLOW, "CATCH nested too deeply"));
         }
@@ -79,6 +80,7 @@ impl Forth {
         self.sources.truncate(sources);
         self.set(IN_ADDR, to_in);
         self.sync_blk();
+        self.unwind_quotes(quotes);
         if current.is_none() {
             // Drop a definition that was started inside the CATCH.
             if let Some(xt) = self.current.take() {

@@ -13,7 +13,13 @@ pub(crate) fn install(f: &mut Forth) {
         f.push(xt as Cell);
         Ok(())
     });
+    // Quotations: [: ... ;] compiles a nameless word and leaves its xt.
+    f.imm("[:", Forth::start_quote);
+    f.imm(";]", Forth::end_quote);
     f.imm(";", |f| {
+        if !f.quotes.is_empty() {
+            return Err(Throw::new(CONTROL_MISMATCH)); // a quotation ends with ;]
+        }
         let xt = f.current.ok_or(Throw::new(CONTROL_MISMATCH))?;
         if !f.ctrl.is_empty() {
             return Err(Throw::new(CONTROL_MISMATCH));

@@ -543,6 +543,20 @@ document. In the sandbox:
   `INCLUDE`, `INCLUDED`, `REQUIRE`, `REQUIRED` and the block words, which have no ior,
   throw -259. A file that the host itself includes is still read.
 
+## Words from Forth 2019
+
+forthling has the quotations of Forth 2019, `[:` and `;]`. They are not part of Forth-2012,
+so the statement above does not cover them:
+
+- `[: ... ;]` makes a nameless word and leaves its execution token, as `:NONAME` does.
+  It works inside a definition, where it compiles the xt as a literal, and outside one,
+  where it leaves the xt on the stack. Quotations nest.
+- A quotation does not see the locals of the definition around it; their names are not
+  found inside it. `RECURSE` inside a quotation calls the quotation.
+- A quotation that holds one primitive and nothing else leaves the xt of that primitive:
+  `[: + ;]` and `' +` are the same xt.
+- `;` inside a quotation, and `;]` without `[:`, throw -22.
+
 ## Extensions
 
 A Rust program that embeds forthling can add words of its own through the host API

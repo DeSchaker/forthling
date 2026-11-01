@@ -139,6 +139,8 @@ block file with `Forth::set_block_file(path)`.
   `CASE OF ENDOF ENDCASE`
 - Locals: `{: a b | c -- out :}`, `LOCALS|` and `(LOCAL)`, with `TO` for assigning
 - `VARIABLE`, `CONSTANT`, `VALUE`, `DEFER`, `BUFFER:`, `MARKER`, `:NONAME`, `CREATE … DOES>`
+- Quotations (Forth 2019): `[: … ;]` makes a nameless word and leaves its xt, inside a
+  definition or at the prompt: `3 [: 2 * ;] EXECUTE .` prints `6`
 - Byte-addressed memory with 64-bit cells, and a heap: `ALLOCATE FREE RESIZE`
 - Double-cell numbers: `123.` is a double, with `D+ D- D. D.R D< DNEGATE DABS M+ M*/`,
   `2VALUE`, `2LITERAL` and more

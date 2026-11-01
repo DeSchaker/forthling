@@ -14,7 +14,106 @@ pub(crate) enum Ctrl {
     EndOf(usize), // an ENDOF jump waiting for ENDCASE
 }
 
+/// The definition that was being compiled when a quotation `[:` began,
+/// put back by `;]`.
+pub(crate) struct Quote {
+    pub(crate) inner: usize, // the word of the quotation
+    current: Option<usize>,
+    code: Vec<Instr>,
+    ctrl: Vec<Ctrl>,
+    local_names: Vec<String>,
+    locals_bound: usize,
+}
+
 impl Forth {
+    /// Starts a quotation inside the definition being compiled. It is a
+    /// word of its own, without a name; the locals of the outer definition
+    /// are not visible in it.
+    pub(crate) fn start_quote(&mut self) -> Res {
+        if self.current.is_none() {
+            // Outside a definition it is a :NONAME that ;] ends with the xt on the stack.
+            let inner = self.start_def("")?;
+            self.quotes.push(Quote {
+                inner,
+                current: None,
+                code: Vec::new(),
+                ctrl: Vec::new(),
+                local_names: Vec::new(),
+                locals_bound: 0,
+            });
+            return Ok(());
+        }
+        let inner = self.new_word("", Kind::Colon(Rc::new(Vec::new())))?;
+        self.dict[inner].hidden = true;
+        self.quotes.push(Quote {
+            inner,
+            current: self.current,
+            code: std::mem::take(&mut self.code),
+            ctrl: std::mem::take(&mut self.ctrl),
+            local_names: std::mem::take(&mut self.local_names),
+            locals_bound: std::mem::take(&mut self.locals_bound),
+        });
+        self.current = Some(inner);
+        Ok(())
+    }
+
+    /// Ends the innermost quotation: back in the outer definition, which
+    /// gets the quotation's xt as a literal. A quotation that holds one
+    /// primitive and nothing else leaves the xt of that primitive.
+    pub(crate) fn end_quote(&mut self) -> Res {
+        if !self.ctrl.is_empty() {
+            return Err(Throw::new(CONTROL_MISMATCH));
+        }
+        let Some(q) = self.quotes.pop() else {
+            return Err(Throw::new(CONTROL_MISMATCH));
+        };
+        let code = std::mem::take(&mut self.code);
+        let single = match code[..] {
+            [Instr::Call(p)] => Some(p),
+            _ => None,
+        };
+        let primitive = single.filter(|&p| {
+            let w = &self.dict[p];
+            matches!(w.kind, Kind::Prim(_)) && !w.immediate && !w.compile_only
+        });
+        self.current = q.current;
+        self.code = q.code;
+        self.ctrl = q.ctrl;
+        self.local_names = q.local_names;
+        self.locals_bound = q.locals_bound;
+        let xt = if let Some(p) = primitive {
+            self.forget_from(q.inner);
+            p
+        } else {
+            self.count_code(q.inner, code.len())?;
+            self.dict[q.inner].kind = Kind::Colon(Rc::new(code));
+            q.inner
+        };
+        if self.current.is_some() {
+            self.code.push(Instr::Lit(xt as Cell));
+        } else {
+            self.set_state(false);
+            self.push(xt as Cell);
+        }
+        Ok(())
+    }
+
+    /// Drops the quotations begun after the first `keep` ones, with the
+    /// words they made, and puts the definition around them back.
+    pub(crate) fn unwind_quotes(&mut self, keep: usize) {
+        if self.quotes.len() <= keep {
+            return;
+        }
+        let q = self.quotes.swap_remove(keep);
+        self.quotes.truncate(keep);
+        self.forget_from(q.inner);
+        self.current = q.current;
+        self.code = q.code;
+        self.ctrl = q.ctrl;
+        self.local_names = q.local_names;
+        self.locals_bound = q.locals_bound;
+    }
+
     /// Starts a colon definition (hidden until `;`) and enters compilation state.
     pub(crate) fn start_def(&mut self, name: &str) -> Res<usize> {
         if self.current.is_some() {

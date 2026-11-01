@@ -263,6 +263,44 @@ fn core_ext_basics() {
 }
 
 #[test]
+fn quotations() {
+    assert_eq!(run(": T [: 6 7 * ;] EXECUTE ; T ."), "42 ");
+    assert_eq!(run(": T [: DUP * ;] ; 7 T EXECUTE ."), "49 ");
+    // control flow inside the quotation, and in the outer definition around it
+    assert_eq!(run(": T 3 0 DO [: 1 5 0 DO I + LOOP ;] EXECUTE . LOOP ; T"), "11 11 11 ");
+    // nested
+    assert_eq!(run(": T [: [: 10 + ;] EXECUTE ;] ; 5 T EXECUTE ."), "15 ");
+    // a quotation with one primitive is that primitive
+    assert_eq!(run(": T [: + ;] ; T ' + = ."), "-1 ");
+    assert_eq!(run(": T [: + DUP ;] ; T ' + = ."), "0 ");
+    // it does not use up the outer definition's space more than needed
+    assert_eq!(run(": T [: + ;] DROP ; T"), "");
+    // the outer definition is intact after the quotation
+    assert_eq!(run(": T 1 [: 2 ;] EXECUTE + [: 3 ;] EXECUTE + ; T ."), "6 ");
+    // RECURSE inside a quotation calls the quotation
+    assert_eq!(run(": T [: DUP IF 1- RECURSE THEN ;] EXECUTE ; 5 T ."), "0 ");
+    // errors
+    // outside a definition it leaves the xt, as :NONAME does
+    assert_eq!(run("[: 6 7 * ;] EXECUTE ."), "42 ");
+    assert_eq!(run("3 [: 2 * ;] EXECUTE [: 1+ ;] EXECUTE ."), "7 ");
+    assert_eq!(run("[: + ;] ' + = ."), "-1 ");
+    assert_eq!(run("[: [: 5 ;] EXECUTE 1+ ;] EXECUTE ."), "6 ");
+    assert_eq!(err(";]").code, -22);
+    assert_eq!(err("[: 1 ; ").code, -22);
+    assert_eq!(err(": T ;] ;").code, -22);
+    assert_eq!(err(": T [: 1 ; ;").code, -22);
+    assert_eq!(err(": T [: IF ;] ;").code, -22);
+    assert_eq!(err(": T [: 1 ;").code, -22);
+    // an error inside a quotation drops it and the definition around it
+    let mut f = Forth::new();
+    assert!(f.interpret(": T [: 1 BOGUS ;] ;").is_err());
+    assert_eq!(f.interpret(": U 5 ; U .").map(|()| f.output().to_vec()).unwrap(), b"5 ");
+    // CATCH puts the compiler back
+    let src = r#": F S" : Y [: 1 BOGUS ;] ;" EVALUATE ; ' F CATCH . : U 5 ; U ."#;
+    assert_eq!(run(src), "-13 5 ");
+}
+
+#[test]
 fn noname_and_compiling_words() {
     assert_eq!(run(":NONAME 6 7 * ; EXECUTE ."), "42 ");
     assert_eq!(run(":NONAME DUP IF 1- RECURSE THEN ; 5 SWAP EXECUTE ."), "0 ");

@@ -129,8 +129,9 @@ pub struct Forth {
     fence: usize,                 // the words of the system itself, which FORGET leaves alone
     code: Vec<Instr>,
     ctrl: Vec<Ctrl>,
+    quotes: Vec<Quote>, // the definitions around the quotation being compiled
     local_names: Vec<String>, // the locals of the definition being compiled
-    locals_bound: usize,      // how many of them have their Instr::Locals compiled
+    locals_bound: usize, // how many of them have their Instr::Locals compiled
     sources: Sources,
     sq_next: usize,
     hld: usize,                              // start of the pictured numeric output string
@@ -207,6 +208,7 @@ impl Forth {
             encoding_name: None,
             code: Vec::new(),
             ctrl: Vec::new(),
+            quotes: Vec::new(),
             local_names: Vec::new(),
             locals_bound: 0,
             sources: Sources::new(Source {
