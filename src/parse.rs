@@ -31,13 +31,13 @@ pub(crate) fn fmt_unsigned(mut v: u64, base: u64) -> String {
 impl Forth {
     /// The unparsed rest of the current input buffer, as absolute addresses.
     pub(crate) fn parse_area(&self) -> (usize, usize) {
-        let s = self.sources.last().unwrap();
+        let s = self.sources.top();
         let i = self.get(IN_ADDR).clamp(0, s.len as Cell) as usize;
         (s.buf + i, s.buf + s.len)
     }
 
     pub(crate) fn set_in(&mut self, at: usize) {
-        let buf = self.sources.last().unwrap().buf;
+        let buf = self.sources.top().buf;
         self.set(IN_ADDR, (at - buf) as Cell);
     }
 

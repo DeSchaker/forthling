@@ -73,7 +73,7 @@ impl Forth {
         if self.vfs.exists(path) {
             return path.to_string();
         }
-        let including = self.sources.iter().rev().find_map(|s| match s.origin {
+        let including = self.sources.iter_top_down().find_map(|s| match s.origin {
             Origin::File { fid, .. } => self.open_file(fid),
             _ => None,
         });
@@ -107,7 +107,7 @@ impl Forth {
         self.push_source(Origin::File { fid, lines: Rc::new(lines) }, buf, 0)?;
         // Read the line number before interpreting: a nested source may be
         // on top of the stack when an error comes back.
-        let line = |f: &Forth| f.sources.last().unwrap().line;
+        let line = |f: &Forth| f.sources.top().line;
         // The report is made here, while the file is still open and the
         // stacks are as the error left them.
         while self.refill().map_err(|e| self.report(e, 0).at(path, line(self)))? {

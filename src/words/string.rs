@@ -7,7 +7,7 @@ pub(crate) fn install(f: &mut Forth) {
         // In a file, a comment continues on the next lines until the `)`.
         loop {
             let (a, n) = f.parse(b')');
-            let in_file = matches!(f.sources.last().unwrap().origin, Origin::File { .. });
+            let in_file = matches!(f.sources.top().origin, Origin::File { .. });
             if a + n < f.parse_area().1 || !in_file || !f.refill()? {
                 return Ok(());
             }
@@ -15,7 +15,7 @@ pub(crate) fn install(f: &mut Forth) {
     });
     // In a block, \ skips to the end of its line of 64 characters.
     f.imm("\\", |f| {
-        if let Origin::Block = f.sources.last().unwrap().origin {
+        if let Origin::Block = f.sources.top().origin {
             let line_end = (f.get(IN_ADDR) as usize / BLOCK_LINE + 1) * BLOCK_LINE;
             f.set(IN_ADDR, line_end.min(BLOCK_SIZE) as Cell);
             return Ok(());

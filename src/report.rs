@@ -45,7 +45,7 @@ impl Forth {
     /// The state now: the stacks, the running words and the place in the
     /// input; for an error, and for a pause of the debugger.
     pub(crate) fn context(&self, first: usize) -> ErrorContext {
-        let s = self.sources.last().unwrap();
+        let s = self.sources.top();
         let bytes = &self.mem[s.buf..s.buf + s.len];
         let to_in = usize::try_from(self.get(IN_ADDR)).unwrap_or(0).min(bytes.len());
         // The last word read ends just before >IN, past the blank after it.

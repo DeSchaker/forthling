@@ -112,7 +112,7 @@ pub struct Forth {
     ctrl: Vec<Ctrl>,
     local_names: Vec<String>, // the locals of the definition being compiled
     locals_bound: usize,      // how many of them have their Instr::Locals compiled
-    sources: Vec<Source>,
+    sources: Sources,
     sq_next: usize,
     hld: usize,                              // start of the pictured numeric output string
     input: Box<dyn Input>, // the terminal: the REPL, ACCEPT and KEY read from here
@@ -181,13 +181,13 @@ impl Forth {
             ctrl: Vec::new(),
             local_names: Vec::new(),
             locals_bound: 0,
-            sources: vec![Source {
+            sources: Sources::new(Source {
                 origin: Origin::Terminal,
                 buf: SOURCE_AREA,
                 len: 0,
                 line: 0,
                 saved_in: 0,
-            }],
+            }),
             sq_next: 0,
             hld: HOLD_END,
             input: Box::<Stdin>::default(),

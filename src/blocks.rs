@@ -155,7 +155,7 @@ impl Forth {
         self.push_source(Origin::Block, buf, 0)?;
         self.load_block(u)?;
         // REFILL in the text moves on to the next block, within the same run.
-        let block = |f: &Forth| f.sources.last().unwrap().line;
+        let block = |f: &Forth| f.sources.top().line;
         self.interpret_buffer().map_err(|e| e.at("block", block(self)))?;
         self.pop_source();
         Ok(())
@@ -165,7 +165,7 @@ impl Forth {
     /// line number is the block number, so SAVE-INPUT records it.
     pub(crate) fn load_block(&mut self, u: Cell) -> Res {
         let a = self.block(u, true)?;
-        let s = self.sources.last_mut().unwrap();
+        let s = self.sources.top_mut();
         let buf = s.buf;
         s.len = BLOCK_SIZE;
         s.line = u as usize;
@@ -177,7 +177,7 @@ impl Forth {
 
     /// BLK is the block being interpreted, or 0.
     pub(crate) fn sync_blk(&mut self) {
-        let s = self.sources.last().unwrap();
+        let s = self.sources.top();
         let blk = if let Origin::Block = s.origin { s.line as Cell } else { 0 };
         self.set(BLK_ADDR, blk);
     }

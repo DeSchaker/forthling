@@ -52,7 +52,7 @@ pub(crate) fn install(f: &mut Forth) {
 
     // input and parsing
     f.prim("SOURCE", |f| {
-        let s = f.sources.last().unwrap();
+        let s = f.sources.top();
         let (buf, len) = (s.buf, s.len);
         f.push(buf as Cell);
         f.push(len as Cell);

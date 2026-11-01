@@ -14,6 +14,63 @@ pub(crate) struct Source {
     pub(crate) saved_in: Cell,
 }
 
+/// The stack of input sources. The current one is kept apart from the ones
+/// it interrupted, so that there is always a current source by construction:
+/// the bottom of the stack is the terminal and can never be popped.
+pub(crate) struct Sources {
+    current: Source,
+    outer: Vec<Source>, // the sources below the current one, the terminal first
+}
+
+impl Sources {
+    pub(crate) fn new(terminal: Source) -> Self {
+        Sources { current: terminal, outer: Vec::new() }
+    }
+
+    /// The current source.
+    pub(crate) fn top(&self) -> &Source {
+        &self.current
+    }
+
+    pub(crate) fn top_mut(&mut self) -> &mut Source {
+        &mut self.current
+    }
+
+    /// The terminal.
+    pub(crate) fn bottom(&self) -> &Source {
+        self.outer.first().unwrap_or(&self.current)
+    }
+
+    /// The number of sources, the terminal included: at least 1.
+    pub(crate) fn len(&self) -> usize {
+        self.outer.len() + 1
+    }
+
+    pub(crate) fn push(&mut self, source: Source) {
+        self.outer.push(std::mem::replace(&mut self.current, source));
+    }
+
+    /// Drops the current source and makes the one it interrupted current.
+    /// The terminal stays: popping it does nothing.
+    pub(crate) fn pop(&mut self) {
+        if let Some(previous) = self.outer.pop() {
+            self.current = previous;
+        }
+    }
+
+    /// Keeps the `n` oldest sources (at least the terminal).
+    pub(crate) fn truncate(&mut self, n: usize) {
+        while self.len() > n.max(1) {
+            self.pop();
+        }
+    }
+
+    /// From the current source down to the terminal.
+    pub(crate) fn iter_top_down(&self) -> impl Iterator<Item = &Source> {
+        std::iter::once(&self.current).chain(self.outer.iter().rev())
+    }
+}
+
 pub(crate) enum Origin {
     Terminal,
     Evaluate,
@@ -27,7 +84,7 @@ pub(crate) enum Origin {
 impl Forth {
     /// Interprets text line by line, as if typed at the terminal.
     pub fn interpret(&mut self, src: &str) -> Res {
-        let first = self.sources[0].line;
+        let first = self.sources.bottom().line;
         let outer = std::mem::replace(&mut self.first_line, first);
         let result = self.evaluation(|f| f.interpret_lines(src)).map_err(|e| self.report(e, first));
         self.first_line = outer;
@@ -53,7 +110,7 @@ impl Forth {
     pub(crate) fn load_line(&mut self, line: &str) -> Res {
         // A byte-order mark (from Windows editors and pipes) is not input.
         let bytes = line.trim_start_matches('\u{feff}').as_bytes();
-        let s = self.sources.last_mut().unwrap();
+        let s = self.sources.top_mut();
         s.line += 1;
         if bytes.len() > LINE_MAX {
             // None of the line is read, so an error report shows no word.
@@ -122,7 +179,7 @@ impl Forth {
     /// Loads the next line of the current source (REFILL); false when there
     /// is none, which is always the case for an EVALUATEd string.
     pub(crate) fn refill(&mut self) -> Res<bool> {
-        let s = self.sources.last().unwrap();
+        let s = self.sources.top();
         let line = match &s.origin {
             Origin::Block => return self.load_block(s.line as Cell + 1).map(|_| true),
             Origin::Evaluate => None,
@@ -137,7 +194,7 @@ impl Forth {
 
     /// SOURCE-ID: 0 for the terminal, -1 for EVALUATE, else the file id.
     pub(crate) fn source_id(&self) -> Cell {
-        match self.sources.last().unwrap().origin {
+        match self.sources.top().origin {
             Origin::Terminal | Origin::Block => 0,
             Origin::Evaluate => -1,
             Origin::File { fid, .. } => fid,
@@ -151,7 +208,7 @@ impl Forth {
             return Err(Throw::new(NESTING_TOO_DEEP));
         }
         let saved_in = self.get(IN_ADDR);
-        self.sources.last_mut().unwrap().saved_in = saved_in;
+        self.sources.top_mut().saved_in = saved_in;
         self.sources.push(Source { origin, buf, len, line: 0, saved_in: 0 });
         self.set(IN_ADDR, 0);
         self.sync_blk();
@@ -160,7 +217,7 @@ impl Forth {
 
     /// SAVE-INPUT: >IN, the line number and the nesting depth.
     pub(crate) fn save_input(&mut self) {
-        let s = self.sources.last().unwrap();
+        let s = self.sources.top();
         let (line, depth) = (s.line as Cell, self.sources.len() as Cell);
         self.push(self.get(IN_ADDR));
         self.push(line);
@@ -182,7 +239,7 @@ impl Forth {
         let depth = self.pop()?;
         let line = self.pop()?;
         let to_in = self.pop()?;
-        let s = self.sources.last().unwrap();
+        let s = self.sources.top();
         if depth != self.sources.len() as Cell {
             return Ok(false);
         }
@@ -197,7 +254,7 @@ impl Forth {
                 return Ok(false);
             };
             let text = text.clone();
-            self.sources.last_mut().unwrap().line = line as usize - 1;
+            self.sources.top_mut().line = line as usize - 1;
             self.load_line(&text)?;
         }
         self.set(IN_ADDR, to_in);
@@ -206,7 +263,7 @@ impl Forth {
 
     pub(crate) fn pop_source(&mut self) {
         self.sources.pop();
-        let saved_in = self.sources.last().unwrap().saved_in;
+        let saved_in = self.sources.top().saved_in;
         self.set(IN_ADDR, saved_in);
         self.sync_blk();
     }
@@ -263,5 +320,32 @@ impl Forth {
         let c = *self.input.fill_buf().ok()?.first()?;
         self.input.consume(1);
         Some(c)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn source(line: usize) -> Source {
+        Source { origin: Origin::Evaluate, buf: 0, len: 0, line, saved_in: 0 }
+    }
+
+    #[test]
+    fn the_terminal_cannot_be_popped() {
+        let mut s = Sources::new(Source { origin: Origin::Terminal, ..source(7) });
+        s.pop();
+        s.truncate(0);
+        assert_eq!((s.len(), s.top().line), (1, 7));
+        s.push(source(1));
+        s.push(source(2));
+        assert_eq!((s.len(), s.top().line, s.bottom().line), (3, 2, 7));
+        let lines: Vec<_> = s.iter_top_down().map(|x| x.line).collect();
+        assert_eq!(lines, [2, 1, 7]);
+        s.truncate(2);
+        assert_eq!((s.len(), s.top().line), (2, 1));
+        s.pop();
+        s.pop();
+        assert_eq!((s.len(), s.top().line), (1, 7));
     }
 }
