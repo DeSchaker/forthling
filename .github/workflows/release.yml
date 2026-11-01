@@ -1,34 +1,153 @@
 name: Release
 
-# On a version tag such as v0.1.0: the crates go to crates.io (those not there
-# yet), then forthling-mcp goes to the MCP Registry as io.github.DeSchaker/forthling.
-# Both sign in through GitHub OIDC, without secrets: crates.io by trusted
-# publishing (set up for each crate on crates.io, with this workflow), the
-# Registry by the owner of this repository. The very first version of a crate
-# is published by hand, since trusted publishing needs the crate to exist.
+# On a version tag such as v0.1.1: the crates go to crates.io (those not there
+# yet); the MCP server is built for Windows, macOS and Linux and packed as one
+# MCPB bundle on the GitHub release; then the server goes to the MCP Registry
+# as io.github.DeSchaker/forthling, with the crate and the bundle as its
+# packages. crates.io and the Registry are signed in to through GitHub OIDC,
+# without secrets: crates.io by trusted publishing (set up for each crate on
+# crates.io, with this workflow), the Registry by the owner of this repository.
+#
+# Run by hand (workflow_dispatch), it only builds and checks the bundle and
+# keeps it as an artifact of the run, to try it before a release.
 
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+env:
+  MCPB_VERSION: 2.1.2
+  MCP_PUBLISHER_VERSION: v1.8.1
+
 jobs:
   versions:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
-      - name: The tag, the crates and server.json name the same version
+      - name: The tag, the crates, server.json and the bundle name the same version
+        id: version
         run: |
-          v="${GITHUB_REF_NAME#v}"
+          v="$(sed -n 's/^version = "\(.*\)"$/\1/p' mcp/Cargo.toml)"
+          if [ "${GITHUB_REF_TYPE}" = tag ] && [ "${GITHUB_REF_NAME}" != "v$v" ]; then
+            echo "the tag ${GITHUB_REF_NAME} is not v$v"; exit 1
+          fi
           for manifest in Cargo.toml sqlite/Cargo.toml mcp/Cargo.toml; do
             grep -qx "version = \"$v\"" "$manifest" || { echo "$manifest is not version $v"; exit 1; }
           done
           jq -e --arg v "$v" '.version == $v and .packages[0].version == $v' mcp/server.json
+          jq -e --arg v "$v" '.version == $v' mcp/mcpb/manifest.json
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+  binaries:
+    needs: versions
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            name: forthling-mcp.exe
+          - os: macos-latest
+            name: forthling-mcp-macos
+          - os: ubuntu-latest
+            name: forthling-mcp-linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Windows, with the C runtime linked in
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          RUSTFLAGS: -C target-feature=+crt-static
+        run: |
+          cargo build --release --locked --manifest-path mcp/Cargo.toml --target x86_64-pc-windows-msvc
+          cp mcp/target/x86_64-pc-windows-msvc/release/forthling-mcp.exe "${{ matrix.name }}"
+      - name: macOS, one binary for Apple Silicon and Intel
+        if: runner.os == 'macOS'
+        run: |
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          for target in aarch64-apple-darwin x86_64-apple-darwin; do
+            cargo build --release --locked --manifest-path mcp/Cargo.toml --target "$target"
+          done
+          lipo -create -output "${{ matrix.name }}" \
+            mcp/target/aarch64-apple-darwin/release/forthling-mcp \
+            mcp/target/x86_64-apple-darwin/release/forthling-mcp
+      - name: Linux, linked statically with musl
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update && sudo apt-get install -y musl-tools
+          rustup target add x86_64-unknown-linux-musl
+          cargo build --release --locked --manifest-path mcp/Cargo.toml --target x86_64-unknown-linux-musl
+          cp mcp/target/x86_64-unknown-linux-musl/release/forthling-mcp "${{ matrix.name }}"
+      - name: The binary answers an MCP request
+        shell: bash
+        run: |
+          request='{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"forth_eval","arguments":{"code":"6 7 * ."}}}'
+          answer="$(echo "$request" | "./${{ matrix.name }}")"
+          echo "$answer"
+          echo "$answer" | grep -q '"output":"42 "'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.name }}
+          if-no-files-found: error
+
+  bundle:
+    needs: [versions, binaries]
+    runs-on: ubuntu-latest
+    outputs:
+      sha256: ${{ steps.pack.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: binaries
+          merge-multiple: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Pack forthling.mcpb
+        id: pack
+        run: |
+          mkdir -p bundle/server
+          cp mcp/mcpb/manifest.json LICENSE bundle/
+          cp binaries/forthling-mcp.exe binaries/forthling-mcp-macos binaries/forthling-mcp-linux bundle/server/
+          # Artifacts lose the executable bit; the bundle must have it.
+          chmod +x bundle/server/*
+          npx --yes "@anthropic-ai/mcpb@${MCPB_VERSION}" pack bundle forthling.mcpb
+          npx --yes "@anthropic-ai/mcpb@${MCPB_VERSION}" info forthling.mcpb
+          echo "sha256=$(sha256sum forthling.mcpb | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          ls -l forthling.mcpb
+      - name: The bundle holds the manifest and three executables
+        run: |
+          python3 - <<'EOF'
+          import json, zipfile
+          z = zipfile.ZipFile("forthling.mcpb")
+          names = set(z.namelist())
+          manifest = json.loads(z.read("manifest.json"))
+          assert manifest["name"] == "forthling", manifest["name"]
+          for name in ["forthling-mcp.exe", "forthling-mcp-macos", "forthling-mcp-linux"]:
+              info = z.getinfo("server/" + name)
+              mode = info.external_attr >> 16
+              print(name, info.file_size, oct(mode))
+              if not name.endswith(".exe"):
+                  assert mode & 0o111, f"{name} is not executable in the bundle"
+          print(sorted(names))
+          EOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: forthling.mcpb
+          path: forthling.mcpb
+          if-no-files-found: error
 
   crates:
-    needs: versions
+    if: github.ref_type == 'tag'
+    needs: [versions, bundle]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -38,13 +157,14 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Which crates crates.io does not have yet
         id: todo
+        env:
+          VERSION: ${{ needs.versions.outputs.version }}
         run: |
-          v="${GITHUB_REF_NAME#v}"
           todo=""
           for crate in forthling forthling-sqlite forthling-mcp; do
             if curl -sf -A "forthling release (https://github.com/DeSchaker/forthling)" \
-                "https://crates.io/api/v1/crates/$crate/$v" > /dev/null; then
-              echo "$crate $v is on crates.io already"
+                "https://crates.io/api/v1/crates/$crate/$VERSION" > /dev/null; then
+              echo "$crate $VERSION is on crates.io already"
             else
               todo="$todo $crate"
             fi
@@ -67,16 +187,46 @@ jobs:
             esac
           done
 
+  github-release:
+    if: github.ref_type == 'tag'
+    needs: [versions, bundle]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: forthling.mcpb
+      - name: The release, with the bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" forthling.mcpb --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$GITHUB_REF_NAME" forthling.mcpb --repo "$GITHUB_REPOSITORY" \
+              --title "forthling ${{ needs.versions.outputs.version }}" --generate-notes
+          fi
+
   registry:
-    needs: crates
+    if: github.ref_type == 'tag'
+    needs: [versions, bundle, crates, github-release]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
-    env:
-      MCP_PUBLISHER_VERSION: v1.8.1
     steps:
       - uses: actions/checkout@v4
+      - name: Add the bundle to server.json
+        env:
+          URL: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/forthling.mcpb
+          SHA256: ${{ needs.bundle.outputs.sha256 }}
+        run: |
+          jq --arg url "$URL" --arg sha "$SHA256" \
+            '.packages += [{registryType: "mcpb", identifier: $url, fileSha256: $sha, transport: {type: "stdio"}}]' \
+            mcp/server.json > server.json.new
+          mv server.json.new mcp/server.json
+          cat mcp/server.json
       - name: Install cosign
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
       - name: Download mcp-publisher and verify its signature

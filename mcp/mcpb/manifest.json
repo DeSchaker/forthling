@@ -1,0 +1,46 @@
+{
+  "manifest_version": "0.3",
+  "name": "forthling",
+  "display_name": "forthling",
+  "version": "0.1.0",
+  "description": "Run Forth-2012 in a sandbox: definitions stay between calls, each result shows the stacks.",
+  "long_description": "forthling is a Forth-2012 system in Rust. Its MCP server gives an agent a Forth session that keeps its definitions, files (in memory) and stacks between calls, always in a sandbox: each call has a limit on steps, time and output, and the disk is out of reach. An error says where it happened, which words were running and what the stacks held. It has JSON words, SQLite for databases in memory, tracing, and a tutorial of 20 lessons (ALSO TUTORIAL).",
+  "author": {
+    "name": "Robbert Westerink",
+    "url": "https://github.com/DeSchaker"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DeSchaker/forthling"
+  },
+  "homepage": "https://deschaker.github.io/forthling/",
+  "documentation": "https://github.com/DeSchaker/forthling/blob/main/mcp/README.md",
+  "license": "MIT",
+  "keywords": ["forth", "sandbox", "interpreter", "calculator", "json"],
+  "server": {
+    "type": "binary",
+    "entry_point": "server/forthling-mcp-linux",
+    "mcp_config": {
+      "command": "${__dirname}/server/forthling-mcp-linux",
+      "args": [],
+      "env": {},
+      "platform_overrides": {
+        "win32": {
+          "command": "${__dirname}/server/forthling-mcp.exe"
+        },
+        "darwin": {
+          "command": "${__dirname}/server/forthling-mcp-macos"
+        }
+      }
+    }
+  },
+  "tools": [
+    { "name": "forth_eval", "description": "Runs Forth code in the session; returns the output, the stacks and the error, if any" },
+    { "name": "forth_stack", "description": "Shows the data stack and the float stack" },
+    { "name": "forth_words", "description": "Lists the words defined in this session" },
+    { "name": "forth_reset", "description": "Starts a new session" }
+  ],
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"]
+  }
+}

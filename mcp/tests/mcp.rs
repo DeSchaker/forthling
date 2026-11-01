@@ -419,6 +419,10 @@ fn server_json_matches_the_crate() {
     assert_eq!(server["packages"][0]["version"], version);
     let name = server["name"].as_str().unwrap();
     assert!(include_str!("../README.md").contains(&format!("mcp-name: {name}\n")));
+    // The MCPB bundle (mcpb/manifest.json, packed by release.yml) too.
+    let bundle: Value = serde_json::from_str(include_str!("../mcpb/manifest.json")).unwrap();
+    assert_eq!(bundle["version"], version);
+    assert_eq!(bundle["description"], server["description"]);
     // The crates it depends on are of the same version.
     let manifest = include_str!("../Cargo.toml");
     assert!(manifest.contains(&format!("path = \"..\", version = \"{version}\"")));
