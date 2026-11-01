@@ -1,6 +1,7 @@
 //! Programming tools.
 
 use crate::*;
+use std::fmt::Write as _;
 
 pub(crate) fn install(f: &mut Forth) {
     f.imm("[IF]", |f| match f.pop()? {
@@ -55,9 +56,9 @@ pub(crate) fn install(f: &mut Forth) {
         f.charge(4 * n)?;
         let mut text = String::new();
         for (row, bytes) in f.mem[i..i + n].chunks(16).enumerate() {
-            text += &format!("{:08X} ", i + 16 * row);
+            let _ = write!(text, "{:08X} ", i + 16 * row);
             for b in bytes {
-                text += &format!(" {b:02X}");
+                let _ = write!(text, " {b:02X}");
             }
             text += &"   ".repeat(16 - bytes.len());
             text += "  ";

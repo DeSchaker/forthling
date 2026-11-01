@@ -6,15 +6,12 @@ pub(crate) fn install(f: &mut Forth) {
     f.prim("ALLOCATE", |f| {
         let n = f.pop()?;
         f.charge(f.heap.blocks() * 16)?; // first fit looks through the blocks
-        match usize::try_from(n).ok().and_then(|n| f.heap.allocate(n, f.here)) {
-            Some(a) => {
-                f.push(a as Cell);
-                f.push(0);
-            }
-            None => {
-                f.push(0);
-                f.push(ALLOCATE_FAILED);
-            }
+        if let Some(a) = usize::try_from(n).ok().and_then(|n| f.heap.allocate(n, f.here)) {
+            f.push(a as Cell);
+            f.push(0);
+        } else {
+            f.push(0);
+            f.push(ALLOCATE_FAILED);
         }
         Ok(())
     });
@@ -31,15 +28,12 @@ pub(crate) fn install(f: &mut Forth) {
             (Ok(a), Ok(n)) => f.resize(a, n),
             _ => None,
         };
-        match new {
-            Some(new) => {
-                f.push(new as Cell);
-                f.push(0);
-            }
-            None => {
-                f.push(a);
-                f.push(RESIZE_FAILED);
-            }
+        if let Some(new) = new {
+            f.push(new as Cell);
+            f.push(0);
+        } else {
+            f.push(a);
+            f.push(RESIZE_FAILED);
         }
         Ok(())
     });

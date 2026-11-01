@@ -10,6 +10,7 @@ use std::path::Path;
 
 /// How a file is opened.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[allow(clippy::struct_excessive_bools, reason = "independent flags, as in std::fs::OpenOptions")]
 pub struct Access {
     pub read: bool,
     pub write: bool,
@@ -40,7 +41,7 @@ pub trait FileSystem {
         path.to_string()
     }
     /// Whether these are the files of the computer itself. Extensions that
-    /// reach files without the file system, such as SQLite, use the disk
+    /// reach files without the file system, such as `SQLite`, use the disk
     /// only when it is (see `Forth::disk_files`).
     fn is_disk(&self) -> bool {
         false
@@ -348,9 +349,9 @@ impl Write for MemoryFile {
 impl Seek for MemoryFile {
     fn seek(&mut self, to: SeekFrom) -> io::Result<u64> {
         let (base, offset) = match to {
-            SeekFrom::Start(n) => (0, n as i128),
-            SeekFrom::End(n) => (self.contents.borrow().len() as i128, n as i128),
-            SeekFrom::Current(n) => (self.pos as i128, n as i128),
+            SeekFrom::Start(n) => (0, i128::from(n)),
+            SeekFrom::End(n) => (self.contents.borrow().len() as i128, i128::from(n)),
+            SeekFrom::Current(n) => (i128::from(self.pos), i128::from(n)),
         };
         let pos = u64::try_from(base + offset)
             .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "before the start"))?;

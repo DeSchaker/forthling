@@ -124,15 +124,12 @@ impl Forth {
     /// Registers an open file and returns its file id, reusing a free one.
     pub(crate) fn add_file(&mut self, file: Box<dyn FileHandle>, name: &str) -> Cell {
         let entry = Some(OpenFile { file, name: name.to_string() });
-        match self.files.iter().position(Option::is_none) {
-            Some(i) => {
-                self.files[i] = entry;
-                i as Cell + 1
-            }
-            None => {
-                self.files.push(entry);
-                self.files.len() as Cell
-            }
+        if let Some(i) = self.files.iter().position(Option::is_none) {
+            self.files[i] = entry;
+            i as Cell + 1
+        } else {
+            self.files.push(entry);
+            self.files.len() as Cell
         }
     }
 
@@ -166,7 +163,7 @@ impl Forth {
 
     /// Pushes a file position or size as ( ud ior ).
     pub(crate) fn push_size(&mut self, size: Option<u64>, code: Cell) {
-        self.push_ud(size.unwrap_or(0) as u128);
+        self.push_ud(u128::from(size.unwrap_or(0)));
         self.push(ior(size, code));
     }
 
@@ -186,16 +183,13 @@ impl Forth {
         let fam = fam & 3;
         let access =
             Access { read: fam != W_O, write: fam != R_O || create, create, truncate: create };
-        match self.vfs.open(name, access) {
-            Ok(file) => {
-                let fid = self.add_file(file, name);
-                self.push(fid);
-                self.push(0);
-            }
-            Err(_) => {
-                self.push(0);
-                self.push(code);
-            }
+        if let Ok(file) = self.vfs.open(name, access) {
+            let fid = self.add_file(file, name);
+            self.push(fid);
+            self.push(0);
+        } else {
+            self.push(0);
+            self.push(code);
         }
     }
 }

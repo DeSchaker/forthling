@@ -6,6 +6,7 @@
 //! stacks and output back afterwards.
 
 use crate::*;
+use std::fmt::Write as _;
 use std::sync::OnceLock;
 
 /// One lesson of the tutorial.
@@ -153,7 +154,7 @@ const WORDS: [(&str, Command); 5] =
     [("LESSONS", list), ("LESSON", lesson), ("CHECK", check), ("HINT", hint), ("NEXT", next)];
 
 impl Extension for Tutorial {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "FORTHLING-TUTORIAL"
     }
 
@@ -197,10 +198,10 @@ fn list(f: &mut Forth) -> Res {
         if l.level != level {
             level = &l.level;
             let heading = if level == "beginner" { "For beginners" } else { "Advanced" };
-            text += &format!("{heading}:\n");
+            let _ = writeln!(text, "{heading}:");
         }
         let done = if passed.contains(&l.number) { "done" } else { "" };
-        text += &format!("{:4}  {:<28} {done}\n", l.number, l.title);
+        let _ = writeln!(text, "{:4}  {:<28} {done}", l.number, l.title);
     }
     text += "n LESSON shows lesson n.\n";
     f.emit_str(&text);

@@ -7,7 +7,24 @@
 //! permissions, no setting of the server lifts a limit, and the files of a
 //! session are in memory (a `MemoryFs`), never on the disk.
 
-#![warn(clippy::must_use_candidate)]
+// Lints of clippy::pedantic that the code is clean for; `clippy -D warnings` in CI
+// keeps it so. (The rest of pedantic is not enabled: see the open issues.)
+#![warn(
+    clippy::cast_lossless,
+    clippy::doc_markdown,
+    clippy::float_cmp,
+    clippy::format_push_string,
+    clippy::many_single_char_names,
+    clippy::match_same_arms,
+    clippy::must_use_candidate,
+    clippy::redundant_closure_for_method_calls,
+    clippy::return_self_not_must_use,
+    clippy::semicolon_if_nothing_returned,
+    clippy::single_match_else,
+    clippy::struct_excessive_bools,
+    clippy::unnecessary_literal_bound,
+    clippy::uninlined_format_args
+)]
 
 use forthling::{
     DEFAULT_MEMORY, ErrorContext, Extension, Forth, Limits, MemoryFs, Permission, Resume, Throw,
@@ -15,6 +32,7 @@ use forthling::{
 };
 use serde_json::{Map, Value, json};
 use std::cell::RefCell;
+use std::fmt::Write as _;
 use std::io;
 use std::rc::Rc;
 use std::time::Duration;
@@ -31,10 +49,10 @@ pub const MAX_TIME: Duration = Duration::from_secs(60);
 pub const MAX_OUTPUT: usize = 16 << 20;
 pub const MAX_SPACE: usize = 64 << 20;
 
-/// The most words a trace of forth_eval holds; the rest are counted.
+/// The most words a trace of `forth_eval` holds; the rest are counted.
 pub const MAX_TRACE: usize = 1000;
 
-/// The most BREAKs a result of forth_eval shows; the rest are counted.
+/// The most BREAKs a result of `forth_eval` shows; the rest are counted.
 pub const MAX_BREAKS: usize = 100;
 
 /// What the program looked like at each BREAK of a call, and how many more
@@ -289,7 +307,7 @@ fn files() -> MemoryFs {
 }
 
 /// A Forth system in the sandbox, with the files in memory, the JSON words,
-/// the word DATA and, with the feature `sqlite`, the SQLite words for
+/// the word DATA and, with the feature `sqlite`, the `SQLite` words for
 /// databases in memory.
 fn sandbox(
     settings: &Settings,
@@ -339,7 +357,7 @@ fn sandbox(
 struct Data(Rc<RefCell<Vec<u8>>>);
 
 impl Extension for Data {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "FORTHLING-MCP"
     }
 
@@ -384,18 +402,19 @@ fn state(f: &Forth, output: &str, error: Option<Throw>) -> Value {
             // error has emptied them.
             if let Some(c) = e.context() {
                 if c.column > 0 {
-                    text += &format!(
+                    let _ = write!(
+                        text,
                         "\nat {}, line {}, column {}: {}",
                         c.source, c.line, c.column, c.token
                     );
                 }
                 if !c.words.is_empty() {
-                    text += &format!("\nin: {}", c.words.join(" > "));
+                    let _ = write!(text, "\nin: {}", c.words.join(" > "));
                 }
                 let at = if c.stack.is_empty() { "empty".to_string() } else { cells(&c.stack) };
-                text += &format!("\nstack at the error: {at}");
+                let _ = write!(text, "\nstack at the error: {at}");
                 if !c.fstack.is_empty() {
-                    text += &format!("\nfloat stack at the error: {}", float_cells(&c.fstack));
+                    let _ = write!(text, "\nfloat stack at the error: {}", float_cells(&c.fstack));
                 }
             }
         }
@@ -403,9 +422,9 @@ fn state(f: &Forth, output: &str, error: Option<Throw>) -> Value {
         None => text += " ok",
     }
     let stack = if f.stack().is_empty() { "empty".to_string() } else { cells(f.stack()) };
-    text += &format!("\nstack: {stack}");
+    let _ = write!(text, "\nstack: {stack}");
     if !floats.is_empty() {
-        text += &format!("\nfloat stack: {floats}");
+        let _ = write!(text, "\nfloat stack: {floats}");
     }
     let error = error.map(|e| {
         let mut error = json!({
@@ -449,17 +468,17 @@ fn trace_text(entries: &[TraceEntry], dropped: usize) -> String {
     let mut text = String::from("trace:\n");
     for e in entries {
         text += &"  ".repeat(e.depth.min(16));
-        text += &format!("{} <{}>", e.word, e.stack_depth);
+        let _ = write!(text, "{} <{}>", e.word, e.stack_depth);
         if e.stack.len() < e.stack_depth {
             text += " ...";
         }
         for n in &e.stack {
-            text += &format!(" {n}");
+            let _ = write!(text, " {n}");
         }
         text.push('\n');
     }
     if dropped > 0 {
-        text += &format!("... and {dropped} more words\n");
+        let _ = writeln!(text, "... and {dropped} more words");
     }
     text + "end of trace\n"
 }
@@ -482,8 +501,9 @@ fn breaks_text(breaks: &Breaks) -> String {
     let mut text = String::new();
     for (i, c) in breaks.seen.iter().enumerate() {
         let stack: Vec<String> = c.stack.iter().map(i64::to_string).collect();
-        text += &format!(
-            "break {}: in {}, at {}, line {}, column {}: stack <{}> {}\n",
+        let _ = writeln!(
+            text,
+            "break {}: in {}, at {}, line {}, column {}: stack <{}> {}",
             i + 1,
             c.words.join(" > "),
             c.source,
@@ -494,11 +514,11 @@ fn breaks_text(breaks: &Breaks) -> String {
         );
         if !c.fstack.is_empty() {
             let floats: Vec<String> = c.fstack.iter().map(|r| format!("{r:E}")).collect();
-            text += &format!("  float stack: {}\n", floats.join(" "));
+            let _ = writeln!(text, "  float stack: {}", floats.join(" "));
         }
     }
     if breaks.dropped > 0 {
-        text += &format!("... and {} more breaks\n", breaks.dropped);
+        let _ = writeln!(text, "... and {} more breaks", breaks.dropped);
     }
     text
 }

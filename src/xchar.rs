@@ -11,7 +11,7 @@ pub(crate) const XCHAR_MAXMEM: usize = 4;
 /// The UTF-8 bytes of an xchar. A value above MAX-XCHAR becomes U+FFFD, the
 /// replacement character.
 pub(crate) fn encode(xc: Cell) -> Vec<u8> {
-    let c = if (0..=MAX_XCHAR as Cell).contains(&xc) { xc as u32 } else { 0xFFFD };
+    let c = if (0..=Cell::from(MAX_XCHAR)).contains(&xc) { xc as u32 } else { 0xFFFD };
     match c {
         0..=0x7F => vec![c as u8],
         0x80..=0x7FF => vec![0xC0 | (c >> 6) as u8, cont(c)],
@@ -44,11 +44,11 @@ pub(crate) fn decode(bytes: &[u8]) -> (Cell, usize) {
     let lead = bytes[0];
     let size = lead_size(lead);
     if size == 1 || bytes.len() < size || !bytes[1..size].iter().all(|&b| is_cont(b)) {
-        return (lead as Cell, 1);
+        return (Cell::from(lead), 1);
     }
-    let first = (lead & (0x7F >> size)) as u32;
-    let c = bytes[1..size].iter().fold(first, |c, &b| (c << 6) | (b & 0x3F) as u32);
-    (c as Cell, size)
+    let first = u32::from(lead & (0x7F >> size));
+    let c = bytes[1..size].iter().fold(first, |c, &b| (c << 6) | u32::from(b & 0x3F));
+    (Cell::from(c), size)
 }
 
 /// Where the last xchar of `bytes` starts: back over at most three
@@ -153,15 +153,12 @@ impl Forth {
     pub(crate) fn parse_seq(&mut self, delim: &[u8]) -> (usize, usize) {
         let (start, end) = self.parse_area();
         let text = &self.mem[start..end];
-        match text.windows(delim.len()).position(|w| w == delim) {
-            Some(i) => {
-                self.set_in(start + i + delim.len());
-                (start, i)
-            }
-            None => {
-                self.set_in(end);
-                (start, end - start)
-            }
+        if let Some(i) = text.windows(delim.len()).position(|w| w == delim) {
+            self.set_in(start + i + delim.len());
+            (start, i)
+        } else {
+            self.set_in(end);
+            (start, end - start)
         }
     }
 }

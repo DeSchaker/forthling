@@ -83,7 +83,7 @@ fn run_suite_on(test_files: &[&str], in_memory: bool) -> Option<String> {
             }
         }
         f.set_file_system(Box::new(vfs)).unwrap();
-        paths = files.iter().map(|name| name.to_string()).collect();
+        paths = files.iter().map(std::string::ToString::to_string).collect();
     } else {
         f.set_block_file(&blocks).unwrap();
     }

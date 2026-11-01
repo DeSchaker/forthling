@@ -105,7 +105,7 @@ impl Forth {
     }
 
     /// The end of the buffer that address a lies in: one of the system's
-    /// fixed buffers, the data space (up to the heap) or an ALLOCATEd block.
+    /// fixed buffers, the data space (up to the heap) or an `ALLOCATE`d block.
     pub(crate) fn buffer_end(&self, a: usize) -> usize {
         let mut ends = vec![SOURCE_AREA];
         ends.extend((1..=MAX_SOURCES + 2).map(|k| SOURCE_AREA + k * LINE_MAX));

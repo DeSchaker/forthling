@@ -22,7 +22,7 @@ fn allow_host(host: &str) -> Result<(), String> {
 struct Program;
 
 impl Extension for Program {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "FORTHLING-HTTP"
     }
 

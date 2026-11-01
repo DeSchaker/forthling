@@ -79,12 +79,12 @@ impl Forth {
 
     pub(crate) fn pop_ud(&mut self) -> Res<u128> {
         let (lo, hi) = self.pop2()?;
-        Ok(((hi as u64 as u128) << 64) | lo as u64 as u128)
+        Ok((u128::from(hi as u64) << 64) | u128::from(lo as u64))
     }
 
     /// FM/MOD (floored) or SM/REM (symmetric): ( d n -- rem quot ).
     pub(crate) fn divide(&mut self, floored: bool) -> Res {
-        let d = self.pop()? as i128;
+        let d = i128::from(self.pop()?);
         let n = self.pop_d()?;
         if d == 0 {
             return Err(Throw::new(DIVISION_BY_ZERO));

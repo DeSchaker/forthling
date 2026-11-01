@@ -8,7 +8,24 @@
 //! f.add_word("HYPOT", math.hypot, inputs=2)     # pushes a float
 //! ```
 
-#![warn(clippy::must_use_candidate)]
+// Lints of clippy::pedantic that the code is clean for; `clippy -D warnings` in CI
+// keeps it so. (The rest of pedantic is not enabled: see the open issues.)
+#![warn(
+    clippy::cast_lossless,
+    clippy::doc_markdown,
+    clippy::float_cmp,
+    clippy::format_push_string,
+    clippy::many_single_char_names,
+    clippy::match_same_arms,
+    clippy::must_use_candidate,
+    clippy::redundant_closure_for_method_calls,
+    clippy::return_self_not_must_use,
+    clippy::semicolon_if_nothing_returned,
+    clippy::single_match_else,
+    clippy::struct_excessive_bools,
+    clippy::unnecessary_literal_bound,
+    clippy::uninlined_format_args
+)]
 
 use forthling::{
     Cell, Extension, Forth, Limits, MAX_MEMORY, MIN_MEMORY, MemoryFs, Permission, Throw,
@@ -36,7 +53,7 @@ const PYTHON_EXCEPTION: Cell = -257;
 struct PythonHost;
 
 impl Extension for PythonHost {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "FORTHLING-PYTHON"
     }
 
@@ -198,7 +215,7 @@ impl PyForth {
     }
 
     /// Interprets Forth source and returns what it printed. Raises
-    /// ForthError for an uncaught THROW, which also empties the stacks.
+    /// `ForthError` for an uncaught THROW, which also empties the stacks.
     fn interpret(&mut self, py: Python<'_>, text: &str) -> PyResult<String> {
         self.run(py, |f| f.interpret(text))
     }

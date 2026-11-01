@@ -4,6 +4,10 @@
 
 use crate::*;
 
+#[allow(
+    clippy::many_single_char_names,
+    reason = "names of Forth stack items, as in the stack comments (a, n, u, x)"
+)]
 pub(crate) fn install(f: &mut Forth) {
     // conversion
     f.prim(">FLOAT", |f| {
@@ -59,7 +63,7 @@ pub(crate) fn install(f: &mut Forth) {
         let a = f.pop()?;
         let i = f.check(a, SFLOAT as Cell)?;
         let r = f32::from_le_bytes(f.mem[i..i + SFLOAT].try_into().unwrap());
-        f.fpush(r as f64)
+        f.fpush(f64::from(r))
     });
     f.prim("SF!", |f| {
         let a = f.pop()?;
@@ -192,22 +196,19 @@ pub(crate) fn install(f: &mut Forth) {
         let r = f.fpop()?;
         let u = u.max(0) as usize;
         let i = f.check(a, u as Cell)?;
-        match represent(r, u) {
-            Some((digits, n)) => {
-                f.mem[i..i + u].copy_from_slice(&digits);
-                f.push(n as Cell);
-                f.push(flag(r.is_sign_negative()));
-                f.push(-1);
+        if let Some((digits, n)) = represent(r, u) {
+            f.mem[i..i + u].copy_from_slice(&digits);
+            f.push(n as Cell);
+            f.push(flag(r.is_sign_negative()));
+            f.push(-1);
+        } else {
+            let text = if r.is_nan() { b"nan" } else { b"inf" };
+            for (k, byte) in f.mem[i..i + u].iter_mut().enumerate() {
+                *byte = *text.get(k).unwrap_or(&b' ');
             }
-            None => {
-                let text = if r.is_nan() { b"nan" } else { b"inf" };
-                for (k, byte) in f.mem[i..i + u].iter_mut().enumerate() {
-                    *byte = *text.get(k).unwrap_or(&b' ');
-                }
-                f.push(0);
-                f.push(flag(r.is_sign_negative()));
-                f.push(0);
-            }
+            f.push(0);
+            f.push(flag(r.is_sign_negative()));
+            f.push(0);
         }
         Ok(())
     });
@@ -238,6 +239,7 @@ pub(crate) fn install(f: &mut Forth) {
 }
 
 /// FMAX and FMIN: a NaN wins, and +0 is larger than -0.
+#[allow(clippy::float_cmp, reason = "equal values must be told apart by their sign: +0 and -0")]
 fn fmax(a: f64, b: f64) -> f64 {
     if a.is_nan() || b.is_nan() {
         a + b
@@ -248,6 +250,7 @@ fn fmax(a: f64, b: f64) -> f64 {
     }
 }
 
+#[allow(clippy::float_cmp, reason = "equal values must be told apart by their sign: +0 and -0")]
 fn fmin(a: f64, b: f64) -> f64 {
     if a.is_nan() || b.is_nan() {
         a + b

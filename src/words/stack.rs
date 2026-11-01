@@ -74,8 +74,8 @@ pub(crate) fn install(f: &mut Forth) {
     });
 
     // arithmetic and logic
-    f.prim("+", |f| f.binop(|a, b| a.wrapping_add(b)));
-    f.prim("-", |f| f.binop(|a, b| a.wrapping_sub(b)));
-    f.prim("*", |f| f.binop(|a, b| a.wrapping_mul(b)));
+    f.prim("+", |f| f.binop(i64::wrapping_add));
+    f.prim("-", |f| f.binop(i64::wrapping_sub));
+    f.prim("*", |f| f.binop(i64::wrapping_mul));
     // / MOD /MOD */ */MOD are defined in the prelude via FM/MOD.
 }

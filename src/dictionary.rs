@@ -1,6 +1,7 @@
 //! The dictionary: words, defining them, finding them, SEE and WORDS.
 
 use crate::*;
+use std::fmt::Write as _;
 
 pub(crate) const FORTH_WID: usize = 1; // word list ids count from 1
 pub(crate) const MAX_ORDER: usize = 16; // word lists in the search order
@@ -119,7 +120,7 @@ impl Forth {
 
     /// Looks a word up in the word lists of the search order, in turn.
     /// Looks a word up in the search order. An empty search order still
-    /// finds the words of ROOT_WORDS, so the system stays usable.
+    /// finds the words of `ROOT_WORDS`, so the system stays usable.
     pub(crate) fn find(&self, name: &str) -> Option<usize> {
         if self.order.is_empty() && ROOT_WORDS.contains(&name.to_ascii_uppercase().as_str()) {
             return self.find_in(name, FORTH_WID);
@@ -203,7 +204,7 @@ impl Forth {
             Kind::Colon(code) => {
                 let mut s = format!(": {}\n", w.name);
                 for (i, instr) in code.iter().enumerate() {
-                    s += &format!("{i:>4}  {}\n", self.show(instr));
+                    let _ = writeln!(s, "{i:>4}  {}", self.show(instr));
                 }
                 s + ";"
             }

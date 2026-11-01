@@ -177,7 +177,7 @@ impl Forth {
     }
 
     /// Loads the next line of the current source (REFILL); false when there
-    /// is none, which is always the case for an EVALUATEd string.
+    /// is none, which is always the case for an `EVALUATE`d string.
     pub(crate) fn refill(&mut self) -> Res<bool> {
         let s = self.sources.top();
         let line = match &s.origin {

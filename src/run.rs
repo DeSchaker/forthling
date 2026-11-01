@@ -255,7 +255,7 @@ impl Forth {
                     let code = self.frames.last().unwrap().code.clone();
                     match self.dict.last_mut() {
                         Some(Word { kind: Kind::Created { does, .. }, .. }) => {
-                            *does = Some((code, pc))
+                            *does = Some((code, pc));
                         }
                         _ => return Err(Throw::with(UNSUPPORTED, "DOES> without CREATE")),
                     }

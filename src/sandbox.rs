@@ -210,7 +210,7 @@ impl Forth {
     }
 
     /// Counts a step, and throws when a limit is reached. The fast path is
-    /// one test: only every CLOCK_EVERY steps, and at 0, is there more to do.
+    /// one test: only every `CLOCK_EVERY` steps, and at 0, is there more to do.
     #[inline]
     pub(crate) fn step(&mut self) -> Res {
         if self.budget.steps % CLOCK_EVERY == 0 {

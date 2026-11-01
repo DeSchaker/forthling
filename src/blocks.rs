@@ -54,19 +54,17 @@ impl Forth {
             Ok(u) if (1..=MAX_BLOCK).contains(&u) => u,
             _ => return Err(Throw::with(INVALID_BLOCK, u.to_string())),
         };
-        let i = match self.blocks.bufs.iter().position(|b| b.block == u) {
-            Some(i) => i,
-            None => {
-                let (i, _) =
-                    self.blocks.bufs.iter().enumerate().min_by_key(|(_, b)| b.used).unwrap();
-                self.write_buffer(i)?;
-                if read {
-                    let data = self.read_block(u)?;
-                    self.mem[buffer_addr(i)..][..BLOCK_SIZE].copy_from_slice(&data);
-                }
-                self.blocks.bufs[i] = BlockBuffer { block: u, dirty: false, used: 0 };
-                i
+        let i = if let Some(i) = self.blocks.bufs.iter().position(|b| b.block == u) {
+            i
+        } else {
+            let (i, _) = self.blocks.bufs.iter().enumerate().min_by_key(|(_, b)| b.used).unwrap();
+            self.write_buffer(i)?;
+            if read {
+                let data = self.read_block(u)?;
+                self.mem[buffer_addr(i)..][..BLOCK_SIZE].copy_from_slice(&data);
             }
+            self.blocks.bufs[i] = BlockBuffer { block: u, dirty: false, used: 0 };
+            i
         };
         self.blocks.clock += 1;
         self.blocks.bufs[i].used = self.blocks.clock;

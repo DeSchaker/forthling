@@ -2,10 +2,11 @@
 //! is its text, a string ( c-addr u ) in Forth memory. The reading words
 //! give back pieces of that text, so they copy and allocate nothing, except
 //! for the strings that JSON>STRING and JSON-NAME unescape, which are
-//! ALLOCATEd. The writing words write JSON text to the output or, between
+//! `ALLOCATE`d. The writing words write JSON text to the output or, between
 //! <JSON and JSON>, to a string, with the commas in their places.
 
 use crate::*;
+use std::fmt::Write as _;
 
 /// Arrays and objects nested deeper than this are not read or written, so
 /// that deep nesting cannot overflow the Rust stack; <JSON nests as deep.
@@ -250,7 +251,9 @@ fn quoted(text: &[u8]) -> Vec<u8> {
             '\n' => out.push_str("\\n"),
             '\r' => out.push_str("\\r"),
             '\t' => out.push_str("\\t"),
-            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c if (c as u32) < 0x20 => {
+                let _ = write!(out, "\\u{:04x}", c as u32);
+            }
             c => out.push(c),
         }
     }
@@ -343,7 +346,7 @@ impl Writer {
 }
 
 impl Forth {
-    /// What the JSON writers take outside Forth memory (Limits::space).
+    /// What the JSON writers take outside Forth memory (`Limits::space`).
     pub(crate) fn json_space(&self) -> usize {
         self.peek_state::<Writers>().map_or(0, Writers::space)
     }
@@ -416,7 +419,7 @@ impl Forth {
         self.push(found);
     }
 
-    /// Pushes an unescaped string, ALLOCATEd, and a flag; or 0 0 0.
+    /// Pushes an unescaped string, `ALLOCATE`d, and a flag; or 0 0 0.
     fn push_unescaped(&mut self, string: Option<Span>) -> Res {
         match string {
             Some((s, e)) => {
@@ -440,7 +443,7 @@ fn word(f: &mut Forth, wid: Cell, name: &str, word: impl Fn(&mut Forth) -> Res +
 }
 
 impl Extension for Json {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "FORTHLING-JSON"
     }
 

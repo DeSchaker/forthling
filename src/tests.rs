@@ -239,7 +239,7 @@ fn abort_and_quit() {
     let e = f.interpret("-5 CHECK").unwrap_err();
     assert_eq!(e.code, -2);
     assert_eq!(e.to_string(), "error -2: aborted: negative!");
-    assert!(f.stack.is_empty());
+    assert_eq!(f.stack, [] as [i64; 0]);
     assert_eq!(f.interpret(r#"1 ABORT" direct""#).unwrap_err().code, -2);
     f.interpret(r#"0 ABORT" not shown""#).unwrap();
     // QUIT empties the return stack and leaves compilation, but keeps the data stack.
@@ -652,7 +652,7 @@ fn errors_are_throw_codes_and_reset_state() {
     let e = f.interpret("1 2 FOO").unwrap_err();
     assert_eq!(e.code, -13);
     assert_eq!(e.to_string(), "error -13: undefined word: FOO");
-    assert!(f.stack.is_empty());
+    assert_eq!(f.stack, [] as [i64; 0]);
     assert_eq!(f.interpret("DROP").unwrap_err().code, -4);
     assert_eq!(f.interpret(": BAD IF ;").unwrap_err().code, -22);
     assert!(f.find("BAD").is_none());

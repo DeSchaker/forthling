@@ -2,6 +2,7 @@
 
 use forthling::{Forth, LIMIT_EXCEEDED, NOT_PERMITTED, Permission};
 use forthling_http::{HTTP_ERROR, Http};
+use std::fmt::Write as _;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
@@ -39,9 +40,9 @@ fn read_request(stream: &mut TcpStream) -> String {
 fn respond(stream: &mut TcpStream, status: &str, headers: &[&str], body: &[u8]) {
     let mut head = format!("HTTP/1.1 {status}\r\nConnection: close\r\n");
     for h in headers {
-        head += &format!("{h}\r\n");
+        let _ = write!(head, "{h}\r\n");
     }
-    head += &format!("Content-Length: {}\r\n\r\n", body.len());
+    let _ = write!(head, "Content-Length: {}\r\n\r\n", body.len());
     let _ = stream.write_all(head.as_bytes());
     let _ = stream.write_all(body);
 }
@@ -74,7 +75,7 @@ fn serve() -> (u16, Seen) {
                     "/redirect" => respond(&mut stream, "302 Found", &["Location: /hello"], b""),
                     "/loop" => respond(&mut stream, "302 Found", &["Location: /loop"], b""),
                     "/offsite" => {
-                        let to = format!("Location: http://localhost:{}/hello", port);
+                        let to = format!("Location: http://localhost:{port}/hello");
                         respond(&mut stream, "302 Found", &[&to], b"");
                     }
                     "/big" => respond(&mut stream, "200 OK", &[], &vec![b'x'; 2 << 20]),

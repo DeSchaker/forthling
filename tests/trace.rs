@@ -69,7 +69,7 @@ fn a_host_records_the_trace_as_data() {
     assert_eq!(f.trace_dropped(), 0);
     f.record_trace(None);
     run(&mut f, "F DROP");
-    assert!(f.take_trace().is_empty());
+    assert_eq!(f.take_trace(), [] as [forthling::TraceEntry; 0]);
 }
 
 #[test]

@@ -4,17 +4,22 @@ use crate::*;
 
 /// The core of M*/: d * n1 / n2, floored, through a 192-bit product so that
 /// the multiplication cannot overflow.
+#[allow(
+    clippy::many_single_char_names,
+    reason = "names of Forth stack items, as in the stack comments (a, n, u, x)"
+)]
 pub(crate) fn mul_div(d: i128, n1: Cell, n2: Cell) -> Res<i128> {
     if n2 == 0 {
         return Err(Throw::new(DIVISION_BY_ZERO));
     }
-    let (m, n, v) = (d.unsigned_abs(), n1.unsigned_abs() as u128, n2.unsigned_abs() as u128);
-    let lo = (m as u64 as u128) * n;
+    let (m, n, v) =
+        (d.unsigned_abs(), u128::from(n1.unsigned_abs()), u128::from(n2.unsigned_abs()));
+    let lo = u128::from(m as u64) * n;
     let hi = (m >> 64) * n + (lo >> 64);
     // Long division of the product hi:lo, one 64-bit limb at a time.
     let (mut q, mut r) = ([0u64; 3], 0u128);
     for (i, limb) in [(hi >> 64) as u64, hi as u64, lo as u64].into_iter().enumerate() {
-        let cur = (r << 64) | limb as u128;
+        let cur = (r << 64) | u128::from(limb);
         q[i] = (cur / v) as u64;
         r = cur % v;
     }
@@ -22,34 +27,38 @@ pub(crate) fn mul_div(d: i128, n1: Cell, n2: Cell) -> Res<i128> {
     if q[0] != 0 {
         return Err(too_big());
     }
-    let q = ((q[1] as u128) << 64) | q[2] as u128;
+    let q = (u128::from(q[1]) << 64) | u128::from(q[2]);
     if (d < 0) ^ (n1 < 0) ^ (n2 < 0) {
         // A negative quotient with a remainder rounds down, away from zero.
-        let q = q.checked_add((r != 0) as u128).filter(|&q| q <= 1 << 127).ok_or_else(too_big)?;
+        let q = q.checked_add(u128::from(r != 0)).filter(|&q| q <= 1 << 127).ok_or_else(too_big)?;
         Ok((q as i128).wrapping_neg())
     } else {
         i128::try_from(q).map_err(|_| too_big())
     }
 }
 
+#[allow(
+    clippy::many_single_char_names,
+    reason = "names of Forth stack items, as in the stack comments (a, n, u, x)"
+)]
 pub(crate) fn install(f: &mut Forth) {
     f.prim("S>D", |f| {
         let n = f.pop()?;
-        f.push_d(n as i128);
+        f.push_d(i128::from(n));
         Ok(())
     });
     f.prim("M*", |f| {
         let (a, b) = f.pop2()?;
-        f.push_d(a as i128 * b as i128);
+        f.push_d(i128::from(a) * i128::from(b));
         Ok(())
     });
     f.prim("UM*", |f| {
         let (a, b) = f.pop2()?;
-        f.push_ud(a as u64 as u128 * b as u64 as u128);
+        f.push_ud(u128::from(a as u64) * u128::from(b as u64));
         Ok(())
     });
     f.prim("UM/MOD", |f| {
-        let d = f.pop()? as u64 as u128;
+        let d = u128::from(f.pop()? as u64);
         let n = f.pop_ud()?;
         if d == 0 {
             return Err(Throw::new(DIVISION_BY_ZERO));
@@ -61,8 +70,8 @@ pub(crate) fn install(f: &mut Forth) {
     });
     f.prim("FM/MOD", |f| f.divide(true));
     f.prim("SM/REM", |f| f.divide(false));
-    f.prim("D+", |f| f.d_binop(|a, b| a.wrapping_add(b)));
-    f.prim("D-", |f| f.d_binop(|a, b| a.wrapping_sub(b)));
+    f.prim("D+", |f| f.d_binop(i128::wrapping_add));
+    f.prim("D-", |f| f.d_binop(i128::wrapping_sub));
     f.prim("DMAX", |f| f.d_binop(i128::max));
     f.prim("DMIN", |f| f.d_binop(i128::min));
     f.prim("DNEGATE", |f| f.d_unop(i128::wrapping_neg));
@@ -90,7 +99,7 @@ pub(crate) fn install(f: &mut Forth) {
     f.prim("M+", |f| {
         let n = f.pop()?;
         let d = f.pop_d()?;
-        f.push_d(d.wrapping_add(n as i128));
+        f.push_d(d.wrapping_add(i128::from(n)));
         Ok(())
     });
     f.prim("M*/", |f| {

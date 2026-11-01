@@ -50,7 +50,7 @@ fn a_word_without_a_result_and_with_state() {
     forth_word!(f, 1, "TICK", (n: i64) { seen.set(seen.get() + n) }).unwrap();
     f.interpret("1 TICK 2 TICK : T 3 TICK ; T").unwrap();
     assert_eq!(count.get(), 6);
-    assert!(f.stack().is_empty());
+    assert_eq!(f.stack(), []);
 }
 
 #[test]

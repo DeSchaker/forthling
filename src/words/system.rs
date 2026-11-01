@@ -7,7 +7,7 @@ pub(crate) fn install(f: &mut Forth) {
         f.words();
         Ok(())
     });
-    f.prim("SEE", |f| f.see());
+    f.prim("SEE", Forth::see);
     f.prim("INCLUDE", |f| {
         let path = f.name()?;
         f.need(Permission::Files, || format!("INCLUDE {path}"))?;
@@ -42,7 +42,7 @@ pub(crate) fn install(f: &mut Forth) {
     });
     f.prim("KEY", |f| {
         let c = f.read_key().ok_or(Throw::new(UNEXPECTED_EOF))?;
-        f.push(c as Cell);
+        f.push(Cell::from(c));
         Ok(())
     });
     f.prim(">NUMBER", |f| {
@@ -69,20 +69,17 @@ pub(crate) fn install(f: &mut Forth) {
         let query = f.text(i, n).to_ascii_uppercase();
         match query.as_str() {
             "#LOCALS" => f.push(MAX_LOCALS as Cell),
-            "/COUNTED-STRING" => f.push(255),
+            "/COUNTED-STRING" | "MAX-CHAR" => f.push(255),
             "/HOLD" => f.push((HOLD_END - HOLD_START) as Cell),
             "/PAD" => f.push((BLOCK_BUFS - PAD_ADDR) as Cell),
             "ADDRESS-UNIT-BITS" => f.push(8),
-            "FLOATING" | "FLOATING-EXT" => f.push(-1),
+            "FLOATING" | "FLOATING-EXT" | "FLOORED" | "MAX-U" => f.push(-1),
             "FLOATING-STACK" => f.push(FSTACK_FLOATS as Cell),
-            "FLOORED" => f.push(-1),
-            "MAX-CHAR" => f.push(255),
             "MAX-D" => f.push_d(i128::MAX),
             "MAX-FLOAT" => f.fpush(f64::MAX)?,
             "MAX-N" => f.push(Cell::MAX),
-            "MAX-U" => f.push(-1),
             "MAX-UD" => f.push_ud(u128::MAX),
-            "MAX-XCHAR" => f.push(MAX_XCHAR as Cell),
+            "MAX-XCHAR" => f.push(Cell::from(MAX_XCHAR)),
             "RETURN-STACK-CELLS" => f.push(RSTACK_CELLS as Cell),
             "STACK-CELLS" => f.push(STACK_CELLS as Cell),
             "WORDLISTS" => f.push(MAX_ORDER as Cell),
@@ -92,13 +89,14 @@ pub(crate) fn install(f: &mut Forth) {
                 f.push(n as Cell);
             }
             "XCHAR-MAXMEM" => f.push(XCHAR_MAXMEM as Cell),
-            _ => match f.extensions.get(&query) {
-                Some(&version) => f.push(version),
-                None => {
+            _ => {
+                if let Some(&version) = f.extensions.get(&query) {
+                    f.push(version);
+                } else {
                     f.push(0); // unknown query
                     return Ok(());
                 }
-            },
+            }
         }
         f.push(-1);
         Ok(())

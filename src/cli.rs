@@ -3,6 +3,7 @@
 //! forthling-sqlite, is the same program with more words.
 
 use crate::*;
+use std::fmt::Write as _;
 use std::path::PathBuf;
 use std::time::Duration;
 use std::{env, fs};
@@ -211,7 +212,7 @@ fn parse_args(
 }
 
 /// The config file: forthling/forthling.conf in the user's config directory
-/// (%APPDATA% on Windows, else $XDG_CONFIG_HOME or ~/.config).
+/// (`%APPDATA%` on Windows, else `$XDG_CONFIG_HOME` or `~/.config`).
 fn config_path() -> Option<PathBuf> {
     let dir = if cfg!(windows) {
         PathBuf::from(env::var_os("APPDATA")?)
@@ -290,7 +291,7 @@ fn debugger(f: &mut Forth, pause: &Pause) -> Res<Resume> {
     let c = &pause.context;
     let mut cells = format!("<{}>", c.stack.len());
     for n in &c.stack {
-        cells += &format!(" {n}");
+        let _ = write!(cells, " {n}");
     }
     let what = if pause.reason == Reason::Break { "break" } else { "step" };
     println!("{what}: {}  {cells}", c.words.join(" > "));
@@ -408,7 +409,7 @@ mod tests {
     #[test]
     fn arguments() {
         let args = |a: &str| parse_args(a.split_whitespace().map(String::from), &[]);
-        let files = |f: &[&str]| f.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let files = |f: &[&str]| f.iter().map(std::string::ToString::to_string).collect::<Vec<_>>();
         let parsed = args("-m 4M a.fs -b my.fb b.fs").unwrap();
         assert_eq!(parsed.settings.memory.as_deref(), Some("4M"));
         assert_eq!(parsed.settings.blocks.as_deref(), Some("my.fb"));

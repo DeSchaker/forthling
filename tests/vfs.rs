@@ -58,7 +58,7 @@ fn rename_delete_and_status() {
     assert_eq!(vfs.paths(), ["b.txt"]);
     f.interpret("S\" b.txt\" DELETE-FILE . S\" b.txt\" DELETE-FILE .").unwrap();
     assert!(output(&f).ends_with("0 0 -64 "), "{}", output(&f));
-    assert!(vfs.paths().is_empty());
+    assert_eq!(vfs.paths(), [] as [std::string::String; 0]);
     assert_eq!(vfs.used(), 0);
     // A file opened for reading cannot be written.
     vfs.insert("c.txt", "x").unwrap();

@@ -9,7 +9,7 @@ pub(crate) fn to_number(mut ud: u128, digits: &[u8], base: u32) -> (u128, usize)
     let mut used = 0;
     for &c in digits {
         let Some(d) = (c as char).to_digit(base) else { break };
-        ud = ud.wrapping_mul(base as u128).wrapping_add(d as u128);
+        ud = ud.wrapping_mul(u128::from(base)).wrapping_add(u128::from(d));
         used += 1;
     }
     (ud, used)
@@ -68,6 +68,10 @@ impl Forth {
 
     /// Parses the text of S\" up to an unescaped `"` and translates its
     /// escapes, such as \n, \" and \x41.
+    #[allow(
+        clippy::many_single_char_names,
+        reason = "names of Forth stack items, as in the stack comments (a, n, u, x)"
+    )]
     pub(crate) fn parse_escaped(&mut self) -> Vec<u8> {
         let (mut i, end) = self.parse_area();
         let mut out = Vec::new();
@@ -155,7 +159,7 @@ impl Forth {
         if used < digits.len() {
             return None;
         }
-        if !double && ud > u64::MAX as u128 {
+        if !double && ud > u128::from(u64::MAX) {
             return None;
         }
         Some((if neg { ud.wrapping_neg() } else { ud }, double))

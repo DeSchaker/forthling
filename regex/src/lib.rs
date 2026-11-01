@@ -1,7 +1,7 @@
 //! Regular expressions for forthling: the word list REGEX. Patterns are
 //! matched in time linear in the text (no catastrophic backtracking), which
 //! the sandbox needs, and touch nothing outside Forth, so no permission is
-//! needed. Strings that a word returns are ALLOCATEd, for the program to
+//! needed. Strings that a word returns are `ALLOCATE`d, for the program to
 //! FREE; positions are byte offsets into the text.
 //!
 //! ```
@@ -17,7 +17,24 @@
 //! The syntax is that of the `regex-lite` crate: Perl-like, without the
 //! Unicode classes such as `\p{L}`.
 
-#![warn(clippy::must_use_candidate)]
+// Lints of clippy::pedantic that the code is clean for; `clippy -D warnings` in CI
+// keeps it so. (The rest of pedantic is not enabled: see the open issues.)
+#![warn(
+    clippy::cast_lossless,
+    clippy::doc_markdown,
+    clippy::float_cmp,
+    clippy::format_push_string,
+    clippy::many_single_char_names,
+    clippy::match_same_arms,
+    clippy::must_use_candidate,
+    clippy::redundant_closure_for_method_calls,
+    clippy::return_self_not_must_use,
+    clippy::semicolon_if_nothing_returned,
+    clippy::single_match_else,
+    clippy::struct_excessive_bools,
+    clippy::unnecessary_literal_bound,
+    clippy::uninlined_format_args
+)]
 
 use forthling::{Cell, Extension, Forth, Res, Throw};
 use regex_lite::{Regex as Compiled, RegexBuilder};
@@ -101,7 +118,7 @@ fn word(f: &mut Forth, name: &str, word: impl Fn(&mut Forth) -> Res + 'static) {
 }
 
 impl Extension for Regex {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "FORTHLING-REGEX"
     }
 

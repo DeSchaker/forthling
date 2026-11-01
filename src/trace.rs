@@ -5,6 +5,7 @@
 //! When neither is on, it costs one test per word.
 
 use crate::*;
+use std::fmt::Write as _;
 
 /// The cells of the data stack that a trace line shows, from the top.
 pub const TRACE_CELLS: usize = 8;
@@ -44,7 +45,7 @@ pub(crate) struct Tracer {
 pub struct Debugger;
 
 impl Extension for Debugger {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "FORTHLING-DEBUG"
     }
 
@@ -151,7 +152,7 @@ impl Forth {
                 _ => String::new(),
             };
             line += &"  ".repeat(depth.min(TRACE_INDENT));
-            line += &format!("{word} <{stack_depth}>");
+            let _ = write!(line, "{word} <{stack_depth}>");
             if shown > 0 {
                 line += " ...";
             }

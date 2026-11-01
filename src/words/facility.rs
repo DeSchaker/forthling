@@ -52,7 +52,7 @@ fn civil_from_days(days: i64) -> (i64, i64, i64) {
     let mp = (5 * doy + 2) / 153;
     let day = doy - (153 * mp + 2) / 5 + 1;
     let month = if mp < 10 { mp + 3 } else { mp - 9 };
-    let year = yoe + era * 400 + (month <= 2) as i64;
+    let year = yoe + era * 400 + i64::from(month <= 2);
     (year, month, day)
 }
 

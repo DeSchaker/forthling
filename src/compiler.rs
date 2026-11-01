@@ -70,7 +70,7 @@ impl Forth {
     pub(crate) fn patch(&mut self, at: usize, target: usize) {
         match &mut self.code[at] {
             Instr::Branch(t) | Instr::ZBranch(t) | Instr::Do(t) | Instr::QDo(t) | Instr::Of(t) => {
-                *t = target
+                *t = target;
             }
             _ => unreachable!("patching a non-jump instruction"),
         }

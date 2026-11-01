@@ -2,6 +2,10 @@
 
 use crate::*;
 
+#[allow(
+    clippy::many_single_char_names,
+    reason = "names of Forth stack items, as in the stack comments (a, n, u, x)"
+)]
 pub(crate) fn install(f: &mut Forth) {
     f.prim("@", |f| {
         let a = f.pop()?;
@@ -18,7 +22,7 @@ pub(crate) fn install(f: &mut Forth) {
     f.prim("C@", |f| {
         let a = f.pop()?;
         let i = f.check(a, 1)?;
-        f.push(f.mem[i] as Cell);
+        f.push(Cell::from(f.mem[i]));
         Ok(())
     });
     f.prim("C!", |f| {
@@ -84,7 +88,7 @@ pub(crate) fn install(f: &mut Forth) {
         let a = f.pop()?;
         let i = f.check(a, 1)?;
         f.push(a + 1);
-        f.push(f.mem[i] as Cell);
+        f.push(Cell::from(f.mem[i]));
         Ok(())
     });
 }

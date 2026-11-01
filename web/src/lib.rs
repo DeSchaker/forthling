@@ -9,10 +9,28 @@
 //! memory; `fl_write_file`, `fl_read_file`, `fl_delete_file` and `fl_files`
 //! reach them.
 
-#![warn(clippy::must_use_candidate)]
+// Lints of clippy::pedantic that the code is clean for; `clippy -D warnings` in CI
+// keeps it so. (The rest of pedantic is not enabled: see the open issues.)
+#![warn(
+    clippy::cast_lossless,
+    clippy::doc_markdown,
+    clippy::float_cmp,
+    clippy::format_push_string,
+    clippy::many_single_char_names,
+    clippy::match_same_arms,
+    clippy::must_use_candidate,
+    clippy::redundant_closure_for_method_calls,
+    clippy::return_self_not_must_use,
+    clippy::semicolon_if_nothing_returned,
+    clippy::single_match_else,
+    clippy::struct_excessive_bools,
+    clippy::unnecessary_literal_bound,
+    clippy::uninlined_format_args
+)]
 
 use forthling::{Debugger, Forth, Json, MemoryFs, Throw, TraceEntry, Tutorial};
 use std::cell::{Cell, RefCell};
+use std::fmt::Write as _;
 
 thread_local! {
     static SESSION: RefCell<Option<Forth>> = const { RefCell::new(None) };
@@ -80,10 +98,11 @@ pub extern "C" fn fl_eval(now: f64) -> usize {
         let mut answer = state(f, &output, result.err());
         // What the run took: its steps and the deepest stack.
         answer.pop();
-        answer += &format!(",\"steps\":{},\"max_depth\":{}", f.steps_used(), f.max_depth());
+        let _ = write!(answer, ",\"steps\":{},\"max_depth\":{}", f.steps_used(), f.max_depth());
         if record > 0 {
             let entries: Vec<String> = trace.iter().map(entry).collect();
-            answer += &format!(",\"trace\":[{}],\"trace_dropped\":{dropped}", entries.join(","));
+            let _ =
+                write!(answer, ",\"trace\":[{}],\"trace_dropped\":{dropped}", entries.join(","));
         }
         answer + "}"
     });
@@ -289,7 +308,9 @@ fn quoted(text: &str) -> String {
             '\n' => out.push_str("\\n"),
             '\r' => out.push_str("\\r"),
             '\t' => out.push_str("\\t"),
-            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c if (c as u32) < 0x20 => {
+                let _ = write!(out, "\\u{:04x}", c as u32);
+            }
             c => out.push(c),
         }
     }

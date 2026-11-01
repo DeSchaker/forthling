@@ -145,6 +145,7 @@ pub(crate) fn scientific(r: f64, p: usize, engineering: bool) -> String {
 }
 
 /// FROUND: to the nearest integer, and to the even one when halfway.
+#[allow(clippy::float_cmp, reason = "halfway is exactly 0.5")]
 pub(crate) fn round_even(r: f64) -> f64 {
     let rounded = r.round();
     if (r - r.trunc()).abs() == 0.5 { 2.0 * (r / 2.0).round() } else { rounded }
@@ -213,8 +214,8 @@ mod tests {
                 assert!(digits.len() <= u);
                 assert!(digits.iter().all(u8::is_ascii_digit));
             }
-            assert!(!fixed(r, 6).is_empty());
-            assert!(!scientific(r, 6, true).is_empty());
+            assert_ne!(fixed(r, 6), "");
+            assert_ne!(scientific(r, 6, true), "");
         }
     }
 

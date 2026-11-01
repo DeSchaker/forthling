@@ -20,7 +20,7 @@ pub(crate) fn install(f: &mut Forth) {
         f.update();
         Ok(())
     });
-    f.prim("SAVE-BUFFERS", |f| f.save_buffers());
+    f.prim("SAVE-BUFFERS", Forth::save_buffers);
     f.prim("FLUSH", |f| {
         f.save_buffers()?;
         f.empty_buffers();

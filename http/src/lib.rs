@@ -4,7 +4,7 @@
 //! `Forth::sandboxed` denies), a list of the hosts it may connect to (empty
 //! until the host adds some with `allow`), and the limits of the sandbox: the
 //! time left in the budget bounds a request, the body is capped and the bytes
-//! are charged as work. Strings that a word returns are ALLOCATEd, for the
+//! are charged as work. Strings that a word returns are `ALLOCATE`d, for the
 //! program to FREE.
 //!
 //! ```
@@ -22,7 +22,24 @@
 //! host too; headers set for the request are dropped when a redirect goes to
 //! another host. There is no proxy, and no decompression.
 
-#![warn(clippy::must_use_candidate)]
+// Lints of clippy::pedantic that the code is clean for; `clippy -D warnings` in CI
+// keeps it so. (The rest of pedantic is not enabled: see the open issues.)
+#![warn(
+    clippy::cast_lossless,
+    clippy::doc_markdown,
+    clippy::float_cmp,
+    clippy::format_push_string,
+    clippy::many_single_char_names,
+    clippy::match_same_arms,
+    clippy::must_use_candidate,
+    clippy::redundant_closure_for_method_calls,
+    clippy::return_self_not_must_use,
+    clippy::semicolon_if_nothing_returned,
+    clippy::single_match_else,
+    clippy::struct_excessive_bools,
+    clippy::unnecessary_literal_bound,
+    clippy::uninlined_format_args
+)]
 
 use forthling::{Cell, Extension, Forth, NOT_PERMITTED, Permission, Res, Throw};
 use std::time::Duration;
@@ -70,6 +87,7 @@ impl Http {
     }
 
     /// Allows each of the hosts (see `allow`).
+    #[must_use]
     pub fn allow_all<'a>(mut self, hosts: impl IntoIterator<Item = &'a str>) -> Self {
         for host in hosts {
             self = self.allow(host);
@@ -220,8 +238,11 @@ fn send(f: &mut Forth, mut req: Request) -> Res<(u16, Vec<u8>)> {
             }
         };
         let status = response.status().as_u16();
-        let location =
-            response.headers().get("location").and_then(|v| v.to_str().ok()).map(|s| s.to_string());
+        let location = response
+            .headers()
+            .get("location")
+            .and_then(|v| v.to_str().ok())
+            .map(std::string::ToString::to_string);
         if matches!(status, 301 | 302 | 303 | 307 | 308) {
             if let Some(location) = location {
                 // 301, 302 and 303 turn a POST into a GET, as browsers do.
@@ -265,7 +286,7 @@ fn word(f: &mut Forth, name: &str, word: impl Fn(&mut Forth) -> Res + 'static) {
 }
 
 impl Extension for Http {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "FORTHLING-HTTP"
     }
 

@@ -14,7 +14,7 @@ pub(crate) fn install(f: &mut Forth) {
     });
     f.prim("#", |f| {
         let ud = f.pop_ud()?;
-        let base = f.base() as u128;
+        let base = u128::from(f.base());
         let d = std::char::from_digit((ud % base) as u32, base as u32).unwrap();
         f.hold(d.to_ascii_uppercase() as u8)?;
         f.push_ud(ud / base);
@@ -110,15 +110,12 @@ pub(crate) fn install(f: &mut Forth) {
         let n = f.mem[i] as usize;
         f.check(a, 1 + n as Cell)?;
         let name = f.text(i + 1, n);
-        match f.find(&name) {
-            Some(xt) => {
-                f.push(xt as Cell);
-                f.push(if f.dict[xt].immediate { 1 } else { -1 });
-            }
-            None => {
-                f.push(a);
-                f.push(0);
-            }
+        if let Some(xt) = f.find(&name) {
+            f.push(xt as Cell);
+            f.push(if f.dict[xt].immediate { 1 } else { -1 });
+        } else {
+            f.push(a);
+            f.push(0);
         }
         Ok(())
     });

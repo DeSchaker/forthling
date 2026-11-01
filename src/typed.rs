@@ -22,7 +22,7 @@ pub trait FromForth: Sized {
 
 /// A value that a word gives back on the stacks: `Cell`, `bool` (as -1 or
 /// 0) and `f64` as one item; `String`, `&str` and `Vec<u8>` as a string
-/// ( c-addr u ) in ALLOCATEd memory, which the program frees with FREE; a
+/// ( c-addr u ) in `ALLOCATE`d memory, which the program frees with FREE; a
 /// tuple as its parts in order, so that the last is the top; `()` as
 /// nothing; and `Res<T>` as T, or the THROW of its error.
 pub trait IntoForth {

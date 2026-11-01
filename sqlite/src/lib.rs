@@ -1,6 +1,6 @@
-//! SQLite for forthling: the word list SQLITE, in the style of the FILE word
+//! `SQLite` for forthling: the word list SQLITE, in the style of the FILE word
 //! set. Databases and statements are handles (cells), errors are iors on
-//! the stack, and strings that a word returns are ALLOCATEd, for the program
+//! the stack, and strings that a word returns are `ALLOCATE`d, for the program
 //! to FREE.
 //!
 //! ```
@@ -18,7 +18,24 @@
 //! A statement runs at its first DB-STEP, which reads all its rows; the
 //! next DB-STEPs hand them out one by one.
 
-#![warn(clippy::must_use_candidate)]
+// Lints of clippy::pedantic that the code is clean for; `clippy -D warnings` in CI
+// keeps it so. (The rest of pedantic is not enabled: see the open issues.)
+#![warn(
+    clippy::cast_lossless,
+    clippy::doc_markdown,
+    clippy::float_cmp,
+    clippy::format_push_string,
+    clippy::many_single_char_names,
+    clippy::match_same_arms,
+    clippy::must_use_candidate,
+    clippy::redundant_closure_for_method_calls,
+    clippy::return_self_not_must_use,
+    clippy::semicolon_if_nothing_returned,
+    clippy::single_match_else,
+    clippy::struct_excessive_bools,
+    clippy::unnecessary_literal_bound,
+    clippy::uninlined_format_args
+)]
 
 use forthling::{Cell, Extension, Forth, NOT_PERMITTED, Res, Throw};
 use rusqlite::limits::Limit;
@@ -27,7 +44,7 @@ use rusqlite::{Connection, params_from_iter};
 use std::collections::{HashMap, VecDeque};
 use std::time::Instant;
 
-/// The ior of an error that SQLite reports; DB-ERROR gives its message.
+/// The ior of an error that `SQLite` reports; DB-ERROR gives its message.
 pub const SQLITE_ERROR: Cell = -260;
 /// The ior of a handle that is no open database or statement of the right
 /// kind; words without an ior throw it.
@@ -75,7 +92,7 @@ fn bounds(f: &Forth) -> Bounds {
     Bounds { deadline: f.deadline(), room: f.memory().len() }
 }
 
-/// Lets SQLite stop a statement when the time is up; a query can run long,
+/// Lets `SQLite` stop a statement when the time is up; a query can run long,
 /// even forever (WITH RECURSIVE), inside one Forth step.
 fn guard(conn: &Connection, deadline: Option<Instant>) -> Result<(), Failure> {
     match deadline {
@@ -279,7 +296,7 @@ fn word(f: &mut Forth, name: &str, word: impl Fn(&mut Forth) -> Res + 'static) {
 }
 
 impl Extension for Sqlite {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "FORTHLING-SQLITE"
     }
 

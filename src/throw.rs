@@ -59,7 +59,7 @@ pub(crate) const WRITE_LINE_FAILED: Cell = -76;
 pub(crate) const SUBSTITUTE_FAILED: Cell = -78;
 pub(crate) const REPLACES_FAILED: Cell = -79;
 
-/// System THROW code: INCLUDEs nested deeper than MAX_SOURCES.
+/// System THROW code: INCLUDEs nested deeper than `MAX_SOURCES`.
 pub(crate) const NESTING_TOO_DEEP: Cell = -256;
 
 /// THROW code of a limit of the sandbox that was reached (see `Limits`);

@@ -10,7 +10,7 @@ struct Counter(Cell);
 struct Demo;
 
 impl Extension for Demo {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "FORTHLING-DEMO"
     }
 
