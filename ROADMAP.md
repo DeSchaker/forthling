@@ -123,7 +123,8 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
 ### Next session: resume here
 
 - **Next step:** step 13 of the revised order, a virtual file system; or step 16,
-  publishing `forthling-mcp` in the MCP Registry, which needs a choice of package first.
+  publishing `forthling-mcp` in the MCP Registry, which needs a choice of package first;
+  or step 17, a tutorial extension, which needs a few choices first (see there).
   The website (robbertwesterink.nl, private repo `DeSchaker/website`) links to the
   playground since 2026-10-31.
 - **Stepping and breakpoints (2026-10-31):** step 11 is done, in `src/debug.rs`, but not
@@ -918,6 +919,26 @@ positioning and what agents need. The old step 8 (debugging and tracing) became 
     To decide first: which of these, versioning and release tags (there are no releases
     yet), and whether `forthling-mcp` also goes to crates.io for `cargo install`.
     Independent of the other steps; it can come any time.
+17. **A tutorial extension** (added 2026-11-01, at the maintainer's wish): an extension
+    `Tutorial` (`FORTHLING-TUTORIAL`, word list `TUTORIAL`) with short lessons that teach
+    Forth in forthling itself, so that a newcomer needs no book to start. `ALSO TUTORIAL`
+    gives words such as `LESSONS` (the list), `LESSON ( n -- )` (show a lesson: a short
+    text, an example to type, and a task), `CHECK` (does the stack, the output or a new
+    word meet the task?), `HINT` and `NEXT`. The lessons follow the order of a first
+    course: the stack and arithmetic, stack words, defining words, `IF`, loops,
+    variables and memory, strings, and then what forthling adds (locals, `CATCH` and
+    `THROW`, JSON, tracing and `BREAK`). A check runs the learner's answer in the
+    sandbox of step 4 on a fresh test, so it cannot hang, and it reports with the error
+    reports of step 9. The text of the lessons is data in the extension (no files), so
+    it works the same in the program, the playground and MCP. The playground can show
+    it in a panel of its own beside the editor, with a button for `CHECK` and the
+    progress kept in `localStorage`; MCP installs it too, so an agent can walk a person
+    through it. To decide first: English only or also Dutch, how many lessons, whether
+    `Forth::new()` leaves it out (as `Debugger`, so a standard program sees no extra
+    words), and whether it lives in the core (as JSON and `Debugger`, no dependencies)
+    or in a crate of its own. Every example in a lesson is run in forthling, and a test
+    checks that the model answer of each task passes `CHECK`. Independent of the other
+    steps.
 
 Considered, not planned (2026-10-31):
 - **A prefix or S-expression layer** (`(+ (* 3 4) 2)` compiled to threaded code), for
