@@ -139,10 +139,7 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
   Cargo feature `regex` (with the line in its instructions), the web module and the Python
   module install it always; the `.wasm` grew from 487743 to 566845 bytes. CI has a job for
   the crate (1.85, stable, Windows), `release.yml` checks and publishes it (between
-  `forthling-sqlite` and `forthling-mcp`). **For the next release:** crates.io needs the
-  first publish of `forthling-regex` by hand (a token with publish-new), since trusted
-  publishing can only be set up for a crate that exists; the maintainer revoked the token,
-  so make a new one for that, or release without the crate in the MCP server.
+  `forthling-sqlite` and `forthling-mcp`). **Published:** `forthling-regex` 0.1.1 went to crates.io by hand on 2026-11-01 (with a token from `.env`, since trusted publishing needs the crate to exist); the maintainer then set up trusted publishing for it and turned on "require trusted publishing". The token stays in `.env` (gitignored, never read or printed) for future new crates, which need a first publish by hand; revoke it when no new crate is expected. `forthling-mcp` 0.1.1 on crates.io has no regex words: they come with the next release, which the maintainer chose to bundle with step 14, part 2 (the HTTP client); all four crates then get one new version.
 - **Released 0.1.1 (2026-11-01):** step 16 is done. The release workflow ran in full on
   the tag `v0.1.1`: the three crates went to crates.io through trusted publishing (the
   first time; crates.io records them as published through it), the GitHub release got
