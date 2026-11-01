@@ -10,6 +10,16 @@ pub(crate) fn install(f: &mut Forth) {
     });
     f.imm("[ELSE]", |f| f.skip_conditional(false));
     f.imm("[THEN]", |_| Ok(()));
+    // Gforth: [IFDEF] and [IFUNDEF] test a name; [ENDIF] ends them like [THEN].
+    f.imm("[IFDEF]", |f| {
+        let name = f.name()?;
+        if f.find(&name).is_some() { Ok(()) } else { f.skip_conditional(true) }
+    });
+    f.imm("[IFUNDEF]", |f| {
+        let name = f.name()?;
+        if f.find(&name).is_none() { Ok(()) } else { f.skip_conditional(true) }
+    });
+    f.imm("[ENDIF]", |_| Ok(()));
     f.imm("[DEFINED]", |f| {
         let name = f.name()?;
         f.push(flag(f.find(&name).is_some()));
@@ -47,8 +57,22 @@ pub(crate) fn install(f: &mut Forth) {
         let old = f.name()?;
         let xt = f.find_or_err(&old)?;
         let (kind, immediate) = (f.dict[xt].kind.clone(), f.dict[xt].immediate);
+        let compile_only = f.dict[xt].compile_only;
         let new = f.new_word(&name, kind)?;
         f.dict[new].immediate = immediate;
+        f.dict[new].compile_only = compile_only;
+        Ok(())
+    });
+    // ALIAS ( xt "name" -- ): a word that does what xt does. Unlike SYNONYM it is
+    // not immediate, whatever xt is.
+    f.prim("ALIAS", |f| {
+        let xt = f.pop()?;
+        let name = f.name()?;
+        let old = usize::try_from(xt).ok().filter(|&i| i < f.dict.len());
+        let old = old.ok_or(Throw::new(INVALID_ARGUMENT))?;
+        let (kind, compile_only) = (f.dict[old].kind.clone(), f.dict[old].compile_only);
+        let new = f.new_word(&name, kind)?;
+        f.dict[new].compile_only = compile_only;
         Ok(())
     });
     f.prim("DUMP", |f| {

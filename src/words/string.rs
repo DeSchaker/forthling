@@ -101,6 +101,26 @@ fn install_strings(f: &mut Forth) {
         f.push(flag(found.is_some()));
         Ok(())
     });
+    // Gforth: SCAN and SKIP look for the first character that is (or is not) c;
+    // SCAN-BACK for the last one, and gives the string up to and including it.
+    f.prim("SCAN", |f| {
+        let c = f.pop()?;
+        scan(f, |&b| Cell::from(b) == c)
+    });
+    f.prim("SKIP", |f| {
+        let c = f.pop()?;
+        scan(f, |&b| Cell::from(b) != c)
+    });
+    f.prim("SCAN-BACK", |f| {
+        let c = f.pop()?;
+        let (a, n) = f.pop2()?;
+        let text = f.bytes(a, n)?;
+        f.charge(text.len())?;
+        let kept = text.iter().rposition(|&b| Cell::from(b) == c).map_or(0, |i| i + 1);
+        f.push(a);
+        f.push(to_cell(kept));
+        Ok(())
+    });
     // CMOVE and CMOVE> copy one character at a time, so an overlapping
     // copy repeats the characters it already copied.
     f.prim("CMOVE", |f| {
@@ -231,4 +251,16 @@ fn find(text: &[u8], key: &[u8]) -> Option<usize> {
         }
     }
     None
+}
+
+/// SCAN and SKIP: ( c-addr1 u1 -- c-addr2 u2 ), the string from the first
+/// character for which `stop` holds, or an empty one at the end.
+fn scan(f: &mut Forth, stop: impl Fn(&u8) -> bool) -> Res {
+    let (a, n) = f.pop2()?;
+    let text = f.bytes(a, n)?;
+    f.charge(text.len())?;
+    let at = text.iter().position(stop).unwrap_or(text.len());
+    f.push(a + to_cell(at));
+    f.push(to_cell(text.len() - at));
+    Ok(())
 }

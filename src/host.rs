@@ -136,6 +136,7 @@ impl Forth {
     /// host that wants the time sets it, as the browser page does.
     pub fn set_clock(&mut self, now: impl Fn() -> u64 + 'static) {
         self.clock = Some(Box::new(now));
+        self.started = self.now_micros();
     }
 
     /// The time of the clock, in seconds since 1970-01-01 UTC.
@@ -150,6 +151,18 @@ impl Forth {
         }
         #[cfg(target_arch = "wasm32")]
         0
+    }
+
+    /// The time of the clock in microseconds since 1970-01-01 UTC: the
+    /// system clock to the microsecond, or the seconds of `set_clock`.
+    pub(crate) fn now_micros(&self) -> u64 {
+        #[cfg(not(target_arch = "wasm32"))]
+        if self.clock.is_none() {
+            use std::time::{SystemTime, UNIX_EPOCH};
+            let d = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+            return u64::try_from(d.as_micros()).unwrap_or(u64::MAX);
+        }
+        self.now().saturating_mul(1_000_000)
     }
 
     /// The number of cells on the data stack.

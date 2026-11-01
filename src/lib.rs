@@ -134,9 +134,11 @@ pub struct Forth {
     budget: Budget,                      // what is left of them in this evaluation
     denied: HashSet<Permission>,         // what the program may not do
     clock: Option<Box<dyn Fn() -> u64>>, // seconds since 1970 for TIME&DATE (set_clock)
-    watching: bool,                      // whether invoke calls watch() for each word (trace.rs)
-    debug: Debugging,                    // the debugger (debug.rs)
-    first_line: usize,                   // the terminal line before the text of interpret began
+    started: u64,      // the clock in microseconds when the system began, for CPUTIME
+    rng: Option<u64>,  // the state of RANDOM and RND; None until first used
+    watching: bool,    // whether invoke calls watch() for each word (trace.rs)
+    debug: Debugging,  // the debugger (debug.rs)
+    first_line: usize, // the terminal line before the text of interpret began
     tracer: Tracer,
     space: usize,        // the dictionary and the REPLACES texts outside Forth memory
     system_space: usize, // the part of the space that is the system's own
@@ -219,6 +221,8 @@ impl Forth {
             budget: Budget::default(),
             denied: HashSet::new(),
             clock: None,
+            started: 0,
+            rng: None,
             watching: false,
             debug: Debugging::default(),
             first_line: 0,
@@ -227,6 +231,7 @@ impl Forth {
             system_space: 0,
         };
         f.set(BASE_ADDR, 10);
+        f.started = f.now_micros();
         words::install(&mut f);
         f.interpret(include_str!("prelude.fs")).expect("prelude must compile");
         f.fence = f.dict.len();

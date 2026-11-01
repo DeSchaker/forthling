@@ -37,6 +37,11 @@ pub(crate) fn install(f: &mut Forth) {
         f.mem[i] = v as u8;
         Ok(())
     });
+    // Gforth: 32-bit and 16-bit cells of memory, little-endian, zero-extended.
+    f.prim("L@", fetch_narrow::<4>);
+    f.prim("W@", fetch_narrow::<2>);
+    f.prim("L!", store_narrow::<4>);
+    f.prim("W!", store_narrow::<2>);
     f.prim(",", |f| {
         let v = f.pop()?;
         f.comma(v)
@@ -97,4 +102,20 @@ pub(crate) fn install(f: &mut Forth) {
         f.push(Cell::from(f.mem[i]));
         Ok(())
     });
+}
+
+fn fetch_narrow<const N: usize>(f: &mut Forth) -> Res {
+    let a = f.pop()?;
+    let i = f.check(a, to_cell(N))?;
+    let mut bytes = [0; 8];
+    bytes[..N].copy_from_slice(&f.mem[i..i + N]);
+    f.push(Cell::from_le_bytes(bytes));
+    Ok(())
+}
+
+fn store_narrow<const N: usize>(f: &mut Forth) -> Res {
+    let (v, a) = f.pop2()?;
+    let i = f.check(a, to_cell(N))?;
+    f.mem[i..i + N].copy_from_slice(&v.to_le_bytes()[..N]);
+    Ok(())
 }

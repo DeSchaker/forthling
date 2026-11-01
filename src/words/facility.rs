@@ -35,6 +35,36 @@ pub(crate) fn install(f: &mut Forth) {
         }
         Ok(())
     });
+    // Gforth: the time in microseconds, and random numbers (splitmix64).
+    f.prim("UTIME", |f| {
+        let t = f.now_micros();
+        f.push_ud(u128::from(t));
+        Ok(())
+    });
+    // There is no CPU clock in the sandbox: the user time is the time since the
+    // system began, the system time is 0.
+    f.prim("CPUTIME", |f| {
+        let t = f.now_micros().saturating_sub(f.started);
+        f.push_ud(u128::from(t));
+        f.push_ud(0);
+        Ok(())
+    });
+    f.prim("RND", |f| {
+        let x = f.next_random();
+        f.push(x as Cell);
+        Ok(())
+    });
+    f.prim("RANDOM", |f| {
+        let n = f.pop()? as u64;
+        let x = f.next_random();
+        f.push(((u128::from(x) * u128::from(n)) >> 64) as Cell);
+        Ok(())
+    });
+    f.prim("SEED!", |f| {
+        let x = f.pop()?;
+        f.rng = Some(x as u64);
+        Ok(())
+    });
     // AT-XY and PAGE write ANSI escape sequences.
     f.prim("AT-XY", |f| {
         let (col, row) = f.pop2()?;
@@ -61,6 +91,20 @@ fn civil_from_days(days: i64) -> (i64, i64, i64) {
     let month = if mp < 10 { mp + 3 } else { mp - 9 };
     let year = yoe + era * 400 + i64::from(month <= 2);
     (year, month, day)
+}
+
+impl Forth {
+    /// The next number of the generator behind RND and RANDOM (splitmix64),
+    /// seeded from the clock the first time.
+    fn next_random(&mut self) -> u64 {
+        let state = self.rng.unwrap_or_else(|| self.now_micros() ^ 0x9E37_79B9_7F4A_7C15);
+        let state = state.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        self.rng = Some(state);
+        let mut z = state;
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        z ^ (z >> 31)
+    }
 }
 
 #[cfg(test)]

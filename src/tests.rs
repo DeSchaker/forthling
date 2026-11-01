@@ -865,3 +865,207 @@ fn blocks() {
     assert_eq!(run_blocks("zero", "0 BLOCK").unwrap_err().code, -35);
     assert_eq!(run_blocks("thru", "1 BUFFER 1024 BL FILL UPDATE 1 1 THRU").unwrap(), "");
 }
+
+#[test]
+fn gforth_loops() {
+    // +DO and U+DO skip a loop whose start is not below the limit
+    assert_eq!(run(": T 10 0 +DO I . LOOP ; T"), "0 1 2 3 4 5 6 7 8 9 ");
+    assert_eq!(run(": T 0 10 +DO I . LOOP ; T .S"), "<0> ");
+    assert_eq!(run(": T 4 1 +DO I . 2 +LOOP ; T"), "1 3 ");
+    assert_eq!(run(": T -1 1 +DO I . LOOP ; T .S"), "<0> ");
+    assert_eq!(run(": T 1 -1 U+DO I . LOOP ; T .S"), "<0> ");
+    // -DO counts down and leaves the limit out; the manual's examples
+    assert_eq!(run(": T -2 0 -DO I . 1 -LOOP ; T"), "0 -1 ");
+    assert_eq!(run(": T -1 0 -DO I . 1 -LOOP ; T"), "0 ");
+    assert_eq!(run(": T 0 0 -DO I . 1 -LOOP ; T .S"), "<0> ");
+    assert_eq!(run(": T 0 -1 -DO I . 1 -LOOP ; T .S"), "<0> ");
+    assert_eq!(run(": T 0 6 U-DO I . 2 -LOOP ; T"), "6 4 2 ");
+    assert_eq!(run(": T 6 0 U-DO I . 2 -LOOP ; T .S"), "<0> ");
+    // FOR runs n+1 times, the index from n down to 0
+    assert_eq!(run(": T 3 FOR I . NEXT ; T"), "3 2 1 0 ");
+    assert_eq!(run(": T 0 FOR I . NEXT ; T"), "0 ");
+    assert_eq!(run(": T -1 FOR I . NEXT ; T .S"), "<0> ");
+    assert_eq!(run(": T 2 FOR 1 FOR I J . . NEXT NEXT ; T"), "2 1 2 0 1 1 1 0 0 1 0 0 ");
+    // LEAVE, ?LEAVE and ?EXIT work in them
+    assert_eq!(run(": T 9 FOR I . I 7 = ?LEAVE NEXT ; T"), "9 8 7 ");
+    assert_eq!(run(": T 10 0 +DO I 3 = ?EXIT I . LOOP ; T"), "0 1 2 ");
+    assert_eq!(run(": T 5 0 +DO I 3 = IF LEAVE THEN I . LOOP ; T"), "0 1 2 ");
+    // they are compile-only, and a loop needs its own closing word
+    assert_eq!(err("+DO").code, -14);
+    assert_eq!(err("-LOOP").code, -14);
+    assert_eq!(err(": T 1 0 +DO ;").code, -22);
+    // LEAVE and UNLOOP leave a loop that ends with -LOOP
+    assert_eq!(run(": T 0 9 -DO I . I 6 = IF LEAVE THEN 1 -LOOP ; T"), "9 8 7 6 ");
+    assert_eq!(run(": T 0 9 -DO I . I 7 = IF UNLOOP EXIT THEN 1 -LOOP ; T"), "9 8 7 ");
+    // the loop leaves nothing behind
+    assert_eq!(run(": T 3 FOR NEXT 7 ; T .S"), "<1> 7 ");
+    assert_eq!(run(": T 3 0 -DO I . 2 -LOOP ; T"), "");
+}
+
+#[test]
+fn gforth_stack_and_numbers() {
+    assert_eq!(run("1 2 3 4 2NIP .S"), "<2> 3 4 ");
+    assert_eq!(run("1 2 3 4 2TUCK .S"), "<6> 3 4 1 2 3 4 ");
+    assert_eq!(run("1 2 3 THIRD .S"), "<4> 1 2 3 1 ");
+    assert_eq!(run("1 2 3 4 FOURTH .S"), "<5> 1 2 3 4 1 ");
+    assert_eq!(run("5 1 2 UNDER+ .S"), "<2> 7 1 ");
+    assert_eq!(run("1 2 <= . 2 2 <= . 3 2 <= . 1 2 >= . 2 2 >= ."), "-1 -1 0 0 -1 ");
+    assert_eq!(run("0 0<= . -1 0<= . 1 0<= . 0 0>= . -1 0>= ."), "-1 -1 0 -1 0 ");
+    assert_eq!(run("-1 1 U<= . 1 -1 U<= . 1 1 U>= . 1 -1 U>= ."), "0 -1 -1 0 ");
+    assert_eq!(
+        run("1. 1. D<> . 1. 2. D<> . 2. 1. D> . 1. 2. D> . 0. D0<> . 1. D0<> ."),
+        "0 -1 -1 0 0 -1 "
+    );
+    assert_eq!(run("-1 3 UMAX . 3 -1 UMIN . -1 3 UMIN . 3 -1 UMAX ."), "-1 3 3 -1 ");
+    assert_eq!(run("-7 2 U/MOD . . 7 2 UMOD ."), "9223372036854775804 1 1 ");
+    // bits
+    assert_eq!(run("$8000000000000000 1 ROL . 1 1 ROR 0< . 1 64 ROL . 1 0 ROR ."), "1 -1 1 1 ");
+    assert_eq!(run("-16 2 ARSHIFT . -1 70 ARSHIFT . 16 70 ARSHIFT . 16 2 ARSHIFT ."), "-4 -1 0 4 ");
+    assert_eq!(
+        run("8 CTZ . 1 CTZ . 0 CTZ . 1000 LOG2 . 1 LOG2 . 0 LOG2 . -1 LOG2 ."),
+        "3 0 64 9 0 -1 63 "
+    );
+    // return stack
+    assert_eq!(run(": T 1 2 >R >R 0 RPICK . 1 RPICK . 2RDROP 3 >R RDROP ; T .S"), "1 2 <0> ");
+    assert_eq!(err(": T RDROP ; T").code, -6);
+    assert_eq!(err(": T 1 >R 2RDROP ; T").code, -6);
+    assert_eq!(err(": T 1 >R 1 RPICK ; T").code, -6);
+    // small helpers
+    assert_eq!(run("VARIABLE V V ON V @ . V OFF V @ ."), "-1 0 ");
+    assert_eq!(run("VARIABLE V ' 1+ V ! : T 1 V PERFORM ; T ."), "2 ");
+    assert_eq!(run("NOOP 1 .S"), "<1> 1 ");
+    assert_eq!(run(": T 1 IF 5 ENDIF . ; T"), "5 ");
+    assert_eq!(run("1 \\G a comment\n2 .S"), "<2> 1 2 ");
+    assert_eq!(run("UVALUE U U . 7 TO U U ."), "0 7 ");
+    assert_eq!(run("' DUP ALIAS DUPE 5 DUPE .S"), "<2> 5 5 ");
+    assert_eq!(run(": FOO 1 ; IMMEDIATE ' FOO ALIAS BAR : T BAR ; T ."), "1 ");
+    assert_eq!(err("' IF ALIAS BAR 1 BAR").code, -14);
+    assert_eq!(err("1000000 ALIAS BAR").code, -24);
+    assert_eq!(
+        run("VOCABULARY V ALSO V DEFINITIONS : X 42 . ; PREVIOUS DEFINITIONS ALSO V X PREVIOUS"),
+        "42 "
+    );
+    // output
+    assert_eq!(run("12345678901234. UD. 5. 4 UD.R"), "12345678901234    5");
+    assert_eq!(
+        run("HEX 255 DEC. BASE @ . DECIMAL 255 HEX. BASE @ . -1 HEX. "),
+        "597 10 $FF 10 $FFFFFFFFFFFFFFFF "
+    );
+}
+
+#[test]
+fn gforth_strings() {
+    let cmp = |op: &str, a: &str, b: &str| run(&format!("S\" {a}\" S\" {b}\" {op} ."));
+    assert_eq!(cmp("STR=", "abc", "abd"), "0 ");
+    assert_eq!(cmp("STR=", "abc", "abc"), "-1 ");
+    assert_eq!(cmp("STR<", "abc", "abd"), "-1 ");
+    assert_eq!(cmp("STR<", "b", "abd"), "0 ");
+    assert_eq!(cmp("STRING-PREFIX?", "hello", "he"), "-1 ");
+    assert_eq!(cmp("STRING-PREFIX?", "hello", "lo"), "0 ");
+    assert_eq!(cmp("STRING-PREFIX?", "he", "hello"), "0 ");
+    assert_eq!(cmp("STRING-PREFIX?", "hello", ""), "-1 ");
+    assert_eq!(cmp("STRING-SUFFIX?", "hello", "lo"), "-1 ");
+    assert_eq!(cmp("STRING-SUFFIX?", "hello", "he"), "0 ");
+    assert_eq!(cmp("STRING-SUFFIX?", "lo", "hello"), "0 ");
+    assert_eq!(cmp("STRING-SUFFIX?", "hello", ""), "-1 ");
+    assert_eq!(run("S\" hello\" 2 SAFE/STRING TYPE"), "llo");
+    assert_eq!(run("S\" hello\" 9 SAFE/STRING NIP ."), "0 ");
+    assert_eq!(run("S\" hello\" -3 SAFE/STRING TYPE"), "hello");
+    assert_eq!(
+        run("97 TOUPPER . 65 TOUPPER . 122 TOUPPER . 123 TOUPPER . 48 TOUPPER ."),
+        "65 65 90 123 48 "
+    );
+    assert_eq!(run("S\" a,b,c\" 44 SCAN TYPE"), ",b,c");
+    assert_eq!(run("S\" abc\" 44 SCAN NIP ."), "0 ");
+    assert_eq!(run("S\" ,,x\" 44 SKIP TYPE"), "x");
+    assert_eq!(run("S\" ,,\" 44 SKIP NIP ."), "0 ");
+    assert_eq!(run("S\" a,b,c\" 44 SCAN-BACK TYPE"), "a,b,");
+    assert_eq!(run("S\" abc\" 44 SCAN-BACK NIP ."), "0 ");
+    assert_eq!(run("S\" ,a\" 44 SCAN-BACK NIP ."), "1 ");
+    assert_eq!(run("10 14 BOUNDS .S"), "<2> 24 10 ");
+    assert_eq!(run("100 CELL- ."), "92 ");
+    let buf = "CREATE B 20 ALLOT ";
+    assert_eq!(run(&format!("{buf} S\" abcdef\" B PLACE B COUNT TYPE B C@ .")), "abcdef6 ");
+    assert_eq!(run(&format!("{buf} S\" 123\" B SWAP MOVE S\" ab\" B 3 INSERT B 5 TYPE")), "ab123");
+    let ab123 = format!("{buf} S\" ab123\" B SWAP MOVE ");
+    assert_eq!(run(&format!("{ab123} B 5 2 DELETE B 5 TYPE")), "123  ");
+    assert_eq!(run(&format!("{ab123} B 5 9 DELETE B 5 TYPE")), "     ");
+    assert_eq!(run(&format!("{ab123} B 5 -1 DELETE B 5 TYPE")), "ab123");
+    // S+ and APPEND use the heap
+    assert_eq!(run("S\" abc\" S\" def\" S+ 2DUP TYPE SWAP FREE THROW ."), "abcdef6 ");
+    assert_eq!(
+        run("S\" abc\" S\" def\" S+ S\" XY\" APPEND 2DUP TYPE SWAP FREE THROW ."),
+        "abcdefXY8 "
+    );
+    assert_eq!(run("0 0 0 0 S+ NIP . S\" x\" 0 0 S+ TYPE"), "0 x");
+}
+
+#[test]
+fn gforth_memory_floats_and_conditionals() {
+    let buf = "CREATE B 8 ALLOT ";
+    assert_eq!(
+        run(&format!("{buf} -1 B ! 0 B W! B @ . $1234 B W! B W@ . B C@ . B 1+ C@ .")),
+        "-65536 4660 52 18 "
+    );
+    assert_eq!(
+        run(&format!("{buf} -1 B ! $DEADBEEF B L! B L@ . B @ . B 4 + L@ .")),
+        "3735928559 -559038737 4294967295 "
+    );
+    assert_eq!(run(&format!("{buf} -1 B ! -2 B W! B W@ .")), "65534 ");
+    assert_eq!(err("L@").code, -4);
+    assert_eq!(err("-1 L@").code, -9);
+    assert_eq!(run("HERE $11223344 L, HERE SWAP - . HERE 1 W, HERE SWAP - ."), "4 2 ");
+    assert_eq!(
+        run(
+            "1E 2E F= . 2E 2E F= . 2E 1E F> . 1E 2E F> . 2E 2E F>= . 1E 2E F>= . 0E F0<= . 1E F0<= . -1E F0<= ."
+        ),
+        "0 -1 -1 0 -1 0 -1 0 -1 "
+    );
+    // a NaN is not equal to, greater than or less than anything
+    assert_eq!(
+        run("0E 0E F/ FDUP F= . 1E 0E 0E F/ F> . 0E 0E F/ 0E F>= . 0E 0E F/ F0<= ."),
+        "0 0 0 0 "
+    );
+    assert_eq!(run("1E 2E 3E FNIP F. F. FDEPTH ."), "3. 1. 0 ");
+    assert_eq!(run("1E 2E FTUCK F. F. F. FDEPTH ."), "2. 1. 2. 0 ");
+    assert_eq!(run("1E 2E 3E F-ROT F. F. F."), "2. 1. 3. ");
+    assert_eq!(run("3E F2* F. 3E F2/ F. -3E F2/ F."), "6. 1.5 -1.5 ");
+    assert_eq!(run("PI F. FDEPTH ."), "3.14159265358979 0 ");
+    assert_eq!(run("1E 2E F.S FDROP FDROP F.S"), "<2> 1. 2. <0> ");
+    // conditional compilation
+    assert_eq!(run("[IFDEF] DUP 1 [ELSE] 2 [ENDIF] ."), "1 ");
+    assert_eq!(run("[IFDEF] NOSUCH 1 [ELSE] 2 [ENDIF] ."), "2 ");
+    assert_eq!(run("[IFUNDEF] NOSUCH 1 [ELSE] 2 [THEN] ."), "1 ");
+    assert_eq!(run("[IFUNDEF] DUP 1 [ELSE] 2 [ENDIF] ."), "2 ");
+    assert_eq!(run("[IFDEF] NOSUCH [IFDEF] DUP 1 [ELSE] 2 [ENDIF] 3 [ELSE] 4 [ENDIF] ."), "4 ");
+    assert_eq!(run("0 [IF] [IFDEF] DUP 1 [ENDIF] [ELSE] 2 [THEN] ."), "2 ");
+    assert_eq!(run("[IFDEF] NOSUCH\n 1\n[ELSE]\n 2\n[ENDIF] ."), "2 ");
+    // time and random numbers
+    assert_eq!(run("UTIME 1000000000000000. D< 0= ."), "-1 ");
+    assert_eq!(run("CPUTIME 2DROP D0< ."), "0 ");
+    assert_eq!(run("7 SEED! 100 RANDOM 7 SEED! 100 RANDOM = . 0 RANDOM . 1 RANDOM ."), "-1 0 0 ");
+    assert_eq!(run("100 RANDOM 100 U< ."), "-1 ");
+    assert_eq!(run("1 SEED! RND 1 SEED! RND = . RND RND = ."), "-1 0 ");
+}
+
+#[test]
+fn gforth_slurp() {
+    let slurp = |name: &str, content: &str, tail: &str| {
+        let path = temp_file(name, content).replace('\\', "/");
+        run(&format!("S\" {path}\" {tail}"))
+    };
+    assert_eq!(
+        slurp("slurp.txt", "hello\nworld\n", "SLURP-FILE 2DUP TYPE SWAP FREE THROW ."),
+        "hello\nworld\n12 "
+    );
+    assert_eq!(
+        slurp(
+            "slurp2.txt",
+            "abc",
+            "R/O OPEN-FILE THROW DUP >R SLURP-FID R> CLOSE-FILE THROW NIP ."
+        ),
+        "3 "
+    );
+    assert_eq!(slurp("empty.txt", "", "SLURP-FILE NIP ."), "0 ");
+    assert_ne!(err("S\" nonexistent-file.txt\" SLURP-FILE").code, 0);
+}

@@ -557,6 +557,55 @@ so the statement above does not cover them:
   `[: + ;]` and `' +` are the same xt.
 - `;` inside a quotation, and `;]` without `[:`, throw -22.
 
+## Words inspired by other Forths
+
+Other Forths have a number of small words that Forth-2012 does not
+have, and much existing Forth code uses them. forthling has words of that kind in the main
+word list. They are not part of the standard, so the statement above does not cover them.
+Their behaviour follows the standard and the public documentation of those systems; where
+that leaves room, the choice is below.
+
+- Counted loops: `limit start +DO ... LOOP` does not run when `start` is not below
+  `limit` (`U+DO` compares unsigned). `limit start -DO ... n -LOOP` counts down, runs
+  only when `start` is above `limit`, and ends when the index reaches `limit`, so the
+  limit itself is left out (`U-DO` compares unsigned). `-LOOP` also closes a `?DO`.
+  `n FOR ... NEXT` runs `n+1` times with `I` from `n` down to `0`, and does not run for a
+  negative `n`. `?LEAVE` and `?EXIT` take a flag. These words work only in definitions.
+  `-DO`, `U-DO`, `FOR` and `-LOOP` keep the limit as given in the loop frame; `-LOOP`
+  works out where the loop ends, so a loop with `-LOOP` can be left with `LEAVE` and
+  `UNLOOP` as any other.
+- Strings: `BOUNDS PLACE STR= STR< STRING-PREFIX? STRING-SUFFIX? SAFE/STRING TOUPPER
+  INSERT DELETE SCAN SKIP SCAN-BACK`. `TOUPPER` changes ASCII letters only. `SCAN`, `SKIP`
+  and `SCAN-BACK` work on bytes. `S+` and `APPEND` make allocated strings (`ALLOCATE`
+  and `RESIZE`): free the result with `FREE`. `APPEND` needs a string from the heap as
+  its first argument.
+- Stack and comparison: `2NIP 2TUCK 2RDROP RDROP THIRD FOURTH RPICK UNDER+ <= >= 0<= 0>=
+  U<= U>= D<> D> D0<> UMIN UMAX UMOD U/MOD`. `RPICK` counts from the top of the return
+  stack, `0 RPICK` is `R@`.
+- Bits: `ROL ROR` (a count is taken modulo 64), `ARSHIFT` (a count of 64 or more gives 0
+  or -1), `CTZ` (64 for 0) and `LOG2` (-1 for 0).
+- Conditional compilation: `[IFDEF] name` and `[IFUNDEF] name` act as `[IF]` with the
+  flag of a search for the name; `[ENDIF]` is `[THEN]`. They nest with `[IF]`.
+- Small helpers: `ON OFF NOOP PERFORM ENDIF`, `\G` (a comment, as `\`), `UVALUE` (a
+  `VALUE` that starts at 0; there are no tasks), `ALIAS ( xt "name" -- )` (the new word
+  does what the xt does and is never immediate; `SYNONYM` copies immediacy) and
+  `VOCABULARY` (a word list whose name replaces the first word list of the search order).
+- Output: `UD. UD.R DEC. HEX. F.S`. `HEX.` prints a `$` before the digits. `F.S` shows
+  the float stack as `.S` shows the data stack.
+- Floats: `FNIP FTUCK F-ROT F2* F2/ F= F> F>= F0<= PI`. The comparisons are false when a
+  NaN is involved.
+- Memory: `L@ L! W@ W!` and `L, W,` use 32 and 16 bits, little-endian, at any address.
+  `L@` and `W@` give zero-extended values; `L!` and `W!` store the low bits.
+- Time and random numbers: `UTIME` gives the microseconds since 1970 (the clock of
+  `TIME&DATE`; a host that sets a clock gives whole seconds). `CPUTIME` gives the time
+  since the system started as the user time and 0 as the system time; there is no CPU clock
+  in the sandbox. `RND` gives a random cell, `RANDOM ( u1 -- u2 )` a number from 0 up to
+  `u1`, `SEED! ( x -- )` makes the sequence repeat. The generator is splitmix64, seeded
+  from the clock: it is not for cryptography.
+- Files: `SLURP-FILE ( c-addr u -- c-addr2 u2 )` and `SLURP-FID ( fid -- c-addr u )` read a
+  whole file into allocated memory (free it with `FREE`); they throw the error of the file
+  word that failed. Sandbox limits on files apply as for `READ-FILE`.
+
 ## Extensions
 
 A Rust program that embeds forthling can add words of its own through the host API

@@ -576,6 +576,57 @@ dus de verklaring hierboven dekt ze niet:
   `[: + ;]` en `' +` zijn hetzelfde xt.
 - `;` in een quotation en `;]` zonder `[:` gooien -22.
 
+## Woorden geïnspireerd door andere Forths
+
+Andere Forths hebben een aantal kleine woorden die Forth-2012 niet
+heeft, en veel bestaande Forth-code gebruikt ze. forthling heeft woorden van dat soort in de
+hoofdwoordenlijst. Ze horen niet bij de standaard, dus de verklaring hierboven dekt ze niet.
+Hun gedrag volgt de standaard en de openbare documentatie van die systemen; waar die ruimte
+laat, staat de keuze hieronder.
+
+- Getelde lussen: `limit start +DO ... LOOP` draait niet als `start` niet onder `limit`
+  ligt (`U+DO` vergelijkt zonder teken). `limit start -DO ... n -LOOP` telt omlaag, draait
+  alleen als `start` boven `limit` ligt, en stopt als de index `limit` bereikt, dus de
+  limiet zelf valt erbuiten (`U-DO` vergelijkt zonder teken). `-LOOP` sluit ook een `?DO`.
+  `n FOR ... NEXT` draait `n+1` keer met `I` van `n` naar `0`, en draait niet bij een
+  negatieve `n`. `?LEAVE` en `?EXIT` nemen een vlag. Deze woorden werken alleen in
+  definities. `-DO`, `U-DO`, `FOR` en `-LOOP` houden de limiet zoals gegeven in het
+  lusframe; `-LOOP` rekent zelf uit waar de lus eindigt, dus een lus met `-LOOP` kan met
+  `LEAVE` en `UNLOOP` verlaten worden zoals elke andere.
+- Strings: `BOUNDS PLACE STR= STR< STRING-PREFIX? STRING-SUFFIX? SAFE/STRING TOUPPER
+  INSERT DELETE SCAN SKIP SCAN-BACK`. `TOUPPER` verandert alleen ASCII-letters. `SCAN`,
+  `SKIP` en `SCAN-BACK` werken op bytes. `S+` en `APPEND` maken gealloceerde strings
+  (`ALLOCATE` en `RESIZE`): geef het resultaat vrij met `FREE`. `APPEND` heeft als eerste
+  argument een string van de heap nodig.
+- Stack en vergelijking: `2NIP 2TUCK 2RDROP RDROP THIRD FOURTH RPICK UNDER+ <= >= 0<= 0>=
+  U<= U>= D<> D> D0<> UMIN UMAX UMOD U/MOD`. `RPICK` telt vanaf de top van de returnstack,
+  `0 RPICK` is `R@`.
+- Bits: `ROL ROR` (een aantal wordt modulo 64 genomen), `ARSHIFT` (een aantal van 64 of
+  meer geeft 0 of -1), `CTZ` (64 voor 0) en `LOG2` (-1 voor 0).
+- Voorwaardelijke compilatie: `[IFDEF] naam` en `[IFUNDEF] naam` werken als `[IF]` met de
+  vlag van een zoektocht naar de naam; `[ENDIF]` is `[THEN]`. Ze nesten met `[IF]`.
+- Kleine hulpwoorden: `ON OFF NOOP PERFORM ENDIF`, `\G` (commentaar, als `\`), `UVALUE`
+  (een `VALUE` die op 0 begint; er zijn geen taken), `ALIAS ( xt "naam" -- )` (het nieuwe
+  woord doet wat het xt doet en is nooit immediate; `SYNONYM` kopieert immediate) en
+  `VOCABULARY` (een woordenlijst waarvan de naam de eerste woordenlijst van de zoekvolgorde
+  vervangt).
+- Uitvoer: `UD. UD.R DEC. HEX. F.S`. `HEX.` drukt een `$` voor de cijfers af. `F.S` toont de
+  floatstack zoals `.S` de datastack toont.
+- Floats: `FNIP FTUCK F-ROT F2* F2/ F= F> F>= F0<= PI`. De vergelijkingen zijn onwaar als
+  er een NaN in het spel is.
+- Geheugen: `L@ L! W@ W!` en `L, W,` gebruiken 32 en 16 bits, little-endian, op elk adres.
+  `L@` en `W@` geven waarden zonder tekenuitbreiding; `L!` en `W!` slaan de lage bits op.
+- Tijd en willekeurige getallen: `UTIME` geeft de microseconden sinds 1970 (de klok van
+  `TIME&DATE`; een host die een klok instelt geeft hele seconden). `CPUTIME` geeft de tijd
+  sinds het systeem startte als gebruikerstijd en 0 als systeemtijd; er is geen CPU-klok in
+  de sandbox. `RND` geeft een willekeurige cel, `RANDOM ( u1 -- u2 )` een getal van 0 tot
+  `u1`, en `SEED! ( x -- )` laat de reeks zich herhalen. De generator is splitmix64, gezaaid
+  met de klok: hij is niet voor cryptografie.
+- Bestanden: `SLURP-FILE ( c-addr u -- c-addr2 u2 )` en `SLURP-FID ( fid -- c-addr u )` lezen
+  een heel bestand in gealloceerd geheugen (geef het vrij met `FREE`); ze gooien de fout
+  van het bestandswoord dat mislukte. De sandboxlimieten voor bestanden gelden zoals bij
+  `READ-FILE`.
+
 ## Extensies
 
 Een Rust-programma dat forthling inbouwt, kan eigen woorden toevoegen via de host-API

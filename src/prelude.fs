@@ -105,3 +105,65 @@ $1000000 CONSTANT K-SHIFT-MASK   $2000000 CONSTANT K-CTRL-MASK   $4000000 CONSTA
 : FFIELD:    FALIGNED 1 FLOATS +FIELD ;
 : DFFIELD:   DFALIGNED 1 DFLOATS +FIELD ;
 : SFFIELD:   SFALIGNED 1 SFLOATS +FIELD ;
+\ Words that Gforth code expects (the standard and the manual describe them).
+\ Stack and comparison.
+: 2NIP    ROT DROP ROT DROP ;
+: 2TUCK   2SWAP 2OVER ;
+: THIRD   2 PICK ;
+: FOURTH  3 PICK ;
+: UNDER+  ROT + SWAP ;
+: <=      > 0= ;   : >=   < 0= ;   : 0<=  0> 0= ;   : 0>=  0< 0= ;
+: U<=     U> 0= ;  : U>=  U< 0= ;
+: D<>     D= 0= ;  : D>   2SWAP D< ;  : D0<>  D0= 0= ;
+: UMIN    2DUP U> IF SWAP THEN DROP ;
+: UMAX    2DUP U< IF SWAP THEN DROP ;
+: U/MOD   0 SWAP UM/MOD ;
+: UMOD    U/MOD DROP ;
+\ Memory and strings.
+: BOUNDS  OVER + SWAP ;
+: CELL-   8 - ;
+: PLACE   2DUP C! 1+ SWAP MOVE ;
+: STR=    COMPARE 0= ;
+: STR<    COMPARE 0< ;
+: STRING-PREFIX?  ( c-addr1 u1 c-addr2 u2 -- flag )
+   ROT OVER U< IF 2DROP DROP FALSE EXIT THEN  TUCK COMPARE 0= ;
+: STRING-SUFFIX?  {: a1 u1 a2 u2 :}
+   u2 u1 U> IF FALSE EXIT THEN  a1 u1 + u2 -  u2  a2 u2 COMPARE 0= ;
+: SAFE/STRING  0 MAX OVER MIN /STRING ;
+: TOUPPER  DUP [CHAR] a 123 WITHIN IF 32 - THEN ;
+: INSERT  {: a1 u1 a2 u2 :}  a2 a2 u1 + u2 MOVE  a1 a2 u1 MOVE ;
+: DELETE  {: a u n :}  n 0 MAX u MIN TO n  a n + a u n - MOVE  a u + n -  n BLANK ;
+\ S+ gives a new allocated string; APPEND resizes an allocated one.
+: S+      {: a1 u1 a2 u2 :}
+   u1 u2 + 1 MAX ALLOCATE THROW  a1 OVER u1 MOVE  a2 OVER u1 + u2 MOVE  u1 u2 + ;
+: APPEND  {: a1 u1 a2 u2 :}
+   a1 u1 u2 + 1 MAX RESIZE THROW  a2 OVER u1 + u2 MOVE  u1 u2 + ;
+\ Small helpers.
+: ON      TRUE SWAP ! ;
+: OFF     FALSE SWAP ! ;
+: NOOP ;
+: PERFORM @ EXECUTE ;
+SYNONYM ENDIF THEN
+SYNONYM \G \
+: UVALUE  0 VALUE ;
+: VOCABULARY  WORDLIST CREATE ,
+   DOES> @ >R GET-ORDER NIP R> SWAP SET-ORDER ;
+\ Output and numbers.
+: UD.R    >R <# #S #> R> OVER - SPACES TYPE ;
+: UD.     0 UD.R SPACE ;
+: DEC.    BASE @ >R DECIMAL . R> BASE ! ;
+: HEX.    BASE @ >R HEX [CHAR] $ EMIT U. R> BASE ! ;
+: FNIP    FSWAP FDROP ;
+: FTUCK   FSWAP FOVER ;
+: F-ROT   FROT FROT ;
+: F2*     FDUP F+ ;
+: F2/     0.5E F* ;
+3.141592653589793E FCONSTANT PI
+\ Fixed-width memory and files.
+: L,      HERE 4 ALLOT L! ;
+: W,      HERE 2 ALLOT W! ;
+: SLURP-FID  ( fid -- c-addr u )
+   >R 0 0 R@ REPOSITION-FILE THROW  R@ FILE-SIZE THROW DROP
+   DUP 1 MAX ALLOCATE THROW SWAP  2DUP R> READ-FILE THROW NIP ;
+: SLURP-FILE ( c-addr u -- c-addr u )
+   R/O OPEN-FILE THROW >R  R@ SLURP-FID  R> CLOSE-FILE THROW ;

@@ -29,6 +29,10 @@ This file is for language models that write Forth for forthling, mostly through 
 - Errors: `THROW` with a code, `CATCH` to catch it: `' WORD CATCH` gives 0 or the code. `1 0 /` throws -10.
 - Comments: `\ to the end of the line` and `( inside parentheses )`.
 
+## Words inspired by other Forths
+
+Other Forths have words that Forth-2012 lacks, and forthling has many of them, such as `+DO`, `-DO`, `FOR ... NEXT`, `BOUNDS`, `SCAN`, `STR=`, `S+`, `2NIP`, `THIRD`, `<=`, `UMAX`, `ROL`, `[IFDEF]`, `ALIAS`, `RANDOM` and `SLURP-FILE`. `limit start +DO ... LOOP` skips the loop when start is not below limit; `n FOR ... NEXT` runs n+1 times with `I` from n down to 0. `S+` and `APPEND` return allocated strings: `FREE` them.
+
 ## Use locals for more than two or three values
 
 Keeping track of the stack in your head goes wrong easily. Instead of `ROT`, `PICK`, `ROLL` and long chains of `SWAP` and `OVER`, name the inputs:

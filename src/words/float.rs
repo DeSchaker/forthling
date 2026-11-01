@@ -184,6 +184,23 @@ fn install_arithmetic(f: &mut Forth) {
         f.push(flag(a < b));
         Ok(())
     });
+    f.prim("F=", |f| fcompare(f, f_equal));
+    f.prim("F>", |f| fcompare(f, |a, b| a > b));
+    f.prim("F>=", |f| fcompare(f, |a, b| a >= b));
+    f.prim("F0<=", |f| {
+        let r = f.fpop()?;
+        f.push(flag(r <= 0.0));
+        Ok(())
+    });
+    // F.S shows the float stack as .S shows the data stack.
+    f.prim("F.S", |f| {
+        let mut s = format!("<{}> ", f.fstack.len());
+        for &r in &f.fstack {
+            s += &fixed(r, f.precision);
+        }
+        f.emit_str(&s);
+        Ok(())
+    });
     // F~ ( F: r1 r2 r3 -- ) ( -- flag ): r3 > 0 is an absolute tolerance,
     // r3 < 0 a relative one, and r3 = 0 asks for identical bits. A NaN as
     // the tolerance is never met.
@@ -278,4 +295,15 @@ fn fmin(a: f64, b: f64) -> f64 {
     } else {
         a.min(b)
     }
+}
+
+#[allow(clippy::float_cmp, reason = "F= compares floats for equality, as the word says")]
+fn f_equal(a: f64, b: f64) -> bool {
+    a == b
+}
+
+fn fcompare(f: &mut Forth, test: fn(f64, f64) -> bool) -> Res {
+    let (a, b) = f.fpop2()?;
+    f.push(flag(test(a, b)));
+    Ok(())
 }

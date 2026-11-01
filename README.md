@@ -167,6 +167,10 @@ block file with `Forth::set_block_file(path)`.
   DEFINITIONS ORDER SEARCH-WORDLIST`, and `TRAVERSE-WORDLIST NAME>STRING`
 - Programming tools: `.S ? DUMP SEE WORDS`, `[IF] [ELSE] [THEN]`, `[DEFINED] [UNDEFINED]`,
   `AHEAD CS-PICK CS-ROLL`, `N>R NR>` and `SYNONYM`
+- Words inspired by other Forths: the loops `+DO -DO U+DO U-DO FOR NEXT -LOOP ?LEAVE ?EXIT`, strings (`BOUNDS PLACE STR=
+  SCAN SKIP S+`), stack and comparison words (`2NIP THIRD <= U<= UMAX`), `ROL ROR CTZ LOG2`,
+  `[IFDEF] [IFUNDEF]`, `ALIAS`, `VOCABULARY`, `RANDOM`, `UTIME`, `SLURP-FILE` and more (see
+  [Words inspired by other Forths](COMPLIANCE.md#words-inspired-by-other-forths))
 
 Part of the dictionary is written in Forth itself (`src/prelude.fs`).
 

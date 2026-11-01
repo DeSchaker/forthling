@@ -198,10 +198,10 @@ impl Forth {
                 return Ok(()); // the input ended first
             };
             match word.to_ascii_uppercase().as_str() {
-                "[IF]" => depth += 1,
+                "[IF]" | "[IFDEF]" | "[IFUNDEF]" => depth += 1,
                 "[ELSE]" if depth == 0 && to_else => return Ok(()),
-                "[THEN]" if depth == 0 => return Ok(()),
-                "[THEN]" => depth -= 1,
+                "[THEN]" | "[ENDIF]" if depth == 0 => return Ok(()),
+                "[THEN]" | "[ENDIF]" => depth -= 1,
                 _ => {}
             }
         }

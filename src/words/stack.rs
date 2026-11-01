@@ -73,6 +73,21 @@ pub(crate) fn install(f: &mut Forth) {
         Ok(())
     });
 
+    // Gforth: RDROP 2RDROP RPICK
+    f.prim("RDROP", |f| f.rstack.pop().map(|_| ()).ok_or(Throw::new(RSTACK_UNDERFLOW)));
+    f.prim("2RDROP", |f| {
+        let len = f.rstack.len().checked_sub(2).ok_or(Throw::new(RSTACK_UNDERFLOW))?;
+        f.rstack.truncate(len);
+        Ok(())
+    });
+    f.prim("RPICK", |f| {
+        let u = f.pop()?;
+        let at = usize::try_from(u).ok().and_then(|u| f.rstack.len().checked_sub(u + 1));
+        let x = at.map(|i| f.rstack[i]).ok_or(Throw::new(RSTACK_UNDERFLOW))?;
+        f.push(x);
+        Ok(())
+    });
+
     // arithmetic and logic
     f.prim("+", |f| f.binop(i64::wrapping_add));
     f.prim("-", |f| f.binop(i64::wrapping_sub));
