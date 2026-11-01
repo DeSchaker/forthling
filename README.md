@@ -268,9 +268,9 @@ The word list `FUNCTIONAL` (`ALSO FUNCTIONAL`) has `MAP`, `FOLD`, `SCAN`, `FILTE
 on the data stack. The loop runs in Rust and calls the execution token once per item; the
 stack effect of the token is checked after each call, and the step and time limits apply
 inside it. A primitive token (`' +`, `' INVERT`, or a quotation of one primitive) is called
-directly, without the inner interpreter. The forthling program does not install it; a Rust
-program does with `forth.install(&forthling::Functional)`, as the MCP server, the Python
-module and the playground do.
+directly, without the inner interpreter. The forthling program, the MCP server, the Python
+module and the playground install it; a Rust program does with
+`forth.install(&forthling::Functional)`.
 
 ```forth
 ALSO FUNCTIONAL

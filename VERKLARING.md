@@ -589,7 +589,7 @@ blijven daarbij zoals ze zijn:
   `FORTHLING-SQLITE`, en geeft dan haar versie en waar. `[DEFINED]` test op één woord.
 - De woorden van een extensie horen bij het systeem: `FORGET` gooit er -15 voor.
 
-Het programma forthling installeert drie extensies die bij forthling zelf horen. De
+Het programma forthling installeert vier extensies die bij forthling zelf horen. De
 eerste zijn de JSON-woorden (`FORTHLING-JSON`, versie 1, woordenlijst `JSON`; zie de README). Een
 JSON-waarde is haar tekst in het geheugen; de leeswoorden geven stukken daarvan terug, de
 strings van `JSON>STRING` en `JSON-NAME` zijn ge-`ALLOCATE`d. Ze lezen arrays en objecten
@@ -608,7 +608,8 @@ derde is de tutorial (`FORTHLING-TUTORIAL`, versie 1, woordenlijst `TUTORIAL`: `
 getal dat geen les is. `CHECK` draait de tests van de les op de woorden van het
 programma, elk vanaf een lege stack, decimaal en binnen `CATCH`, en zet daarna de stacks,
 `BASE` en de uitvoer terug zoals ze waren; een limiet die in een test bereikt wordt, stopt
-het met -258. `Forth::new()` installeert niets.
+het met -258. De vierde zijn de functionele woorden (`FORTHLING-FUNCTIONAL`, woordenlijst
+`FUNCTIONAL`; zie de README). `Forth::new()` installeert niets.
 De Python-module (`python/`)
 installeert `FORTHLING-PYTHON` (versie 1), zonder eigen woorden: de woorden die een
 Python-programma toevoegt, komen in `FORTH-WORDLIST` of in een woordenlijst die het noemt.

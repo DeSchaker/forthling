@@ -80,3 +80,9 @@ fn the_sandbox_has_files_in_memory() {
     assert!(!dir.join("out.txt").exists());
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn the_functional_words_are_installed() {
+    let out = run("ALSO FUNCTIONAL\n1 6 RANGE [: DUP * ;] MAP 5 ' + FOLD .\n", "");
+    assert!(out.contains("55 "), "{out}");
+}

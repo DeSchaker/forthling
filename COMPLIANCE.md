@@ -570,7 +570,7 @@ standard words as they are:
   and then gives its version and true. `[DEFINED]` tests for a single word.
 - The words of an extension belong to the system: `FORGET` throws -15 for them.
 
-The forthling program installs three extensions that are part of forthling itself. The
+The forthling program installs four extensions that are part of forthling itself. The
 first is the JSON words (`FORTHLING-JSON`, version 1, word list `JSON`; see the README). A JSON value is
 its text in memory; the reading words return pieces of it, the strings of `JSON>STRING`
 and `JSON-NAME` are `ALLOCATE`d. They read arrays and objects nested up to 512 deep;
@@ -588,7 +588,8 @@ go on, and quitting there throws -28 (user interrupt). The third is the tutorial
 `CHECK`, `HINT` and `NEXT`; see the README). `LESSON` throws -24 for a number that is no
 lesson. `CHECK` runs the lesson's tests on the program's words, each from an empty stack
 in decimal inside `CATCH`, and then puts the stacks, `BASE` and the output back as they
-were; a limit reached in a test stops it with -258. `Forth::new()` installs nothing. The Python module (`python/`) installs
+were; a limit reached in a test stops it with -258. The fourth is the functional words
+(`FORTHLING-FUNCTIONAL`, word list `FUNCTIONAL`; see the README). `Forth::new()` installs nothing. The Python module (`python/`) installs
 `FORTHLING-PYTHON` (version 1), without words of its own: the words that a Python program
 adds go into `FORTH-WORDLIST` or into a word list it names. A Python exception in such a
 word throws -257, which `CATCH` catches; uncaught, the Python program gets the exception
