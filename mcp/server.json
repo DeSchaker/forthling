@@ -3,7 +3,7 @@
   "name": "io.github.DeSchaker/forthling",
   "title": "forthling",
   "description": "Run Forth-2012 in a sandbox: definitions stay between calls, each result shows the stacks.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "repository": {
     "url": "https://github.com/DeSchaker/forthling",
     "source": "github",
@@ -14,7 +14,7 @@
     {
       "registryType": "cargo",
       "identifier": "forthling-mcp",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "transport": {
         "type": "stdio"
       }

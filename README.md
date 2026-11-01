@@ -425,8 +425,10 @@ sandbox. Try it at **https://deschaker.github.io/forthling/**; see
 
 `mcp/` holds `forthling-mcp`, an [MCP](https://modelcontextprotocol.io/) server: AI agents
 run Forth through it, in a session that keeps their definitions and files, always in the
-sandbox, with files only in memory. Install it with `cargo install forthling-mcp`; with
-Claude Code: `claude mcp add forthling -- forthling-mcp`. It is in the
+sandbox, with files only in memory. Install it with `cargo install forthling-mcp`, or
+without Rust as the bundle `forthling.mcpb` from the
+[latest release](https://github.com/DeSchaker/forthling/releases/latest), which Claude
+Desktop opens; with Claude Code: `claude mcp add forthling -- forthling-mcp`. It is in the
 [MCP Registry](https://registry.modelcontextprotocol.io) as `io.github.DeSchaker/forthling`. Its
 tools are `forth_eval`, `forth_stack`, `forth_words` and `forth_reset`; each result has
 the output and the stacks as text and as JSON. See [mcp/README.md](mcp/README.md), also

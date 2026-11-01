@@ -6,6 +6,11 @@ agent keeps one session: the words it defines and the stacks stay between calls.
 
 ## Installing
 
+Without Rust, as an MCP bundle: download `forthling.mcpb` from the
+[latest release](https://github.com/DeSchaker/forthling/releases/latest) and open it in
+Claude Desktop (or another client that installs `.mcpb` files). The bundle holds the
+server for Windows (x64), macOS (Apple Silicon and Intel) and Linux (x64).
+
 From [crates.io](https://crates.io/crates/forthling-mcp), with Rust 1.85 or newer:
 
 ```

@@ -124,10 +124,25 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
 
 ### Next session: resume here
 
-- **Next step:** step 16, part 2: MCPB bundles for users without Rust (a second package
-  in `server.json`); or step 14, practical glue. Open for the maintainer: trusted
-  publishing on crates.io for the three crates (owner `DeSchaker`, repository
-  `forthling`, workflow `release.yml`), then revoke the API token and empty `.env`.
+- **Next step:** step 14, practical glue. Open for the maintainer, once the release of
+  0.1.1 published the crates through the workflow: "require trusted publishing" on
+  crates.io for the three crates, then revoke the API token and empty `.env`.
+- **MCPB bundle (2026-11-01, step 16, part 2):** one bundle for all platforms
+  (`platform_overrides` in `mcp/mcpb/manifest.json`, manifest version 0.3; Claude
+  Desktop runs on Windows and macOS). `release.yml` builds `forthling-mcp` on three
+  runners: Windows x64 with the C runtime linked in (`+crt-static`), macOS as one
+  universal binary (`lipo` of aarch64 and x86_64), Linux x64 statically with musl; each
+  answers an MCP request before it is kept. A job packs them with `@anthropic-ai/mcpb`
+  2.1.2 (which validates the manifest), with `chmod +x` since artifacts lose the bit, and
+  checks in the zip that the manifest is there and the binaries are executable. On a
+  tag the bundle goes on the GitHub release (`contents: write`), and the Registry job
+  adds it to `server.json` as a second package (`mcpb`, its release URL and SHA-256)
+  before publishing; the `server.json` in the repository keeps only the crate. Run by
+  hand (`gh workflow run release.yml`), the workflow only builds and checks, which was
+  tried before the first tag. The maintainer's name is the author in the manifest, at
+  their choice. Released as 0.1.1, since 0.1.0 is in the Registry already; that release
+  is also the first through trusted publishing on crates.io (set up by the maintainer
+  for the three crates: `DeSchaker`/`forthling`, `release.yml`, no environment).
 - **Published (2026-11-01):** `forthling`, `forthling-sqlite` and `forthling-mcp` 0.1.0
   are on crates.io, published by hand with the maintainer's token from `.env`
   (gitignored), after the maintainer verified an e-mail address there (crates.io asks
