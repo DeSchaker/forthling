@@ -16,8 +16,8 @@ pub(crate) struct OpenFile {
 }
 
 /// The ior of a file word: 0 on success, else the word's THROW code.
-pub(crate) fn ior<T>(result: Option<T>, code: Cell) -> Cell {
-    if result.is_some() { 0 } else { code }
+pub(crate) fn ior(ok: bool, code: Cell) -> Cell {
+    if ok { 0 } else { code }
 }
 
 /// The core of READ-LINE: reads at most `max` characters of the next line,
@@ -164,7 +164,7 @@ impl Forth {
     /// Pushes a file position or size as ( ud ior ).
     pub(crate) fn push_size(&mut self, size: Option<u64>, code: Cell) {
         self.push_ud(u128::from(size.unwrap_or(0)));
-        self.push(ior(size, code));
+        self.push(ior(size.is_some(), code));
     }
 
     /// Pops a file name ( c-addr u ).

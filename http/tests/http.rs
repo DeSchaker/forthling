@@ -91,9 +91,9 @@ fn serve() -> (u16, Seen) {
     (port, seen)
 }
 
-fn forth(http: Http) -> Forth {
+fn forth(http: &Http) -> Forth {
     let mut f = Forth::new();
-    f.install(&http);
+    f.install(http);
     f.interpret("ALSO HTTP").unwrap();
     f
 }
@@ -110,7 +110,7 @@ fn get(port: u16, path: &str) -> String {
 #[test]
 fn get_gives_body_and_status() {
     let (port, _) = serve();
-    let mut f = forth(Http::new().allow("127.0.0.1"));
+    let mut f = forth(&Http::new().allow("127.0.0.1"));
     let code = format!("{} . TYPE", get(port, "/hello"));
     assert_eq!(run(&mut f, &code), "200 hello");
     assert_eq!(run(&mut f, &format!("{} . TYPE", get(port, "/missing"))), "404 nope");
@@ -120,7 +120,7 @@ fn get_gives_body_and_status() {
 #[test]
 fn post_sends_body_and_content_type() {
     let (port, seen) = serve();
-    let mut f = forth(Http::new().allow("127.0.0.1"));
+    let mut f = forth(&Http::new().allow("127.0.0.1"));
     // In a definition, since the strings of S" in the interpreter share a buffer.
     let code = format!(
         ": POST  S\" http://127.0.0.1:{port}/echo\" S\" a=1\" S\" application/json\" HTTP-POST ; POST . TYPE"
@@ -134,7 +134,7 @@ fn post_sends_body_and_content_type() {
 #[test]
 fn headers_apply_to_the_next_request_only() {
     let (port, seen) = serve();
-    let mut f = forth(Http::new().allow("127.0.0.1"));
+    let mut f = forth(&Http::new().allow("127.0.0.1"));
     run(&mut f, "S\" Authorization\" S\" Bearer abc\" HTTP-HEADER");
     run(&mut f, &format!("{} 2DROP DROP", get(port, "/hello")));
     run(&mut f, &format!("{} 2DROP DROP", get(port, "/hello")));
@@ -146,7 +146,7 @@ fn headers_apply_to_the_next_request_only() {
 #[test]
 fn response_headers() {
     let (port, _) = serve();
-    let mut f = forth(Http::new().allow("127.0.0.1"));
+    let mut f = forth(&Http::new().allow("127.0.0.1"));
     run(&mut f, &format!("{} 2DROP DROP", get(port, "/hello")));
     assert_eq!(run(&mut f, "S\" x-greeting\" HTTP-RESPONSE-HEADER . TYPE"), "-1 Hi");
     assert_eq!(run(&mut f, "S\" X-GREETING\" HTTP-RESPONSE-HEADER . TYPE"), "-1 Hi");
@@ -156,7 +156,7 @@ fn response_headers() {
 #[test]
 fn redirects_stay_among_the_allowed_hosts() {
     let (port, _) = serve();
-    let mut f = forth(Http::new().allow("127.0.0.1"));
+    let mut f = forth(&Http::new().allow("127.0.0.1"));
     assert_eq!(run(&mut f, &format!("{} . TYPE", get(port, "/redirect"))), "200 hello");
     // localhost is not in the list: the second hop is refused.
     let e = f.interpret(&get(port, "/offsite")).unwrap_err();
@@ -170,9 +170,9 @@ fn redirects_stay_among_the_allowed_hosts() {
 #[test]
 fn no_host_no_request() {
     let (port, seen) = serve();
-    let mut f = forth(Http::new());
+    let mut f = forth(&Http::new());
     assert_eq!(f.interpret(&get(port, "/hello")).unwrap_err().code, NOT_PERMITTED);
-    let mut f = forth(Http::new().allow("example.org"));
+    let mut f = forth(&Http::new().allow("example.org"));
     assert_eq!(f.interpret(&get(port, "/hello")).unwrap_err().code, NOT_PERMITTED);
     assert!(seen.lock().unwrap().is_empty());
 }
@@ -180,7 +180,7 @@ fn no_host_no_request() {
 #[test]
 fn the_network_can_be_denied() {
     let (port, seen) = serve();
-    let mut f = forth(Http::new().allow("*"));
+    let mut f = forth(&Http::new().allow("*"));
     f.permit(Permission::Network, false);
     assert_eq!(f.interpret(&get(port, "/hello")).unwrap_err().code, NOT_PERMITTED);
     assert!(seen.lock().unwrap().is_empty());
@@ -198,7 +198,7 @@ fn the_network_can_be_denied() {
 fn hosts_outside_the_list_are_refused() {
     let http = Http::new().allow("API.Example.com").allow("*.cdn.org");
     for host in ["example.com", "cdn.org", "evilcdn.org", "api.example.com.evil.net"] {
-        let mut forth = forth(http.clone());
+        let mut forth = forth(&http);
         let e = forth.interpret(&format!("S\" http://{host}:1/\" HTTP-GET")).unwrap_err();
         assert_eq!(e.code, NOT_PERMITTED, "{host}");
     }
@@ -206,7 +206,7 @@ fn hosts_outside_the_list_are_refused() {
 
 #[test]
 fn bad_input_throws() {
-    let mut f = forth(Http::new().allow("*"));
+    let mut f = forth(&Http::new().allow("*"));
     for url in ["not a url", "ftp://example.org/", "file:///etc/passwd", "/relative"] {
         let e = f.interpret(&format!("S\" {url}\" HTTP-GET")).unwrap_err();
         assert_eq!(e.code, HTTP_ERROR, "{url}");
@@ -220,7 +220,7 @@ fn bad_input_throws() {
 #[test]
 fn a_large_response_is_refused() {
     let (port, _) = serve();
-    let mut f = forth(Http::new().allow("127.0.0.1"));
+    let mut f = forth(&Http::new().allow("127.0.0.1"));
     let e = f.interpret(&get(port, "/big")).unwrap_err();
     assert_eq!(e.code, HTTP_ERROR);
     assert!(e.to_string().contains("1048576"), "{e}");
@@ -245,7 +245,7 @@ fn the_time_left_bounds_the_request() {
     assert_eq!(e.code, LIMIT_EXCEEDED);
     assert!(start.elapsed() < Duration::from_secs(2));
     // Without a time limit the request waits for its own timeout.
-    let mut f = forth(Http::new().allow("127.0.0.1").timeout(Duration::from_millis(300)));
+    let mut f = forth(&Http::new().allow("127.0.0.1").timeout(Duration::from_millis(300)));
     let e = f.interpret(&get(port, "/slow")).unwrap_err();
     assert_eq!(e.code, HTTP_ERROR);
 }
@@ -254,7 +254,7 @@ fn the_time_left_bounds_the_request() {
 fn a_refused_connection_can_be_caught() {
     // Nothing listens on the port a closed listener had.
     let port = TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
-    let mut f = forth(Http::new().allow("127.0.0.1"));
+    let mut f = forth(&Http::new().allow("127.0.0.1"));
     let code = format!(": TRY  {} 2DROP . ;  : SAFE  ['] TRY CATCH . ;  SAFE", get(port, "/"));
     assert_eq!(run(&mut f, &code), "-263 ");
 }

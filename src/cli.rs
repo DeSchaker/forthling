@@ -109,7 +109,7 @@ pub fn main_with(extensions: Extensions, extra: &[ExtraOption]) -> ! {
     // The main thread's stack is small (1 MiB on Windows); nested CATCHes
     // need more, up to 1000 deep.
     let interpreter =
-        std::thread::Builder::new().stack_size(64 << 20).spawn(move || run_forth(run, extensions));
+        std::thread::Builder::new().stack_size(64 << 20).spawn(move || run_forth(&run, extensions));
     let code = interpreter.expect("cannot start the interpreter thread").join().unwrap_or(101);
     std::process::exit(code);
 }
@@ -317,7 +317,7 @@ fn debugger(f: &mut Forth, pause: &Pause) -> Res<Resume> {
 }
 
 /// Runs the files, or else the REPL; returns the exit code.
-fn run_forth(run: Run, extensions: Extensions) -> i32 {
+fn run_forth(run: &Run, extensions: Extensions) -> i32 {
     let mut forth = Forth::with_memory(run.memory);
     for &extension in extensions {
         forth.install(extension);

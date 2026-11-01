@@ -108,7 +108,7 @@ impl PyForth {
     }
 
     /// The Python exception for a Forth exception.
-    fn error(&self, py: Python<'_>, e: Throw, output: String) -> PyErr {
+    fn error(&self, py: Python<'_>, e: &Throw, output: &str) -> PyErr {
         if e.code == PYTHON_EXCEPTION {
             if let Some(err) = self.pending.borrow_mut().take() {
                 return err;
@@ -143,7 +143,7 @@ impl PyForth {
         let output = String::from_utf8_lossy(&self.forth.take_output()).into_owned();
         match result {
             Ok(()) => Ok(output),
-            Err(e) => Err(self.error(py, e, output)),
+            Err(e) => Err(self.error(py, &e, &output)),
         }
     }
 }
@@ -303,7 +303,7 @@ impl PyForth {
                 }
             }
         };
-        self.forth.add_word(wid, name, word).map_err(|e| self.error(py, e, String::new()))
+        self.forth.add_word(wid, name, word).map_err(|e| self.error(py, &e, ""))
     }
 
     /// Pushes a cell on the data stack.
@@ -313,17 +313,17 @@ impl PyForth {
 
     /// Pops a cell from the data stack.
     fn pop(&mut self, py: Python<'_>) -> PyResult<Cell> {
-        self.forth.pop().map_err(|e| self.error(py, e, String::new()))
+        self.forth.pop().map_err(|e| self.error(py, &e, ""))
     }
 
     /// Pushes a float on the float stack.
     fn fpush(&mut self, py: Python<'_>, r: f64) -> PyResult<()> {
-        self.forth.fpush(r).map_err(|e| self.error(py, e, String::new()))
+        self.forth.fpush(r).map_err(|e| self.error(py, &e, ""))
     }
 
     /// Pops a float from the float stack.
     fn fpop(&mut self, py: Python<'_>) -> PyResult<f64> {
-        self.forth.fpop().map_err(|e| self.error(py, e, String::new()))
+        self.forth.fpop().map_err(|e| self.error(py, &e, ""))
     }
 
     /// The data stack as a list, the top last.

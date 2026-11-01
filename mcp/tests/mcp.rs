@@ -11,7 +11,7 @@ fn server() -> Server {
 }
 
 /// Sends a request and returns its answer.
-fn ask(s: &mut Server, method: &str, params: Value) -> Value {
+fn ask(s: &mut Server, method: &str, params: &Value) -> Value {
     let request = json!({ "jsonrpc": "2.0", "id": 7, "method": method, "params": params });
     let answer: Value = serde_json::from_str(&s.handle(&request.to_string()).unwrap()).unwrap();
     assert_eq!((&answer["jsonrpc"], &answer["id"]), (&json!("2.0"), &json!(7)));
@@ -19,14 +19,14 @@ fn ask(s: &mut Server, method: &str, params: Value) -> Value {
 }
 
 /// Calls a tool and returns its result.
-fn call(s: &mut Server, tool: &str, arguments: Value) -> Value {
-    let answer = ask(s, "tools/call", json!({ "name": tool, "arguments": arguments }));
+fn call(s: &mut Server, tool: &str, arguments: &Value) -> Value {
+    let answer = ask(s, "tools/call", &json!({ "name": tool, "arguments": arguments }));
     assert!(answer.get("error").is_none(), "{answer}");
     answer["result"].clone()
 }
 
 fn eval(s: &mut Server, code: &str) -> Value {
-    call(s, "forth_eval", json!({ "code": code }))
+    call(s, "forth_eval", &json!({ "code": code }))
 }
 
 fn text(result: &Value) -> &str {
@@ -41,18 +41,18 @@ fn error_code(answer: &Value) -> i64 {
 fn initialize_and_list() {
     let mut s = server();
     let init =
-        ask(&mut s, "initialize", json!({ "protocolVersion": "2025-03-26", "capabilities": {} }));
+        ask(&mut s, "initialize", &json!({ "protocolVersion": "2025-03-26", "capabilities": {} }));
     assert_eq!(init["result"]["protocolVersion"], "2025-03-26");
     assert_eq!(init["result"]["serverInfo"]["name"], "forthling");
     assert!(init["result"]["capabilities"]["tools"].is_object());
     let instructions = init["result"]["instructions"].as_str().unwrap();
     assert!(instructions.contains("10000000 steps") && instructions.contains("never on the disk"));
-    let unknown = ask(&mut s, "initialize", json!({ "protocolVersion": "1999-01-01" }));
+    let unknown = ask(&mut s, "initialize", &json!({ "protocolVersion": "1999-01-01" }));
     assert_eq!(unknown["result"]["protocolVersion"], LATEST);
     // A notification gets no answer.
     assert_eq!(s.handle(r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#), None);
-    assert_eq!(ask(&mut s, "ping", json!({}))["result"], json!({}));
-    let tools = ask(&mut s, "tools/list", json!({}));
+    assert_eq!(ask(&mut s, "ping", &json!({}))["result"], json!({}));
+    let tools = ask(&mut s, "tools/list", &json!({}));
     let names: Vec<&str> = tools["result"]["tools"]
         .as_array()
         .unwrap()
@@ -80,17 +80,17 @@ fn a_session_keeps_its_definitions() {
     );
     eval(&mut s, ";");
     assert_eq!(
-        call(&mut s, "forth_words", json!({}))["structuredContent"]["words"],
+        call(&mut s, "forth_words", &json!({}))["structuredContent"]["words"],
         json!(["HALF", "SQUARE"])
     );
     eval(&mut s, "1 2 3");
     assert_eq!(
-        call(&mut s, "forth_stack", json!({}))["structuredContent"]["stack"],
+        call(&mut s, "forth_stack", &json!({}))["structuredContent"]["stack"],
         json!([1, 2, 3])
     );
-    let r = call(&mut s, "forth_reset", json!({}));
+    let r = call(&mut s, "forth_reset", &json!({}));
     assert_eq!(r["structuredContent"]["stack"], json!([]));
-    assert_eq!(text(&call(&mut s, "forth_words", json!({}))), "no words defined yet");
+    assert_eq!(text(&call(&mut s, "forth_words", &json!({}))), "no words defined yet");
 }
 
 #[test]
@@ -135,7 +135,7 @@ fn errors_show_where_and_the_stacks_then() {
     let r = eval(&mut s, "1 2 3 + + DROP");
     assert_eq!(r["structuredContent"]["max_depth"], 3);
     assert!(r["structuredContent"]["steps"].as_u64().unwrap() > 0);
-    assert!(call(&mut s, "forth_stack", json!({}))["structuredContent"].get("steps").is_none());
+    assert!(call(&mut s, "forth_stack", &json!({}))["structuredContent"].get("steps").is_none());
 }
 
 #[test]
@@ -185,21 +185,21 @@ fn the_tutorial_is_there() {
 fn files_go_in_and_stay_until_reset() {
     let mut s = server();
     let files = json!({ "lib/square.fs": ": SQUARE DUP * ;", "main.fs": "REQUIRE lib/square.fs 9 SQUARE ." });
-    let r = call(&mut s, "forth_eval", json!({ "code": "INCLUDE main.fs", "files": files }));
+    let r = call(&mut s, "forth_eval", &json!({ "code": "INCLUDE main.fs", "files": files }));
     assert_eq!(r["structuredContent"]["output"], "81 ");
     // What the code writes, a later call reads.
     eval(&mut s, "S\" out.txt\" W/O CREATE-FILE THROW S\" saved\" ROT WRITE-FILE THROW");
     let read =
         "CREATE B 20 ALLOT S\" out.txt\" R/O OPEN-FILE THROW B 20 ROT READ-FILE THROW B SWAP TYPE";
     assert_eq!(eval(&mut s, read)["structuredContent"]["output"], "saved");
-    call(&mut s, "forth_reset", json!({}));
+    call(&mut s, "forth_reset", &json!({}));
     assert_eq!(eval(&mut s, "INCLUDE main.fs")["structuredContent"]["error"]["code"], -38);
     // Files must be texts, and fit.
     let bad = |files: Value| json!({ "name": "forth_eval", "arguments": { "code": "1", "files": files } });
-    assert_eq!(error_code(&ask(&mut s, "tools/call", bad(json!({ "a": 1 })))), -32602);
-    assert_eq!(error_code(&ask(&mut s, "tools/call", bad(json!(["a"])))), -32602);
+    assert_eq!(error_code(&ask(&mut s, "tools/call", &bad(json!({ "a": 1 })))), -32602);
+    assert_eq!(error_code(&ask(&mut s, "tools/call", &bad(json!(["a"])))), -32602);
     let big = "x".repeat(forthling::MemoryFs::SANDBOX_LIMIT + 1);
-    assert_eq!(error_code(&ask(&mut s, "tools/call", bad(json!({ "big": big })))), -32602);
+    assert_eq!(error_code(&ask(&mut s, "tools/call", &bad(json!({ "big": big })))), -32602);
 }
 
 #[test]
@@ -207,14 +207,14 @@ fn the_tools_take_only_their_arguments() {
     let mut s = server();
     // No argument changes the sandbox; unknown ones are refused.
     let escape = json!({ "name": "forth_eval", "arguments": { "code": "1", "max_steps": 0 } });
-    assert_eq!(error_code(&ask(&mut s, "tools/call", escape)), -32602);
+    assert_eq!(error_code(&ask(&mut s, "tools/call", &escape)), -32602);
     let escape = json!({ "name": "forth_reset", "arguments": { "sandbox": false } });
-    assert_eq!(error_code(&ask(&mut s, "tools/call", escape)), -32602);
-    assert_eq!(error_code(&ask(&mut s, "tools/call", json!({ "name": "forth_eval" }))), -32602);
+    assert_eq!(error_code(&ask(&mut s, "tools/call", &escape)), -32602);
+    assert_eq!(error_code(&ask(&mut s, "tools/call", &json!({ "name": "forth_eval" }))), -32602);
     let not_text = json!({ "name": "forth_eval", "arguments": { "code": 42 } });
-    assert_eq!(error_code(&ask(&mut s, "tools/call", not_text)), -32602);
-    assert_eq!(error_code(&ask(&mut s, "tools/call", json!({ "name": "shell" }))), -32602);
-    assert_eq!(error_code(&ask(&mut s, "resources/list", json!({}))), -32601);
+    assert_eq!(error_code(&ask(&mut s, "tools/call", &not_text)), -32602);
+    assert_eq!(error_code(&ask(&mut s, "tools/call", &json!({ "name": "shell" }))), -32602);
+    assert_eq!(error_code(&ask(&mut s, "resources/list", &json!({}))), -32601);
     // Nonsense is answered, never a crash.
     let parse = s.handle("{not json").unwrap();
     assert!(parse.contains("-32700") && parse.contains("\"id\":null"), "{parse}");
@@ -253,7 +253,7 @@ fn break_shows_the_state_without_stopping() {
 fn a_trace_on_request() {
     let mut s = server();
     eval(&mut s, ": SQ DUP * ; : F 3 SQ 1+ ;");
-    let r = call(&mut s, "forth_eval", json!({ "code": "F .", "trace": true }));
+    let r = call(&mut s, "forth_eval", &json!({ "code": "F .", "trace": true }));
     let content = &r["structuredContent"];
     assert_eq!(content["output"], "10 ");
     assert_eq!(content["trace_dropped"], 0);
@@ -270,7 +270,7 @@ fn a_trace_on_request() {
     let r = call(
         &mut s,
         "forth_eval",
-        json!({ "code": ": L 2000 0 DO I DROP LOOP ; L", "trace": true }),
+        &json!({ "code": ": L 2000 0 DO I DROP LOOP ; L", "trace": true }),
     );
     assert_eq!(r["structuredContent"]["trace"].as_array().unwrap().len(), 1000);
     // `:`, L, and I and DROP 2000 times: 4002 words.
@@ -278,14 +278,14 @@ fn a_trace_on_request() {
     assert!(text(&r).contains("... and 3002 more words\n"));
     // The trace of a failing call shows how it got there.
     eval(&mut s, ": D 0 / ; : M 1 D ;");
-    let r = call(&mut s, "forth_eval", json!({ "code": "M", "trace": true }));
+    let r = call(&mut s, "forth_eval", &json!({ "code": "M", "trace": true }));
     assert_eq!(r["isError"], true);
     assert_eq!(r["structuredContent"]["trace"].as_array().unwrap().len(), 3);
     // The program can print a trace itself.
     let r = eval(&mut s, "ALSO DEBUG TRACE-ON F TRACE-OFF DROP");
     assert!(r["structuredContent"]["output"].as_str().unwrap().starts_with("F <0>\n  SQ <1> 3\n"));
     let not_bool = json!({ "name": "forth_eval", "arguments": { "code": "1", "trace": "yes" } });
-    assert_eq!(error_code(&ask(&mut s, "tools/call", not_bool)), -32602);
+    assert_eq!(error_code(&ask(&mut s, "tools/call", &not_bool)), -32602);
 }
 
 #[test]
@@ -346,24 +346,24 @@ fn data_for_large_input() {
     let r = call(
         &mut s,
         "forth_eval",
-        json!({ "code": "ALSO JSON DATA 2DUP JSON-LENGTH . NIP .", "data": json }),
+        &json!({ "code": "ALSO JSON DATA 2DUP JSON-LENGTH . NIP .", "data": json }),
     );
     assert_eq!(r["structuredContent"]["output"], format!("100 {} ", json.len()));
     // The data stays for later calls, until other data comes.
     let r = eval(&mut s, "DATA 2DUP S\" [3]\" JSON@ DROP JSON-LENGTH . DROP FREE .");
     assert_eq!(r["structuredContent"]["output"], "4 0 ");
-    let r = call(&mut s, "forth_eval", json!({ "code": "DATA TYPE", "data": "hello" }));
+    let r = call(&mut s, "forth_eval", &json!({ "code": "DATA TYPE", "data": "hello" }));
     assert_eq!(r["structuredContent"]["output"], "hello");
-    call(&mut s, "forth_reset", json!({}));
+    call(&mut s, "forth_reset", &json!({}));
     assert_eq!(eval(&mut s, "DATA . DROP")["structuredContent"]["output"], "0 ");
     // Data must be text, and fit in the memory.
     let not_text = json!({ "name": "forth_eval", "arguments": { "code": "1", "data": 5 } });
-    assert_eq!(error_code(&ask(&mut s, "tools/call", not_text)), -32602);
+    assert_eq!(error_code(&ask(&mut s, "tools/call", &not_text)), -32602);
     let mut small = Server::new(Settings { memory: 64 << 10, ..Settings::default() });
     let too_big =
         json!({ "name": "forth_eval", "arguments": { "code": "1", "data": "x".repeat(70_000) } });
-    assert_eq!(error_code(&ask(&mut small, "tools/call", too_big)), -32602);
-    let init = ask(&mut s, "initialize", json!({}));
+    assert_eq!(error_code(&ask(&mut small, "tools/call", &too_big)), -32602);
+    let init = ask(&mut s, "initialize", &json!({}));
     assert!(init["result"]["instructions"].as_str().unwrap().contains("1024 characters"));
 }
 
@@ -372,7 +372,7 @@ fn data_for_large_input() {
 #[test]
 fn the_instructions_and_llms_txt_agree() {
     let mut s = server();
-    let init = ask(&mut s, "initialize", json!({}));
+    let init = ask(&mut s, "initialize", &json!({}));
     let instructions = init["result"]["instructions"].as_str().unwrap().to_string();
     let start = instructions.find("`: HYP2").expect("an example of locals") + 1;
     let example = &instructions[start..start + instructions[start..].find('`').unwrap()];
@@ -473,14 +473,14 @@ mod http {
             Server::new(Settings { hosts: vec!["127.0.0.1".into()], ..Settings::default() });
         let r = eval(&mut s, &code);
         assert_eq!(r["structuredContent"]["output"], "200 hi");
-        let init = ask(&mut s, "initialize", json!({ "protocolVersion": LATEST }));
+        let init = ask(&mut s, "initialize", &json!({ "protocolVersion": LATEST }));
         let instructions = init["result"]["instructions"].as_str().unwrap();
         assert!(instructions.contains("HTTP-GET") && instructions.contains("127.0.0.1"));
         // Another host is refused.
         let r = eval(&mut s, "S\" http://example.org/\" HTTP-GET");
         assert_eq!(r["structuredContent"]["error"]["code"], -259);
         // After a reset the words and the hosts are still there.
-        call(&mut s, "forth_reset", json!({}));
+        call(&mut s, "forth_reset", &json!({}));
         let r = eval(&mut s, &code);
         assert_eq!(r["structuredContent"]["output"], "200 hi");
     }
@@ -490,7 +490,7 @@ mod http {
         let mut s = server();
         let r = eval(&mut s, "ALSO HTTP");
         assert_eq!(r["structuredContent"]["error"]["code"], -13);
-        let init = ask(&mut s, "initialize", json!({ "protocolVersion": LATEST }));
+        let init = ask(&mut s, "initialize", &json!({ "protocolVersion": LATEST }));
         assert!(!init["result"]["instructions"].as_str().unwrap().contains("HTTP"));
     }
 }

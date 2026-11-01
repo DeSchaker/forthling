@@ -19,7 +19,7 @@ pub(crate) fn install(f: &mut Forth) {
     f.prim("CLOSE-FILE", |f| {
         let fid = f.pop()?;
         let closed = f.close_file(fid);
-        f.push(ior(closed.then_some(()), CLOSE_FILE_FAILED));
+        f.push(ior(closed, CLOSE_FILE_FAILED));
         Ok(())
     });
     f.prim("DELETE-FILE", |f| {
@@ -58,20 +58,20 @@ pub(crate) fn install(f: &mut Forth) {
         let fid = f.pop()?;
         let pos = u64::try_from(f.pop_ud()?).unwrap_or(u64::MAX);
         let done = f.with_file(fid, |file| file.seek(SeekFrom::Start(pos)));
-        f.push(ior(done, REPOSITION_FILE_FAILED));
+        f.push(ior(done.is_some(), REPOSITION_FILE_FAILED));
         Ok(())
     });
     f.prim("RESIZE-FILE", |f| {
         let fid = f.pop()?;
         let size = u64::try_from(f.pop_ud()?).unwrap_or(u64::MAX);
         let done = f.with_file(fid, |file| file.set_size(size));
-        f.push(ior(done, RESIZE_FILE_FAILED));
+        f.push(ior(done.is_some(), RESIZE_FILE_FAILED));
         Ok(())
     });
     f.prim("FLUSH-FILE", |f| {
         let fid = f.pop()?;
         let done = f.with_file(fid, |file| file.flush());
-        f.push(ior(done, FLUSH_FILE_FAILED));
+        f.push(ior(done.is_some(), FLUSH_FILE_FAILED));
         Ok(())
     });
     f.prim("READ-FILE", |f| {
@@ -82,7 +82,7 @@ pub(crate) fn install(f: &mut Forth) {
         let done = f.with_file(fid, |file| file.take(n as u64).read_to_end(&mut data));
         f.mem[i..i + data.len()].copy_from_slice(&data);
         f.push(to_cell(data.len()));
-        f.push(ior(done, READ_FILE_FAILED));
+        f.push(ior(done.is_some(), READ_FILE_FAILED));
         Ok(())
     });
     f.prim("READ-LINE", |f| {
@@ -97,7 +97,7 @@ pub(crate) fn install(f: &mut Forth) {
         f.mem[i..i + data.len()].copy_from_slice(data);
         f.push(to_cell(data.len()));
         f.push(flag(more));
-        f.push(ior(line, READ_LINE_FAILED));
+        f.push(ior(line.is_some(), READ_LINE_FAILED));
         Ok(())
     });
     f.prim("WRITE-FILE", |f| {
@@ -106,7 +106,7 @@ pub(crate) fn install(f: &mut Forth) {
         let data = f.bytes(a, n)?;
         f.charge(data.len())?;
         let done = f.with_file(fid, |file| file.write_all(&data));
-        f.push(ior(done, WRITE_FILE_FAILED));
+        f.push(ior(done.is_some(), WRITE_FILE_FAILED));
         Ok(())
     });
     f.prim("WRITE-LINE", |f| {
@@ -116,7 +116,7 @@ pub(crate) fn install(f: &mut Forth) {
         data.push(b'\n');
         f.charge(data.len())?;
         let done = f.with_file(fid, |file| file.write_all(&data));
-        f.push(ior(done, WRITE_LINE_FAILED));
+        f.push(ior(done.is_some(), WRITE_LINE_FAILED));
         Ok(())
     });
 }
@@ -124,5 +124,5 @@ pub(crate) fn install(f: &mut Forth) {
 /// The ior of a file operation that the sandbox may forbid: None when it
 /// was not permitted, else the result of the operation.
 fn permitted_ior<T>(result: Option<Option<T>>, code: Cell) -> Cell {
-    result.map_or(NOT_PERMITTED, |r| ior(r, code))
+    result.map_or(NOT_PERMITTED, |r| ior(r.is_some(), code))
 }

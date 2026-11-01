@@ -4,7 +4,7 @@ use forthling::{Forth, MemoryFs};
 use std::path::{Path, PathBuf};
 use std::{env, fs, io, process};
 
-fn output(f: Forth) -> String {
+fn output(f: &Forth) -> String {
     String::from_utf8(f.output().to_vec()).unwrap()
 }
 
@@ -24,7 +24,7 @@ fn suite_prelimtest() {
     let Some(path) = suite_file("prelimtest.fth") else { return };
     let mut f = Forth::new();
     f.include(&path).unwrap_or_else(|e| panic!("{e}\n{}", String::from_utf8_lossy(f.output())));
-    let out = output(f);
+    let out = output(&f);
     assert!(!out.contains("Error #"), "{out}");
     assert!(out.contains("Pass #23: testing S\""), "{out}");
     assert!(out.contains("\n0 tests failed out of"), "{out}");
@@ -47,7 +47,7 @@ fn suite_core() {
     assert!(out.contains("RECEIVED: \"typed line\""), "{out}");
     assert!(out.contains("End of Core word set tests"), "{out}");
     f.interpret("#ERRORS @ .").unwrap();
-    assert!(output(f).ends_with("0 "));
+    assert!(output(&f).ends_with("0 "));
 }
 
 /// Runs test files after what runtests.fth loads before them, checks
@@ -89,7 +89,7 @@ fn run_suite_on(test_files: &[&str], in_memory: bool) -> Option<String> {
     }
     let result = paths.iter().try_for_each(|path| f.include(path));
     fs::remove_file(&blocks).ok();
-    let out = output(f);
+    let out = output(&f);
     result.unwrap_or_else(|e| panic!("{e}\n{out}"));
     assert!(!out.contains("INCORRECT RESULT"), "{out}");
     assert!(!out.contains("WRONG NUMBER OF RESULTS"), "{out}");
@@ -199,7 +199,7 @@ fn suite_floating() {
         }
         f.include(path)
     });
-    let out = output(f);
+    let out = output(&f);
     result.unwrap_or_else(|e| panic!("{e}\n{out}"));
     assert!(!out.contains("INCORRECT"), "{out}");
     assert!(!out.contains("WRONG NUMBER"), "{out}");
@@ -235,7 +235,7 @@ fn suite_tester() {
     f.interpret("T{ 1 2 + -> 4 }T").unwrap();
     f.interpret("T{ 1 2 -> 3 }T").unwrap();
     f.interpret("#ERRORS @ .").unwrap();
-    let out = output(f);
+    let out = output(&f);
     assert!(out.contains("INCORRECT RESULT: T{ 1 2 + -> 4 }T"), "{out}");
     assert!(out.contains("WRONG NUMBER OF RESULTS: T{ 1 2 -> 3 }T"), "{out}");
     assert!(out.ends_with("2 "), "{out}");

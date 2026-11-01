@@ -152,17 +152,17 @@ impl Server {
     /// Answers one message; None for a notification, which gets no answer.
     pub fn handle(&mut self, line: &str) -> Option<String> {
         let Ok(message) = serde_json::from_str::<Value>(line) else {
-            return Some(reply(Value::Null, Err((-32700, "parse error".into()))));
+            return Some(reply(&Value::Null, Err((-32700, "parse error".into()))));
         };
         let Some(message) = message.as_object() else {
-            return Some(reply(Value::Null, Err((-32600, "not a JSON-RPC message".into()))));
+            return Some(reply(&Value::Null, Err((-32600, "not a JSON-RPC message".into()))));
         };
         let id = message.get("id").cloned();
         let Some(method) = message.get("method").and_then(Value::as_str) else {
             // An answer from the client (the server asks nothing), or nonsense.
             return match (id, message.contains_key("result") || message.contains_key("error")) {
                 (Some(_), true) | (None, _) => None,
-                (Some(id), false) => Some(reply(id, Err((-32600, "no method".into())))),
+                (Some(id), false) => Some(reply(&id, Err((-32600, "no method".into())))),
             };
         };
         let id = id?; // notifications (initialized, cancelled) need nothing
@@ -174,7 +174,7 @@ impl Server {
             "tools/call" => self.call(&params),
             _ => Err((-32601, format!("unknown method {method}"))),
         };
-        Some(reply(id, result))
+        Some(reply(&id, result))
     }
 
     fn initialize(&self, params: &Value) -> Value {
@@ -375,7 +375,7 @@ impl Extension for Data {
     }
 }
 
-fn reply(id: Value, result: Result<Value, Failure>) -> String {
+fn reply(id: &Value, result: Result<Value, Failure>) -> String {
     let message = match result {
         Ok(result) => json!({ "jsonrpc": "2.0", "id": id, "result": result }),
         Err((code, message)) => {
