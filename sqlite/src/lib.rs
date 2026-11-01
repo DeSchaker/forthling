@@ -22,6 +22,10 @@
 // keeps it so. (The rest of pedantic is not enabled: see the open issues.)
 #![warn(
     clippy::cast_lossless,
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss,
     clippy::doc_markdown,
     clippy::float_cmp,
     clippy::format_push_string,
@@ -37,7 +41,7 @@
     clippy::uninlined_format_args
 )]
 
-use forthling::{Cell, Extension, Forth, NOT_PERMITTED, Res, Throw};
+use forthling::{Cell, Extension, Forth, NOT_PERMITTED, Res, Throw, to_cell};
 use rusqlite::limits::Limit;
 use rusqlite::types::Value;
 use rusqlite::{Connection, params_from_iter};
@@ -140,7 +144,7 @@ impl State {
         if !files {
             conn.set_limit(Limit::SQLITE_LIMIT_ATTACHED, 0)?;
             let page: i64 = conn.pragma_query_value(None, "page_size", |row| row.get(0))?;
-            conn.pragma_update(None, "max_page_count", (room as i64 / page).max(1))?;
+            conn.pragma_update(None, "max_page_count", (to_cell(room) / page).max(1))?;
         }
         let db = self.handle();
         self.dbs.insert(db, conn);
@@ -269,6 +273,10 @@ fn text(value: Value) -> Vec<u8> {
 fn integer(value: Value) -> Cell {
     match value {
         Value::Integer(n) => n,
+        #[allow(
+            clippy::cast_possible_truncation,
+            reason = "a real saturates, like SQLite's own CAST"
+        )]
         Value::Real(r) => r as Cell,
         Value::Text(s) => s.trim().parse().unwrap_or(0),
         Value::Null | Value::Blob(_) => 0,
@@ -277,6 +285,10 @@ fn integer(value: Value) -> Cell {
 
 fn real(value: Value) -> f64 {
     match value {
+        #[allow(
+            clippy::cast_precision_loss,
+            reason = "SQLite converts a large integer the same way"
+        )]
         Value::Integer(n) => n as f64,
         Value::Real(r) => r,
         Value::Text(s) => s.trim().parse().unwrap_or(0.0),
@@ -410,7 +422,7 @@ fn install_results(f: &mut Forth) {
         let state = f.state::<State>();
         let s = state.stmt(stmt).map_err(|Failure(code, m)| Throw::with(code, m))?;
         let n = s.row.as_ref().map_or(0, Vec::len);
-        f.push(n as Cell);
+        f.push(to_cell(n));
         Ok(())
     });
     // DB-COLUMN ( n stmt -- c-addr u ): column n as text, ALLOCATEd.
@@ -440,7 +452,7 @@ fn install_results(f: &mut Forth) {
         let db = f.pop()?;
         let state = f.state::<State>();
         let conn = state.db(db).map_err(|Failure(code, m)| Throw::with(code, m))?;
-        let n = conn.changes() as Cell;
+        let n = Cell::try_from(conn.changes()).unwrap_or(Cell::MAX);
         f.push(n);
         Ok(())
     });

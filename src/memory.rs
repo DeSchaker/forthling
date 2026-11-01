@@ -34,10 +34,11 @@ pub const MIN_MEMORY: usize = 64 << 10;
 )]
 pub const MAX_MEMORY: usize = if usize::BITS >= 64 { (4u64 << 30) as usize } else { 1 << 30 };
 
-/// A length, index or address as a cell. A value that does not fit saturates at
+/// A length, index or address as a cell (also for the extension crates). A value that does not fit saturates at
 /// `Cell::MAX`; it cannot happen below `MAX_MEMORY`, so real values never change.
 #[inline]
-pub(crate) fn to_cell(n: usize) -> Cell {
+#[must_use]
+pub fn to_cell(n: usize) -> Cell {
     Cell::try_from(n).unwrap_or(Cell::MAX)
 }
 

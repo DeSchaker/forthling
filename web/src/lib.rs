@@ -13,6 +13,10 @@
 // keeps it so. (The rest of pedantic is not enabled: see the open issues.)
 #![warn(
     clippy::cast_lossless,
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss,
     clippy::doc_markdown,
     clippy::float_cmp,
     clippy::format_push_string,
@@ -86,7 +90,13 @@ pub extern "C" fn fl_record(max: usize) {
 /// 1970); returns the length of the answer.
 #[unsafe(no_mangle)]
 pub extern "C" fn fl_eval(now: f64) -> usize {
-    NOW.with(|n| n.set(now.max(0.0) as u64));
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "a time is not negative (max) and the cast saturates"
+    )]
+    let seconds = now.max(0.0) as u64;
+    NOW.with(|n| n.set(seconds));
     let code = INPUT.with(|i| String::from_utf8_lossy(&i.borrow()).into_owned());
     let record = RECORD.with(Cell::get);
     let answer = with_session(|f| {

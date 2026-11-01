@@ -79,7 +79,7 @@ latest stable Rust, on Linux and Windows.
 - A word that may only be used inside a definition is registered with `compile_imm` or
   `compile_prim`; the interpreter then throws -14 when it runs outside one.
 - `pop_str()` pops and checks a string ( c-addr u ).
-- A length, index or address becomes a cell with `to_cell(usize)`, and a cell becomes an
+- A length, index or address becomes a cell with `to_cell(usize)` (public as `forthling::to_cell`), and a cell becomes an
   index with `to_index(Cell)` (both in `src/memory.rs`), never with `as`. A value that does
   not fit saturates: `to_cell` at `Cell::MAX`, `to_index` at `usize::MAX`, also for a
   negative cell, so it stays outside memory and `check` refuses it. The other casts

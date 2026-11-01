@@ -64,7 +64,7 @@ pub use debug::{DebugHook, Pause, Reason, Resume};
 pub use functional::Functional;
 pub use host::Extension;
 pub use json::Json;
-pub use memory::{DEFAULT_MEMORY, MAX_MEMORY, MIN_MEMORY};
+pub use memory::{DEFAULT_MEMORY, MAX_MEMORY, MIN_MEMORY, to_cell};
 pub use report::ErrorContext;
 pub use sandbox::{Limits, Permission};
 pub use terminal::Input;

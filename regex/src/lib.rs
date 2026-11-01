@@ -21,6 +21,10 @@
 // keeps it so. (The rest of pedantic is not enabled: see the open issues.)
 #![warn(
     clippy::cast_lossless,
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss,
     clippy::doc_markdown,
     clippy::float_cmp,
     clippy::format_push_string,
@@ -36,7 +40,7 @@
     clippy::uninlined_format_args
 )]
 
-use forthling::{Cell, Extension, Forth, Res, Throw};
+use forthling::{Cell, Extension, Forth, Res, Throw, to_cell};
 use regex_lite::{Regex as Compiled, RegexBuilder};
 use std::collections::HashMap;
 
@@ -103,8 +107,8 @@ fn flag(b: bool) -> Cell {
 fn push_span(f: &mut Forth, span: Option<(usize, usize)>) {
     match span {
         Some((start, end)) => {
-            f.push(start as Cell);
-            f.push((end - start) as Cell);
+            f.push(to_cell(start));
+            f.push(to_cell(end - start));
             f.push(-1);
         }
         None => f.push(0),
@@ -163,7 +167,7 @@ impl Extension for Regex {
         word(f, "RE-COUNT", |f| {
             let re = pop_pattern(f)?;
             let text = pop_text(f)?;
-            f.push(re.find_iter(&text).count() as Cell);
+            f.push(to_cell(re.find_iter(&text).count()));
             Ok(())
         });
         // RE-REPLACE ( c-addr u re-addr re-u rep-addr rep-u -- c-addr' u' ):
