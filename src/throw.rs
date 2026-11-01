@@ -86,12 +86,14 @@ pub struct Throw {
 
 impl Throw {
     /// An exception with a THROW code, such as -24 (invalid numeric argument).
+    #[must_use]
     pub fn new(code: Cell) -> Self {
         Throw { code, detail: None, location: None, context: None, hint: None }
     }
 
     /// A hint on how to put the error right, such as the `ALSO` that makes
     /// an undefined word visible; the message ends with it.
+    #[must_use]
     pub fn hint(&self) -> Option<&str> {
         self.hint.as_deref()
     }
@@ -102,11 +104,13 @@ impl Throw {
     }
 
     /// The detail of the message, such as the undefined word.
+    #[must_use]
     pub fn detail(&self) -> Option<&str> {
         self.detail.as_deref()
     }
 
     /// Where it happened, as `file:line`, for an error in a file.
+    #[must_use]
     pub fn location(&self) -> Option<&str> {
         self.location.as_deref()
     }
@@ -114,6 +118,7 @@ impl Throw {
     /// What the system looked like when the error reached the host: the
     /// stacks, where in the input, and the words that were running. Made by
     /// `interpret` and `include`; None for an error that never left Forth.
+    #[must_use]
     pub fn context(&self) -> Option<&ErrorContext> {
         self.context.as_deref()
     }
@@ -127,6 +132,7 @@ impl Throw {
     }
 
     /// What went wrong, without the detail: the message of the THROW code.
+    #[must_use]
     pub fn message(&self) -> &'static str {
         match self.code {
             ABORT | ABORT_QUOTE => "aborted",

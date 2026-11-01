@@ -113,6 +113,7 @@ impl Forth {
     /// it files of your own with `set_file_system`), no terminal input
     /// (`set_input` gives it some), no network (`Permission::Network`), and
     /// the limits of `Limits::SANDBOX`.
+    #[must_use]
     pub fn sandboxed() -> Self {
         let mut f = Forth::new();
         f.set_limits(Limits::SANDBOX);
@@ -133,23 +134,27 @@ impl Forth {
     /// word lists, REPLACES texts and JSON strings take now, in bytes (see
     /// `Limits::space`); the words of the system and of extensions are not
     /// counted.
+    #[must_use]
     pub fn space(&self) -> usize {
         self.space_used()
     }
 
     /// The steps the current or last evaluation took (see `Limits::steps`),
     /// with or without a limit.
+    #[must_use]
     pub fn steps_used(&self) -> u64 {
         self.budget.start - self.budget.steps
     }
 
     /// The deepest the data stack was in the current or last evaluation, as
     /// seen after each step.
+    #[must_use]
     pub fn max_depth(&self) -> usize {
         self.budget.deepest
     }
 
     /// The limits of each evaluation.
+    #[must_use]
     pub fn limits(&self) -> Limits {
         self.limits
     }
@@ -165,6 +170,7 @@ impl Forth {
     }
 
     /// Whether something is permitted; for extensions that reach outside.
+    #[must_use]
     pub fn permits(&self, permission: Permission) -> bool {
         !self.denied.contains(&permission)
     }
@@ -283,6 +289,7 @@ impl Forth {
     /// an extension that runs something long outside Forth (such as SQL), so
     /// that it can stop in time. Not available in WebAssembly.
     #[cfg(not(target_arch = "wasm32"))]
+    #[must_use]
     pub fn deadline(&self) -> Option<Instant> {
         self.budget.deadline
     }

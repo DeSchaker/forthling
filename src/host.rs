@@ -147,17 +147,20 @@ impl Forth {
     }
 
     /// The number of cells on the data stack.
+    #[must_use]
     pub fn depth(&self) -> usize {
         self.stack.len()
     }
 
     /// The float stack, the top last.
+    #[must_use]
     pub fn fstack(&self) -> &[f64] {
         &self.fstack
     }
 
     /// The names of the words the program defined, the latest first, each
     /// once; not those of the system or of extensions.
+    #[must_use]
     pub fn program_words(&self) -> Vec<&str> {
         let mut seen = HashSet::new();
         let words = self.dict[self.fence..].iter().rev().filter(|w| !w.hidden);
@@ -165,6 +168,7 @@ impl Forth {
     }
 
     /// The data stack, the top last.
+    #[must_use]
     pub fn stack(&self) -> &[Cell] {
         &self.stack
     }
@@ -193,6 +197,7 @@ impl Forth {
     }
 
     /// Forth memory, for the addresses that `pop_str` returns.
+    #[must_use]
     pub fn memory(&self) -> &[u8] {
         &self.mem
     }

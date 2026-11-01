@@ -90,6 +90,7 @@ impl Forth {
 
     /// How many entries did not fit in the maximum of `record_trace` since
     /// the last `take_trace`.
+    #[must_use]
     pub fn trace_dropped(&self) -> usize {
         self.tracer.dropped
     }

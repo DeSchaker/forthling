@@ -149,12 +149,14 @@ impl MemoryFs {
     pub const SANDBOX_LIMIT: usize = 4 << 20;
 
     /// An empty file system without a limit.
+    #[must_use]
     pub fn new() -> Self {
         MemoryFs::with_limit(usize::MAX)
     }
 
     /// An empty file system that holds at most `limit` bytes in all; a
     /// write past it fails.
+    #[must_use]
     pub fn with_limit(limit: usize) -> Self {
         MemoryFs(Rc::new(RefCell::new(Store { files: BTreeMap::new(), used: 0, limit })))
     }
@@ -187,17 +189,20 @@ impl MemoryFs {
     }
 
     /// The contents of a file.
+    #[must_use]
     pub fn get(&self, path: &str) -> Option<Vec<u8>> {
         let path = normalize(path).ok()?;
         self.0.borrow().files.get(&path).map(|c| c.borrow().clone())
     }
 
     /// The names of the files, sorted.
+    #[must_use]
     pub fn paths(&self) -> Vec<String> {
         self.0.borrow().files.keys().cloned().collect()
     }
 
     /// The bytes all files take, of the limit.
+    #[must_use]
     pub fn used(&self) -> usize {
         self.0.borrow().used
     }
@@ -394,6 +399,7 @@ impl Forth {
     /// Whether the program may use the files of the computer: it has
     /// `Permission::Files` and the file system is the disk. For extensions
     /// that open files themselves, not through the file system.
+    #[must_use]
     pub fn disk_files(&self) -> bool {
         self.permits(Permission::Files) && self.vfs.is_disk()
     }

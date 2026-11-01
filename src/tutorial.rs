@@ -42,6 +42,7 @@ enum Test {
 
 impl Tutorial {
     /// The lessons, in order.
+    #[must_use]
     pub fn lessons() -> &'static [Lesson] {
         lessons()
     }

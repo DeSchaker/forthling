@@ -145,6 +145,14 @@ pub(crate) fn flag(b: bool) -> Cell {
 
 impl Forth {
     /// A system with the default memory size (1 MiB).
+    ///
+    /// Ignoring the result is a mistake, so the compiler warns about it:
+    ///
+    /// ```compile_fail
+    /// #![deny(unused_must_use)]
+    /// forthling::Forth::new();
+    /// ```
+    #[must_use]
     pub fn new() -> Self {
         Forth::with_memory(DEFAULT_MEMORY)
     }
@@ -156,6 +164,7 @@ impl Forth {
     ///
     /// When `size` is not between `MIN_MEMORY` and `MAX_MEMORY`, or not a
     /// whole number of cells (8 bytes).
+    #[must_use]
     pub fn with_memory(size: usize) -> Self {
         let valid = (MIN_MEMORY..=MAX_MEMORY).contains(&size) && size % CELL == 0;
         assert!(valid, "invalid memory size: {size}");
@@ -243,16 +252,19 @@ impl Forth {
     }
 
     /// The output produced since the last `flush`.
+    #[must_use]
     pub fn output(&self) -> &[u8] {
         &self.out
     }
 
     /// Whether BYE was executed.
+    #[must_use]
     pub fn finished(&self) -> bool {
         self.bye
     }
 
     /// Whether a colon definition is still open, so the REPL says "compiled".
+    #[must_use]
     pub fn in_definition(&self) -> bool {
         self.current.is_some()
     }
