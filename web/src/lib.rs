@@ -9,7 +9,7 @@
 //! memory; `fl_write_file`, `fl_read_file`, `fl_delete_file` and `fl_files`
 //! reach them.
 
-use forthling::{Debugger, Forth, Json, MemoryFs, Throw, TraceEntry};
+use forthling::{Debugger, Forth, Json, MemoryFs, Throw, TraceEntry, Tutorial};
 use std::cell::{Cell, RefCell};
 
 thread_local! {
@@ -32,6 +32,7 @@ fn session() -> Forth {
     FILES.with(|f| *f.borrow_mut() = files);
     f.install(&Json);
     f.install(&Debugger);
+    f.install(&Tutorial);
     f.set_clock(|| NOW.with(Cell::get));
     f
 }
@@ -97,6 +98,47 @@ pub extern "C" fn fl_state() -> usize {
 pub extern "C" fn fl_reset() -> usize {
     SESSION.with(|s| *s.borrow_mut() = Some(session()));
     fl_state()
+}
+
+/// Runs a word of the tutorial, named by the input (`LESSONS`, `LESSON`,
+/// `CHECK`, `HINT` or `NEXT`; `LESSON` shows lesson `n`), whatever the
+/// search order. The answer is that of `fl_eval`, with `lesson`, the lesson
+/// shown last, and `passed`, the lessons done; returns its length.
+#[unsafe(no_mangle)]
+pub extern "C" fn fl_tutorial(n: i32) -> usize {
+    let word = INPUT.with(|i| String::from_utf8_lossy(&i.borrow()).into_owned());
+    let answer = with_session(|f| {
+        if word.eq_ignore_ascii_case("LESSON") {
+            f.push(n.into());
+        }
+        let result = f.tutorial(&word);
+        let output = String::from_utf8_lossy(&f.take_output()).into_owned();
+        let mut answer = state(f, &output, result.err());
+        let (lesson, passed) = f.tutorial_progress();
+        let passed: Vec<String> = passed.iter().map(usize::to_string).collect();
+        answer.pop();
+        answer + &format!(",\"lesson\":{lesson},\"passed\":[{}]}}", passed.join(","))
+    });
+    set_answer(answer)
+}
+
+/// The lessons of the tutorial as a JSON array of `{"number", "title",
+/// "level", "example"}`; returns the length.
+#[unsafe(no_mangle)]
+pub extern "C" fn fl_lessons() -> usize {
+    let lessons: Vec<String> = Tutorial::lessons()
+        .iter()
+        .map(|l| {
+            format!(
+                "{{\"number\":{},\"title\":{},\"level\":{},\"example\":{}}}",
+                l.number,
+                quoted(&l.title),
+                quoted(&l.level),
+                quoted(&l.example)
+            )
+        })
+        .collect();
+    set_answer(format!("[{}]", lessons.join(",")))
 }
 
 /// The words of the session, as a JSON array; returns the length.

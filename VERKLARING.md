@@ -575,7 +575,7 @@ blijven daarbij zoals ze zijn:
   `FORTHLING-SQLITE`, en geeft dan haar versie en waar. `[DEFINED]` test op één woord.
 - De woorden van een extensie horen bij het systeem: `FORGET` gooit er -15 voor.
 
-Het programma forthling installeert twee extensies die bij forthling zelf horen. De
+Het programma forthling installeert drie extensies die bij forthling zelf horen. De
 eerste zijn de JSON-woorden (`FORTHLING-JSON`, versie 1, woordenlijst `JSON`; zie de README). Een
 JSON-waarde is haar tekst in het geheugen; de leeswoorden geven stukken daarvan terug, de
 strings van `JSON>STRING` en `JSON-NAME` zijn ge-`ALLOCATE`d. Ze lezen arrays en objecten
@@ -588,7 +588,13 @@ en tekst die geen UTF-8 is, wordt geschreven met U+FFFD. De tweede zijn de trace
 (`FORTHLING-DEBUG`, versie 1, woordenlijst `DEBUG`: `TRACE-ON`, `TRACE-OFF` en `BREAK`;
 zie de README); hun regels zijn uitvoer, net als die van `.S`. `BREAK` geeft het
 programma aan de debugger van de host, als die er een heeft; het programma forthling
-vraagt dan in de terminal hoe verder, en stoppen daar gooit -28 (user interrupt). `Forth::new()` installeert niets.
+vraagt dan in de terminal hoe verder, en stoppen daar gooit -28 (user interrupt). De
+derde is de tutorial (`FORTHLING-TUTORIAL`, versie 1, woordenlijst `TUTORIAL`: `LESSONS`,
+`LESSON ( n -- )`, `CHECK`, `HINT` en `NEXT`; zie de README). `LESSON` gooit -24 voor een
+getal dat geen les is. `CHECK` draait de tests van de les op de woorden van het
+programma, elk vanaf een lege stack, decimaal en binnen `CATCH`, en zet daarna de stacks,
+`BASE` en de uitvoer terug zoals ze waren; een limiet die in een test bereikt wordt, stopt
+het met -258. `Forth::new()` installeert niets.
 De Python-module (`python/`)
 installeert `FORTHLING-PYTHON` (versie 1), zonder eigen woorden: de woorden die een
 Python-programma toevoegt, komen in `FORTH-WORDLIST` of in een woordenlijst die het noemt.
@@ -596,8 +602,8 @@ Een Python-exceptie in zo'n woord gooit -257, wat `CATCH` vangt; ongevangen krij
 Python-programma de exceptie zelf terug.
 
 De MCP-server (`mcp/`, het programma `forthling-mcp`) draait elke sessie in de zandbak,
-met de JSON- en SQLite-woorden; zijn eigen limieten kunnen niet boven vaste plafonds, en
-hij heeft geen optie voor bestanden. Hij leest geen terminalinvoer: `KEY` en `ACCEPT` zien
+met de JSON-, trace-, tutorial- en SQLite-woorden; zijn eigen limieten kunnen niet boven
+vaste plafonds, en zijn bestanden staan alleen in het geheugen. Hij leest geen terminalinvoer: `KEY` en `ACCEPT` zien
 het einde van de invoer. Hij voegt het woord `DATA ( -- c-addr u )` toe aan
 `FORTH-WORDLIST` (`FORTHLING-MCP`): de `data` van de laatste aanroep die die meestuurde,
 ge-`ALLOCATE`d.

@@ -98,6 +98,22 @@
   }
   input[type="text"]:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
   #file-text { min-height: 100px; margin-top: 8px; }
+  #tutorial {
+    margin: 0 0 16px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--panel);
+  }
+  #tutorial[hidden] { display: none; }
+  #tutorial .step-head { flex-wrap: wrap; align-items: center; }
+  #tutorial .step-head select { flex: 1 1 12em; min-width: 0; }
+  #tutorial-close { padding: 2px 10px; }
+  #lesson-text {
+    margin: 8px 0; padding: 8px 10px; background: var(--code); border-radius: 6px;
+    white-space: pre-wrap; word-break: break-word; max-height: 360px; overflow-y: auto;
+  }
+  #lesson-note { white-space: pre-wrap; min-height: 1.5em; }
+  #lesson-note.ok { color: var(--accent); font-weight: 600; }
+  #lesson-note.err { color: var(--error); }
+  #lesson-note.hint { color: var(--muted); margin: 0; font-size: 14px; }
   @keyframes arrive { from { transform: translateY(-8px); opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .cell.changed { animation: none; } }
 </style>
@@ -107,6 +123,23 @@
   <h1><span>forthling</span> playground</h1>
   <p class="lead">Forth-2012 in your browser: <a href="https://github.com/DeSchaker/forthling">forthling</a>,
     a small Forth interpreter in Rust, compiled to WebAssembly. It runs on your own computer, in a sandbox.</p>
+
+  <section id="tutorial" hidden aria-label="Tutorial">
+    <div class="step-head">
+      <strong>Tutorial</strong>
+      <select id="lesson-pick" aria-label="Lesson"></select>
+      <button id="tutorial-close" aria-label="Close">×</button>
+    </div>
+    <pre id="lesson-text" class="mono"></pre>
+    <div id="lesson-note" class="mono" aria-live="polite"></div>
+    <div class="bar">
+      <button id="lesson-back" disabled title="The lesson before">◀ Back</button>
+      <button id="lesson-try" disabled title="Put the code under Try in the editor">Try it</button>
+      <button id="lesson-check" class="primary" disabled title="Check your work for this lesson">Check</button>
+      <button id="lesson-hint" disabled>Hint</button>
+      <button id="lesson-next" disabled title="The next lesson">Next ▶</button>
+    </div>
+  </section>
 
   <pre id="transcript" class="mono" aria-live="polite"></pre>
   <div id="stack" class="mono"><b>stack</b> <span id="cells">starting…</span></div>
@@ -159,11 +192,13 @@
     </select>
     <button id="words" disabled>My words</button>
     <button id="files-button" aria-expanded="false" aria-controls="files">Files</button>
+    <button id="tutorial-button" aria-expanded="false" aria-controls="tutorial">Tutorial</button>
     <button id="reset" disabled>Start over</button>
     <span class="hint">Ctrl+Enter runs</span>
   </div>
 
   <footer>
+    New to Forth? <em>Tutorial</em> has 20 short lessons, ten for beginners and ten beyond, that check your answers.
     Words you define stay until you start over. Each run may take 10 million steps and print 1 MiB.
     <em>Files</em> are kept in this browser, also when you start over, up to 4 MiB: <code>INCLUDE name.fs</code>,
     the FILE words and <code>BLOCK</code> use them, and what a program writes is kept too. Try <code>WORDS</code>, <code>SEE SQUARE</code>, <code>ALSO JSON</code> for the JSON words, or
@@ -189,7 +224,8 @@ const examples = {
 
 const $ = (id) => document.getElementById(id);
 const transcript = $("transcript"), code = $("code"), cells = $("cells");
-const buttons = [$("run"), $("debug"), $("words"), $("reset"), $("file-save"), $("file-upload-button")];
+const buttons = [$("run"), $("debug"), $("words"), $("reset"), $("file-save"), $("file-upload-button"),
+  $("lesson-back"), $("lesson-try"), $("lesson-check"), $("lesson-hint"), $("lesson-next")];
 const MAX_TRACE = 10000; // words recorded for Step through
 for (const name of Object.keys(examples)) $("examples").add(new Option(name, name));
 
@@ -222,6 +258,7 @@ function errorText(e) {
 
 function busy(on) {
   for (const b of buttons) b.disabled = on;
+  if (!on) lessonButtons();
 }
 
 function start() {
@@ -232,7 +269,7 @@ function start() {
     if (data.ready) {
       busy(false);
       cells.textContent = "empty";
-      restoreFiles();
+      loadLessons(restoreFiles);
       return;
     }
     if (!waiting || data.id !== waiting.id) return;
@@ -492,6 +529,116 @@ $("examples").onchange = (e) => {
   e.target.value = "";
   code.focus();
 };
+// The tutorial: the lesson shown and the lessons done are kept in this
+// browser; the lessons themselves come from forthling (TUTORIAL).
+const TUTORIAL_STORE = "forthling.tutorial";
+let lessons = []; // [{ number, title, level, example }]
+let progress = { lesson: 0, passed: [] };
+try {
+  progress = { ...progress, ...JSON.parse(localStorage.getItem(TUTORIAL_STORE)) };
+} catch {
+  // nothing kept yet
+}
+
+function keepProgress() {
+  try {
+    localStorage.setItem(TUTORIAL_STORE, JSON.stringify(progress));
+  } catch {
+    // not kept; the tutorial still works
+  }
+}
+
+function loadLessons(then) {
+  if (lessons.length) return then();
+  ask({ action: "lessons" }, (list) => {
+    lessons = list;
+    renderLessons();
+    then();
+  });
+}
+
+function renderLessons() {
+  const pick = $("lesson-pick");
+  pick.replaceChildren();
+  for (const [level, label] of [["beginner", "For beginners"], ["advanced", "Advanced"]]) {
+    const group = document.createElement("optgroup");
+    group.label = label;
+    for (const l of lessons.filter((l) => l.level === level)) {
+      const done = progress.passed.includes(l.number) ? " ✓" : "";
+      group.append(new Option(`${l.number}. ${l.title}${done}`, l.number));
+    }
+    pick.append(group);
+  }
+  if (progress.lesson) pick.value = progress.lesson;
+  lessonButtons();
+}
+
+function lessonButtons() {
+  if (waiting) return;
+  const n = progress.lesson;
+  $("lesson-back").disabled = n <= 1;
+  $("lesson-next").disabled = !n || n >= lessons.length;
+  for (const id of ["lesson-try", "lesson-check", "lesson-hint"]) $(id).disabled = !n;
+}
+
+function note(text, kind) {
+  $("lesson-note").textContent = text;
+  $("lesson-note").className = "mono " + (kind ?? "");
+}
+
+// Shows lesson n in the panel.
+function showLesson(n) {
+  if (waiting || n < 1 || n > lessons.length) return;
+  ask({ action: "tutorial", word: "LESSON", n }, (answer) => {
+    // The panel has buttons for what the last line names.
+    const text = answer.output.trim().split("\n").filter((l) => !l.startsWith("CHECK checks")).join("\n");
+    $("lesson-text").textContent = text.trim();
+    $("lesson-text").scrollTop = 0;
+    progress.lesson = n;
+    keepProgress();
+    renderLessons();
+    note("Write your answer in the editor, Run it, then Check.", "hint");
+  });
+}
+
+// CHECK or HINT for the lesson shown. A new session (after Start over) does
+// not know the lesson yet, so it is shown there first.
+function tutorialWord(word) {
+  if (waiting || !progress.lesson) return;
+  ask({ action: "tutorial", word: "LESSON", n: progress.lesson }, () => {
+    ask({ action: "tutorial", word }, (answer) => {
+      if (answer.error) return note(errorText(answer.error), "err");
+      const text = answer.output.trim();
+      note(text, text.startsWith("Well done") ? "ok" : text.startsWith("Not yet") ? "err" : "hint");
+      if (word === "CHECK") {
+        progress.passed = [...new Set([...progress.passed, ...answer.passed])].sort((a, b) => a - b);
+        keepProgress();
+        renderLessons();
+      }
+    });
+  });
+}
+
+$("tutorial-button").onclick = () => {
+  const panel = $("tutorial");
+  panel.hidden = !panel.hidden;
+  $("tutorial-button").setAttribute("aria-expanded", String(!panel.hidden));
+  if (!panel.hidden && !$("lesson-text").textContent) showLesson(progress.lesson || 1);
+};
+$("tutorial-close").onclick = () => {
+  $("tutorial").hidden = true;
+  $("tutorial-button").setAttribute("aria-expanded", "false");
+};
+$("lesson-pick").onchange = (e) => showLesson(Number(e.target.value));
+$("lesson-back").onclick = () => showLesson(progress.lesson - 1);
+$("lesson-next").onclick = () => showLesson(progress.lesson + 1);
+$("lesson-check").onclick = () => tutorialWord("CHECK");
+$("lesson-hint").onclick = () => tutorialWord("HINT");
+$("lesson-try").onclick = () => {
+  code.value = lessons[progress.lesson - 1].example;
+  code.focus();
+};
+
 $("words").onclick = () => ask({ action: "words" }, (words) => {
   show(words.length ? `Your words: ${words.join(" ")}\n` : "You have not defined any words yet.\n", "ok");
 });

@@ -23,7 +23,7 @@ function putFiles(files) {
   return failed;
 }
 
-onmessage = ({ data: { id, action, code, trace, name, text, files } }) => {
+onmessage = ({ data: { id, action, code, trace, name, text, files, word, n } }) => {
   let answer;
   try {
     if (action === "eval") answer = forth.eval(code, { trace });
@@ -34,6 +34,8 @@ onmessage = ({ data: { id, action, code, trace, name, text, files } }) => {
     else if (action === "files") answer = forth.files();
     else if (action === "snapshot") answer = snapshot();
     else if (action === "putFiles") answer = putFiles(files);
+    else if (action === "tutorial") answer = forth.tutorial(word, n);
+    else if (action === "lessons") answer = forth.lessons();
     else answer = forth.words();
   } catch (e) {
     answer = { crashed: String(e) }; // a trap in the module: the page starts anew

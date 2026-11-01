@@ -117,6 +117,10 @@ the same fields as an error: `stack`, `fstack`, `words`, `source`, `line`, `colu
 break 1: in F > BREAK, at input, line 1, column 3: stack <2> 7 9
 ```
 
+`ALSO TUTORIAL` gives the tutorial: 20 lessons of Forth, ten for beginners and ten
+beyond, that an agent can walk a person through (`LESSONS`, `n LESSON`, `CHECK` tests the
+answer, `HINT`, `NEXT`).
+
 The JSON words are installed (`ALSO JSON`), and the SQLite words for databases in memory
 (`ALSO SQLITE`, only `:memory:`, which SQL stops when the time is up and which cannot
 grow larger than the Forth memory); without the Cargo feature `sqlite`

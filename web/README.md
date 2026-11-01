@@ -18,7 +18,7 @@ cp web/target/wasm32-unknown-unknown/release/forthling_web.wasm web/www/forthlin
 ```
 
 `web/www/` then holds the whole site: `index.html` (the playground), `worker.js`,
-`forthling.js` and `forthling.wasm` (some 450 KB). Serve it with any web server, for
+`forthling.js` and `forthling.wasm` (some 490 KB). Serve it with any web server, for
 example `python -m http.server` in `web/www`, and open http://localhost:8000/. Opening
 `index.html` as a file does not work: the browser loads the module and the worker only
 over http(s). The server must give `.wasm` the type `application/wasm`; most do.
@@ -29,7 +29,8 @@ functions, and `forthling.js` wraps them.
 ## The playground
 
 `index.html` has a transcript, the stack, an editor (Ctrl+Enter runs), examples, the
-words defined so far, the files (kept in the browser) and "Start over". forthling runs in a Web Worker, so the page never
+words defined so far, the files (kept in the browser), the tutorial (20 lessons that
+check the answer, with the progress kept in the browser) and "Start over". forthling runs in a Web Worker, so the page never
 freezes; should a run still not end, the page stops the worker after 15 seconds and
 starts a new one.
 
@@ -83,9 +84,10 @@ over* gives them back to the new session, also the files a program wrote.
   (`Forth::set_clock`).
 - The memory is 1 MiB, as natively; the most it can be is 1 GiB (`MAX_MEMORY` on a
   32-bit target).
-- The JSON words are installed (`ALSO JSON`), and the debug words (`ALSO DEBUG`,
-  `TRACE-ON`, `TRACE-OFF`, `BREAK`, which does nothing there but shows in a record);
-  SQLite is not.
+- The JSON words are installed (`ALSO JSON`), the debug words (`ALSO DEBUG`,
+  `TRACE-ON`, `TRACE-OFF`, `BREAK`, which does nothing there but shows in a record) and
+  the tutorial (`ALSO TUTORIAL`; from JavaScript `forth.lessons()` and
+  `forth.tutorial(word, n)`); SQLite is not.
 
 ## Testing
 
@@ -94,3 +96,18 @@ node --test web/tests/forthling.test.mjs
 ```
 
 after building; the tests load the module from `web/target` with Node 22.
+
+## The GIF of the README
+
+`docs/tutorial.gif` is recorded from the playground by a script, so that it can be made
+again when the tutorial or the page changes:
+
+```
+cargo build --release --manifest-path web/Cargo.toml --target wasm32-unknown-unknown
+node web/tools/record-gif.mjs
+```
+
+It serves `www/` with the built module, starts Chrome headless (set `CHROME` to its path
+if it is not found), plays the scene in the light theme and writes the GIF. It needs
+Node 22 and nothing else: it decodes the screenshots with `node:zlib` and encodes the GIF
+itself, each frame only the part that changed.

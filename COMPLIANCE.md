@@ -556,7 +556,7 @@ standard words as they are:
   and then gives its version and true. `[DEFINED]` tests for a single word.
 - The words of an extension belong to the system: `FORGET` throws -15 for them.
 
-The forthling program installs two extensions that are part of forthling itself. The
+The forthling program installs three extensions that are part of forthling itself. The
 first is the JSON words (`FORTHLING-JSON`, version 1, word list `JSON`; see the README). A JSON value is
 its text in memory; the reading words return pieces of it, the strings of `JSON>STRING`
 and `JSON-NAME` are `ALLOCATE`d. They read arrays and objects nested up to 512 deep;
@@ -569,15 +569,20 @@ that is no UTF-8 is written with U+FFFD. The second is the trace words
 (`FORTHLING-DEBUG`, version 1, word list `DEBUG`: `TRACE-ON`, `TRACE-OFF` and `BREAK`;
 see the README); their lines are output, like that of `.S`. `BREAK` hands the program to
 the host's debugger, if there is one; the forthling program asks in the terminal how to
-go on, and quitting there throws -28 (user interrupt). `Forth::new()` installs nothing. The Python module (`python/`) installs
+go on, and quitting there throws -28 (user interrupt). The third is the tutorial
+(`FORTHLING-TUTORIAL`, version 1, word list `TUTORIAL`: `LESSONS`, `LESSON ( n -- )`,
+`CHECK`, `HINT` and `NEXT`; see the README). `LESSON` throws -24 for a number that is no
+lesson. `CHECK` runs the lesson's tests on the program's words, each from an empty stack
+in decimal inside `CATCH`, and then puts the stacks, `BASE` and the output back as they
+were; a limit reached in a test stops it with -258. `Forth::new()` installs nothing. The Python module (`python/`) installs
 `FORTHLING-PYTHON` (version 1), without words of its own: the words that a Python program
 adds go into `FORTH-WORDLIST` or into a word list it names. A Python exception in such a
 word throws -257, which `CATCH` catches; uncaught, the Python program gets the exception
 itself back.
 
 The MCP server (`mcp/`, the program `forthling-mcp`) runs every session in the sandbox
-with the JSON and SQLite words; its own limits cannot pass fixed ceilings, and it has no
-option for files. It reads no terminal input: `KEY` and `ACCEPT` see the end of the input.
+with the JSON, trace, tutorial and SQLite words; its own limits cannot pass fixed ceilings,
+and its files are in memory only. It reads no terminal input: `KEY` and `ACCEPT` see the end of the input.
 It adds the word `DATA ( -- c-addr u )` to `FORTH-WORDLIST` (`FORTHLING-MCP`): the
 `data` of the latest call that sent some, `ALLOCATE`d.
 

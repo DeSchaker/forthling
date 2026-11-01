@@ -105,6 +105,7 @@ over the modules and are `pub(crate)`, except the public API in `lib.rs` and `ho
 | `sandbox.rs` | `Limits`, `Permission`, the budget of an evaluation (`evaluation`, `step`), `emit_bytes`/`emit_memory`, `sleep` |
 | `report.rs` | `ErrorContext`: the stacks, the running words and the place of an error that reaches the host |
 | `typed.rs` | typed words: the macro `forth_word!`, the traits `FromForth` and `IntoForth` |
+| `tutorial.rs` | the tutorial: the extension `Tutorial` (`LESSONS`, `LESSON`, `CHECK`, `HINT`, `NEXT`), `Lesson`, `Forth::tutorial`; the lessons are in `tutorial.txt` |
 | `trace.rs` | tracing: the extension `Debugger` (`TRACE-ON`, `TRACE-OFF`, `BREAK`), `watch`, `record_trace`/`take_trace`, `TraceEntry` |
 | `debug.rs` | the debugger: `set_debugger`, `Pause`, `Reason`, `Resume`, stepping |
 | `host.rs` | the host API: `Extension`, `wordlist`, `add_word`, `state`, `pop_bytes`/`push_bytes`, `memory`, `stack`, `take_output` (tested from outside in `tests/host.rs`) |
@@ -124,8 +125,33 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
 ### Next session: resume here
 
 - **Next step:** step 16, publishing `forthling-mcp` in the MCP Registry, which needs a
-  choice of package first; or step 17, a tutorial extension, which needs a few choices
-  first (see there).
+  choice of package first (MCPB, OCI or PyPI; see there); or step 14, practical glue.
+- **Tutorial (2026-11-01):** step 17 is done. The maintainer chose English only, 10
+  lessons for beginners and 10 advanced, off by default (`ALSO TUTORIAL`), and a GIF of
+  it in the README with its recording script in the repo, in the light theme. Built in
+  the core, as advised: the extension `Tutorial` (`src/tutorial.rs`, `FORTHLING-TUTORIAL`,
+  word list `TUTORIAL`: `LESSONS`, `LESSON`, `CHECK`, `HINT`, `NEXT`), with the lessons in
+  `src/tutorial.txt` (`@@ lesson`, `@@ level`, `@@ try`, `@@ task`, `@@ check`, `@@ hint`,
+  `@@ answer`; checks are `stack 42`, `run CODE => cells` or `print CODE => text`). In the
+  core rather than a crate of its own, an exception to the rule in CONTRIBUTING.md: the
+  `forthling` binary lives in the core crate and could not depend on a tutorial crate,
+  and a newcomer should find it in the program; it needs no dependency. No Cargo feature
+  to leave it out was added; `Forth::new()` does not install it. `CHECK` runs each test
+  with `catch` on the system's `EVALUATE` (its xt kept at install), from empty stacks in
+  decimal, then puts the stacks, `BASE` and the output back; -258 in a test stops it.
+  Progress (`current`, `passed`) is in `Forth::state`; `Forth::tutorial(word)` runs a
+  word without the search order and `tutorial_progress()` gives the progress, for the
+  playground's buttons. `Tutorial::lessons()` gives the lessons as data. Installed by the
+  program (`main.rs`), MCP and the web module (`fl_tutorial`, `fl_lessons`; JS
+  `tutorial(word, n)`, `lessons()`). The playground's **Tutorial** panel (pick a lesson,
+  Back, Try it, Check, Hint, Next) keeps the lesson and the lessons done in
+  `localStorage` (`forthling.tutorial`); before CHECK or HINT it shows the lesson in the
+  session again, since a new session does not know it. `tests/tutorial.rs` runs every
+  example and checks that every model answer passes; headless Chrome checked the panel
+  (14 checks). `web/tools/record-gif.mjs` (Node 22, no dependencies: it decodes the PNG
+  screenshots with `node:zlib`, picks a palette and encodes the GIF with LZW, each frame
+  only the changed rectangle) recorded `docs/tutorial.gif`: 49 frames, 23.2 s, 155489
+  bytes, 720 by 900. The `.wasm` grew from 454936 to 487744 bytes with the lessons.
 - **Files everywhere in the sandbox (2026-11-01):** the follow-ups of step 13. The
   playground has a **Files** panel (list, show, save, upload, delete); after each run
   it reads the session's files back (worker action `snapshot`) and keeps them in
@@ -957,7 +983,8 @@ positioning and what agents need. The old step 8 (debugging and tracing) became 
     To decide first: which of these, versioning and release tags (there are no releases
     yet), and whether `forthling-mcp` also goes to crates.io for `cargo install`.
     Independent of the other steps; it can come any time.
-17. **A tutorial extension** (added 2026-11-01, at the maintainer's wish): an extension
+17. ✅ **A tutorial extension** (added 2026-11-01, at the maintainer's wish; built the same
+    day, see "Next session"): an extension
     `Tutorial` (`FORTHLING-TUTORIAL`, word list `TUTORIAL`) with short lessons that teach
     Forth in forthling itself, so that a newcomer needs no book to start. `ALSO TUTORIAL`
     gives words such as `LESSONS` (the list), `LESSON ( n -- )` (show a lesson: a short

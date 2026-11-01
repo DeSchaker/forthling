@@ -1,0 +1,440 @@
+@@ lesson The stack
+@@ level beginner
+Forth keeps its numbers on a stack: a pile where the last number you put
+on is the first you take off. Type a number and it goes on the stack.
+A word takes its input from the stack and puts its result back.
+
+.S shows the stack without changing it, the top last; . prints the top
+number and takes it off.
+@@ try
+2 3 .S
++ .S
+.
+@@ task
+Leave 42 on the stack, made by multiplying two numbers with *.
+(If other numbers are left over, . takes them off one by one.)
+@@ check
+stack 42
+@@ hint
+Put two numbers on the stack, then *: they make 42 together.
+@@ answer
+6 7 *
+
+@@ lesson Arithmetic
+@@ level beginner
+Forth writes the operation after its numbers: 3 4 + rather than 3 + 4.
+There are no brackets and no rules of precedence: each word works on what
+is on the stack at that moment, so you write the steps in the order they
+happen.
+
++ - * and / work on whole numbers. / rounds down, MOD gives the
+remainder, and /MOD gives both, the quotient on top.
+@@ try
+10 3 - .
+17 5 / .
+17 5 MOD .
+17 5 /MOD .S
+@@ task
+Work out (3 + 4) * 5 and leave the result on the stack.
+@@ check
+stack 35
+@@ hint
+First add, then multiply: 3 4 + leaves 7, and 5 * multiplies that by 5.
+@@ answer
+3 4 + 5 *
+
+@@ lesson Stack words
+@@ level beginner
+Some words only move numbers around on the stack:
+
+  DUP   ( a -- a a )      copies the top
+  DROP  ( a -- )          throws the top away
+  SWAP  ( a b -- b a )    swaps the top two
+  OVER  ( a b -- a b a )  copies the second to the top
+  ROT   ( a b c -- b c a ) brings the third to the top
+
+The text in brackets is a stack comment: the stack before and after,
+the top on the right. Forth skips it, as it skips everything in ( ).
+@@ try
+5 DUP .S
+SWAP .S
+DROP DROP .S
+@@ task
+Start with 1 2 on an empty stack and use SWAP and OVER to get 2 1 2.
+@@ check
+stack 2 1 2
+@@ hint
+SWAP turns 1 2 into 2 1; OVER then copies the 2 to the top.
+@@ answer
+1 2 SWAP OVER
+
+@@ lesson Defining words
+@@ level beginner
+You build a program by defining new words. A colon starts a definition:
+the name, then the words it runs, then a semicolon.
+
+  : SQUARE ( n -- n*n ) DUP * ;
+
+From then on SQUARE is a word like any other, and other words can use
+it. Try each word as soon as you have written it.
+@@ try
+: SQUARE ( n -- n*n ) DUP * ;
+7 SQUARE .
+3 SQUARE SQUARE .
+@@ task
+Define CUBE ( n -- n*n*n ). 2 CUBE should leave 8.
+@@ check
+run 2 CUBE => 8
+run -3 CUBE => -27
+run 0 CUBE => 0
+@@ hint
+DUP twice makes three copies; two * multiply them: : CUBE DUP DUP * * ;
+@@ answer
+: CUBE DUP DUP * * ;
+
+@@ lesson Printing
+@@ level beginner
+. prints a number. Inside a definition, ." prints text up to the next
+quote; the space after ." is not part of the text. CR starts a new line,
+EMIT prints the character with the code on the stack, and SPACE prints
+a space.
+@@ try
+: HI ." Hi there" CR ;
+HI
+42 EMIT 43 EMIT CR
+@@ task
+Define GREET that prints Hello, Forth!
+@@ check
+print GREET => Hello, Forth!
+@@ hint
+Put the text between ." and a quote: : GREET ." Hello, Forth!" ;
+@@ answer
+: GREET ." Hello, Forth!" ;
+
+@@ lesson Decisions
+@@ level beginner
+A comparison leaves a flag: -1 for true, 0 for false. < > = and 0= are
+comparisons. IF takes a flag and runs what follows only when it is true;
+ELSE gives the other way, and THEN closes it. IF works only inside a
+definition.
+@@ try
+3 4 < .
+3 4 > .
+: CHECK-AGE ( n -- ) 18 < IF ." young" ELSE ." grown up" THEN ;
+12 CHECK-AGE CR
+40 CHECK-AGE CR
+@@ task
+Define SIGN ( n -- s ) that gives -1 for a negative number, 0 for 0 and
+1 for a positive one.
+@@ check
+run -5 SIGN => -1
+run 0 SIGN => 0
+run 7 SIGN => 1
+@@ hint
+First test 0< (keep a copy with DUP); in the ELSE part test 0> on what
+is left.
+@@ answer
+: SIGN DUP 0< IF DROP -1 ELSE 0> IF 1 ELSE 0 THEN THEN ;
+
+@@ lesson Counted loops
+@@ level beginner
+DO ... LOOP repeats a piece of code. It takes the limit and the start:
+10 0 DO counts from 0 up to 9. Inside the loop, I gives the count.
+?DO is the same, but runs nothing at all when the limit and the start
+are equal, so use it when the count may be 0. Loops, like IF, work only
+inside a definition.
+@@ try
+: COUNT-UP ( n -- ) 0 ?DO I . LOOP ;
+5 COUNT-UP CR
+0 COUNT-UP CR
+@@ task
+Define STARS ( n -- ) that prints n stars: 3 STARS prints ***.
+[CHAR] * gives the code of a star inside a definition.
+@@ check
+print 3 STARS => ***
+print 1 STARS => *
+print 0 STARS =>
+@@ hint
+Count from 0 to n with ?DO and EMIT a star each time.
+@@ answer
+: STARS ( n -- ) 0 ?DO [CHAR] * EMIT LOOP ;
+
+@@ lesson Loops with a condition
+@@ level beginner
+BEGIN ... UNTIL repeats until a flag is true. BEGIN ... WHILE ...
+REPEAT tests in the middle: it goes on while the flag is true. 1- takes
+one off the top of the stack.
+@@ try
+: HALVES ( n -- ) BEGIN DUP . 2 / DUP 0= UNTIL DROP ;
+100 HALVES CR
+@@ task
+Define COUNTDOWN ( n -- ) that prints n down to 1 with .: 3 COUNTDOWN
+prints 3 2 1. For 0 it prints nothing.
+@@ check
+print 3 COUNTDOWN => 3 2 1
+print 1 COUNTDOWN => 1
+print 0 COUNTDOWN =>
+@@ hint
+BEGIN DUP 0> WHILE ... REPEAT goes on while n is above 0; inside, print
+a copy and take one off. DROP the 0 at the end.
+@@ answer
+: COUNTDOWN ( n -- ) BEGIN DUP 0> WHILE DUP . 1- REPEAT DROP ;
+
+@@ lesson Variables and constants
+@@ level beginner
+VARIABLE makes a place in memory; its name gives the address. ! stores a
+number there, @ fetches it, and +! adds to it. CONSTANT gives a name to
+a number that does not change.
+@@ try
+VARIABLE SCORE
+10 SCORE !
+5 SCORE +!
+SCORE @ .
+365 CONSTANT DAYS
+DAYS 2 * .
+@@ task
+Make a VARIABLE COUNTER and define BUMP ( -- ) that adds 1 to it.
+@@ check
+run 0 COUNTER ! BUMP BUMP COUNTER @ => 2
+run 10 COUNTER ! BUMP COUNTER @ => 11
+@@ hint
+VARIABLE COUNTER makes it; inside BUMP, 1 COUNTER +! adds one.
+@@ answer
+VARIABLE COUNTER
+: BUMP ( -- ) 1 COUNTER +! ;
+
+@@ lesson Strings
+@@ level beginner
+S" text" gives a string as two numbers: the address of its first
+character and its length. TYPE prints such a string. 2DUP copies a pair,
+and 2DROP drops one.
+@@ try
+S" Forth" .S
+TYPE CR
+S" ab" 2DUP TYPE TYPE CR
+@@ task
+Define TWICE ( c-addr u -- ) that prints a string two times:
+S" ab" TWICE prints abab.
+@@ check
+print S" ab" TWICE => abab
+print S" Hi! " TWICE => Hi! Hi!
+@@ hint
+Copy the pair with 2DUP, then TYPE twice.
+@@ answer
+: TWICE ( c-addr u -- ) 2DUP TYPE TYPE ;
+
+@@ lesson Recursion
+@@ level advanced
+A word can call itself with RECURSE. EXIT leaves a word at once, which
+keeps the base case short.
+@@ try
+: SUM-TO ( n -- sum ) DUP 0= IF EXIT THEN DUP 1- RECURSE + ;
+100 SUM-TO .
+@@ task
+Define FACT ( n -- n! ), the factorial: 5 FACT gives 120 and 0 FACT
+gives 1.
+@@ check
+run 0 FACT => 1
+run 1 FACT => 1
+run 5 FACT => 120
+run 10 FACT => 3628800
+@@ hint
+For n below 2 the answer is 1 (DROP n, then 1 EXIT); else it is n times
+the factorial of n - 1.
+@@ answer
+: FACT ( n -- n! ) DUP 2 < IF DROP 1 EXIT THEN DUP 1- RECURSE * ;
+
+@@ lesson Locals
+@@ level advanced
+Juggling more than two or three values with ROT and OVER gets hard to
+read. Locals give them names: {: a b :} takes two values off the stack,
+the top into the last name. After -- you may name the results; that part
+is only a comment.
+@@ try
+: HYP2 {: a b -- c :} a a * b b * + ;
+3 4 HYP2 .
+@@ task
+Define POLY ( x -- y ) that computes 3x*x + 2x + 1, using a local for x.
+2 POLY gives 17.
+@@ check
+run 0 POLY => 1
+run 2 POLY => 17
+run -1 POLY => 2
+@@ hint
+: POLY {: x :} 3 x * x * 2 x * + 1+ ;
+@@ answer
+: POLY {: x :} 3 x * x * 2 x * + 1+ ;
+
+@@ lesson Memory and tables
+@@ level advanced
+CREATE makes a name for the next free place in memory; , (comma) puts a
+number there and moves on. CELLS turns a count into bytes, so
+TABLE 2 CELLS + is the address of the third number.
+@@ try
+CREATE SQUARES 0 , 1 , 4 , 9 , 16 ,
+SQUARES 3 CELLS + @ .
+@@ task
+Make a table PRIMES of 2 3 5 7 11 and define NTH ( i -- n ) that gives
+the number at place i, counting from 0: 4 NTH gives 11.
+@@ check
+run 0 NTH => 2
+run 2 NTH => 5
+run 4 NTH => 11
+@@ hint
+CREATE PRIMES 2 , 3 , 5 , 7 , 11 , and then NTH turns i into an address
+with CELLS PRIMES + and fetches with @.
+@@ answer
+CREATE PRIMES 2 , 3 , 5 , 7 , 11 ,
+: NTH ( i -- n ) CELLS PRIMES + @ ;
+
+@@ lesson Execution tokens
+@@ level advanced
+' NAME gives the execution token of a word: a number that stands for it.
+EXECUTE runs the word for a token, so a word can take another word as
+input. Inside a definition, ['] NAME does the same as '.
+@@ try
+' 1+ .S
+5 SWAP EXECUTE .
+: TWICE-DOUBLE ( n -- n*4 ) ['] 2* DUP >R EXECUTE R> EXECUTE ;
+3 TWICE-DOUBLE .
+@@ task
+Define APPLY-TWICE ( n xt -- n' ) that runs the word for xt two times
+on n: 3 ' 2* APPLY-TWICE gives 12.
+@@ check
+run 3 ' 2* APPLY-TWICE => 12
+run 5 ' 1+ APPLY-TWICE => 7
+@@ hint
+Keep a copy of xt on the return stack: DUP >R EXECUTE R> EXECUTE.
+@@ answer
+: APPLY-TWICE ( n xt -- n' ) DUP >R EXECUTE R> EXECUTE ;
+
+@@ lesson Exceptions
+@@ level advanced
+THROW raises an exception with a code; CATCH runs an execution token
+and gives 0 if all went well, else the code it threw. After an
+exception, CATCH puts the stack back to as many cells as before, so
+DROP or 2DROP them. Dividing by 0 throws -10.
+@@ try
+: RISKY ( n -- ) 0= IF -1 THROW THEN ." safe " ;
+5 ' RISKY CATCH .
+0 ' RISKY CATCH . DROP
+@@ task
+Define SAFE/ ( a b -- q ) that divides a by b, but gives 0 when the
+division fails. Use CATCH.
+@@ check
+run 7 2 SAFE/ => 3
+run 7 0 SAFE/ => 0
+run -9 3 SAFE/ => -3
+@@ hint
+['] / CATCH gives 0 or a code; if a code, 2DROP the two cells it put
+back and give 0.
+@@ answer
+: SAFE/ ( a b -- q ) ['] / CATCH IF 2DROP 0 THEN ;
+
+@@ lesson Floating point
+@@ level advanced
+Numbers with an E, such as 2.5E0, are floating point. They live on a
+stack of their own, so their words start with F: F+ F- F* F/ FSQRT,
+FDUP, FSWAP, and F. to print. A float stack comment starts with F:.
+@@ try
+2.5E0 4E0 F* F.
+2E0 FSQRT F.
+@@ task
+Define HYPOT ( F: a b -- c ), the square root of a*a + b*b:
+3E0 4E0 HYPOT F. prints 5.
+@@ check
+print 3E0 4E0 HYPOT F. => 5.
+print 5E0 12E0 HYPOT F. => 13.
+@@ hint
+Square the top with FDUP F*, FSWAP to the other, square it too, F+ and
+FSQRT.
+@@ answer
+: HYPOT ( F: a b -- c ) FDUP F* FSWAP FDUP F* F+ FSQRT ;
+
+@@ lesson Formatting numbers
+@@ level advanced
+<# ... #> builds the text of a number from the right. # adds one digit,
+#S adds the rest, HOLD adds a character and #> gives the string to
+TYPE. They work on a double number, so put a 0 above a single number
+first.
+@@ try
+: .CENTS ( n -- ) 0 <# # # [CHAR] . HOLD #S #> TYPE ;
+1995 .CENTS CR
+@@ task
+Define .TIME ( seconds -- ) that prints minutes and seconds as m:ss:
+125 .TIME prints 2:05.
+@@ check
+print 125 .TIME => 2:05
+print 59 .TIME => 0:59
+print 600 .TIME => 10:00
+@@ hint
+60 /MOD gives the seconds and, on top, the minutes. Print the minutes
+with 0 <# #S #> TYPE, then a colon, then the seconds with 0 <# # # #> TYPE.
+@@ answer
+: .TIME ( seconds -- ) 60 /MOD 0 <# #S #> TYPE [CHAR] : EMIT 0 <# # # #> TYPE ;
+
+@@ lesson Characters in a string
+@@ level advanced
+A string is bytes in memory: C@ fetches the character at an address, so
+the character at place i of ( c-addr u ) is at c-addr i +. CHAR x gives
+the code of x outside a definition, [CHAR] x inside one.
+@@ try
+S" Forth" DROP 1 + C@ EMIT CR
+CHAR a .
+@@ task
+Define COUNT-CHAR ( c-addr u char -- n ) that counts how often a
+character is in a string: S" banana" CHAR a COUNT-CHAR gives 3.
+@@ check
+run S" banana" CHAR a COUNT-CHAR => 3
+run S" banana" CHAR n COUNT-CHAR => 2
+run S" xyz" CHAR a COUNT-CHAR => 0
+@@ hint
+With locals it is short: {: a u c :} 0 u 0 ?DO a I + C@ c = IF 1+ THEN
+LOOP
+@@ answer
+: COUNT-CHAR {: a u c :} 0 u 0 ?DO a I + C@ c = IF 1+ THEN LOOP ;
+
+@@ lesson JSON
+@@ level advanced
+forthling reads JSON in place. After ALSO JSON, JSON@ ( json path --
+json' flag ) finds a value by a path such as users[0].name, where json
+is a string ( c-addr u ). JSON>NUMBER ( json -- n flag ) turns a value
+into a number; JSON-LENGTH counts the elements of an array.
+@@ try
+ALSO JSON
+: DOC S\" {\"born\": 1815, \"langs\": [\"en\", \"fr\"]}" ;
+DOC S" born" JSON@ DROP JSON>NUMBER DROP .
+DOC S" langs" JSON@ DROP JSON-LENGTH .
+@@ task
+Define AGE ( c-addr u -- n ) that gives the number under "age" in a JSON
+object. Type ALSO JSON first.
+@@ check
+run S\" {\"age\": 36}" AGE => 36
+run S\" {\"name\": \"Bo\", \"age\": 7}" AGE => 7
+@@ hint
+S" age" JSON@ DROP finds the value; JSON>NUMBER DROP turns it into a
+number.
+@@ answer
+ALSO JSON
+: AGE ( c-addr u -- n ) S" age" JSON@ DROP JSON>NUMBER DROP ;
+
+@@ lesson Finding a bug
+@@ level advanced
+When a word gives the wrong answer, watch it run. After ALSO DEBUG,
+TRACE-ON prints each word as it starts, with the stack at that moment,
+until TRACE-OFF. This AVERAGE is wrong; the trace shows why.
+@@ try
+ALSO DEBUG
+: AVERAGE ( a b -- avg ) 2 / + ;
+TRACE-ON 4 8 AVERAGE . TRACE-OFF
+@@ task
+Define AVERAGE ( a b -- avg ) again, so that it is right: 4 8 AVERAGE
+gives 6.
+@@ check
+run 4 8 AVERAGE => 6
+run 3 5 AVERAGE => 4
+run 10 10 AVERAGE => 10
+@@ hint
+The trace shows that / runs on b alone. Add first, then divide by 2.
+@@ answer
+: AVERAGE ( a b -- avg ) + 2 / ;

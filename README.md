@@ -14,6 +14,9 @@ command line, build into your own program, hand to an AI agent, or
 **[try right now in your browser](https://deschaker.github.io/forthling/)**, with nothing
 to install.
 
+![The tutorial in the playground: lesson 4 asks for a word CUBE; a wrong answer gets
+"Not yet" with what it left, the right one "Well done!"](docs/tutorial.gif)
+
 - **The whole standard.** All word sets of Forth-2012, from CORE to FLOATING, pass the
   Forth-2012 test suite, so standard code from books and tutorials runs as written. See
   [Standard compliance](#standard-compliance).
@@ -29,6 +32,8 @@ to install.
   something goes wrong, it also says where, which words were running and what the stacks
   held, so an agent can often fix its code in one round. [`llms.txt`](llms.txt) tells a
   language model how to use it.
+- **Learn as you go.** `ALSO TUTORIAL` gives 20 short lessons, ten for beginners and ten
+  beyond, and `CHECK` tests your answer. See [Tutorial](#tutorial).
 - **Runs anywhere.** As a program, embedded in Rust or [Python](#from-python), or
   [in the browser](https://deschaker.github.io/forthling/) through WebAssembly.
 
@@ -377,9 +382,32 @@ word, then plays the run back: forwards and back, step, over, out and on to the 
 `BREAK`, with the stack before and after each word. Since the sandbox makes a run come out
 the same each time, the record is what happened.
 
+### Tutorial
+
+New to Forth? The tutorial teaches it inside forthling, in 20 short lessons: ten for
+beginners (the stack, arithmetic, defining words, decisions, loops, variables, strings)
+and ten beyond (recursion, locals, tables, execution tokens, exceptions, floating point,
+formatting numbers, JSON and finding a bug with a trace). Each lesson explains a little,
+gives code to try and a task; `CHECK` tests your answer and says what is still wrong.
+
+```
+ALSO TUTORIAL
+LESSONS          \ the list, with the lessons you have done
+4 LESSON         \ lesson 4: Defining words
+: CUBE DUP DUP * * ;
+CHECK            \ Well done! Lesson 4 is done. NEXT goes on to: Printing.
+HINT  NEXT       \ a hint, and the next lesson
+```
+
+The program, the MCP server and the playground have it; in the playground the
+**Tutorial** button opens the lessons beside the editor and keeps your progress in the
+browser. `Forth::new()` leaves it out, so a standard program sees no extra words; a Rust
+host installs it with `forth.install(&forthling::Tutorial)`, and `Forth::tutorial(word)`
+runs its words also without `ALSO TUTORIAL`, for buttons.
+
 ### In the browser
 
-`web/` compiles forthling to WebAssembly (about 450 KB, no dependencies, no wasm-bindgen)
+`web/` compiles forthling to WebAssembly (about 490 KB, no dependencies, no wasm-bindgen)
 and has a playground page: Forth in the browser, on the visitor's own computer, in the
 sandbox. Try it at **https://deschaker.github.io/forthling/**; see
 [web/README.md](web/README.md).

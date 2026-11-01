@@ -173,6 +173,15 @@ fn the_sandbox_holds() {
 }
 
 #[test]
+fn the_tutorial_is_there() {
+    let mut s = server();
+    let r = eval(&mut s, "ALSO TUTORIAL 4 LESSON");
+    assert!(text(&r).contains("Lesson 4 of 20, beginner: Defining words"));
+    let r = eval(&mut s, ": CUBE DUP DUP * * ; CHECK");
+    assert!(r["structuredContent"]["output"].as_str().unwrap().starts_with("Well done!"));
+}
+
+#[test]
 fn files_go_in_and_stay_until_reset() {
     let mut s = server();
     let files = json!({ "lib/square.fs": ": SQUARE DUP * ;", "main.fs": "REQUIRE lib/square.fs 9 SQUARE ." });

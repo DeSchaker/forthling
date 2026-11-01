@@ -2,5 +2,5 @@
 //! cli.rs in the library).
 
 fn main() {
-    forthling::cli::main(&[&forthling::Json, &forthling::Debugger]);
+    forthling::cli::main(&[&forthling::Json, &forthling::Debugger, &forthling::Tutorial]);
 }

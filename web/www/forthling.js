@@ -19,6 +19,13 @@
 //   forth.readFile("square.fs");                    // the text, or null
 //   forth.deleteFile("square.fs");                  // true, or false for none
 //   forth.files();                                  // [{ name, size }, ...]
+//
+// The tutorial: 20 lessons, also without ALSO TUTORIAL in the code.
+//
+//   forth.lessons();               // [{ number, title, level, example }, ...]
+//   forth.tutorial("LESSON", 4);   // answer with the lesson as output,
+//                                  // and lesson: 4, passed: [...]
+//   forth.tutorial("CHECK");       // likewise for CHECK, HINT, NEXT, LESSONS
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -86,6 +93,22 @@ export class Forth {
     const bytes = encoder.encode(name);
     this.#input(bytes.length, (input) => input.set(bytes));
     return this.#answer(this.#wasm.fl_delete_file());
+  }
+
+  /**
+   * Runs a word of the tutorial: "LESSONS", "LESSON" (lesson n), "CHECK",
+   * "HINT" or "NEXT". The answer is that of eval, with `lesson` (the lesson
+   * shown last, 0 for none) and `passed` (the lessons done).
+   */
+  tutorial(word, n = 0) {
+    const bytes = encoder.encode(word);
+    this.#input(bytes.length, (input) => input.set(bytes));
+    return this.#answer(this.#wasm.fl_tutorial(n));
+  }
+
+  /** The lessons of the tutorial: [{ number, title, level, example }]. */
+  lessons() {
+    return this.#answer(this.#wasm.fl_lessons());
   }
 
   /** The session's files: [{ name, size }], sorted by name. */

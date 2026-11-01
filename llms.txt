@@ -1,6 +1,6 @@
 # forthling
 
-> A Forth-2012 runtime in Rust, for people and AI agents. The core has no dependencies and no `unsafe`; untrusted code runs in a sandbox with a limit on steps (the same result on every machine), time and output, and without file access. It has JSON words, SQLite in memory, an MCP server (`forthling-mcp`) and a playground in the browser (WebAssembly). MIT licence.
+> A Forth-2012 runtime in Rust, for people and AI agents. The core has no dependencies and no `unsafe`; untrusted code runs in a sandbox with a limit on steps (the same result on every machine), time and output, and with files only in memory. It has JSON words, a tutorial, SQLite in memory, an MCP server (`forthling-mcp`) and a playground in the browser (WebAssembly). MIT licence.
 
 This file is for language models that write Forth for forthling, mostly through the MCP server. Everything here was run in forthling.
 
@@ -60,6 +60,10 @@ JSON{ S" sum" JSON-KEY 6 JSON-NUMBER S" ok" JSON-KEY -1 JSON-FLAG JSON}
 Reading: `JSON-VALID? ( json -- flag )`, `JSON-TYPE ( json -- n )` (0 null, 1 boolean, 2 number, 3 string, 4 array, 5 object, -1 no JSON), `JSON-GET ( json c-addr u -- json' flag )`, `JSON-NTH ( json n -- json' flag )`, `JSON-NAME ( json n -- c-addr u flag )`, `JSON-LENGTH ( json -- n )`, `JSON@ ( json c-addr u -- json' flag )` with a path such as `a.b[2]`, `JSON>NUMBER ( json -- n flag )`, `JSON>FLOAT ( json -- flag ) ( F: -- r )`, `JSON>FLAG ( json -- flag ok )`, `JSON>STRING ( json -- c-addr u flag )`.
 
 Writing goes to the output, or between `<JSON` and `JSON>` to a string; the commas come by themselves: `JSON{ JSON} JSON[ JSON]`, `JSON-KEY ( c-addr u -- )`, `JSON-STRING ( c-addr u -- )`, `JSON-NUMBER ( n -- )`, `JSON-FLOAT ( F: r -- )`, `JSON-FLAG ( flag -- )`, `JSON-NULL`, `JSON-RAW ( json -- )`.
+
+## Tutorial
+
+`ALSO TUTORIAL` gives a Forth course of 20 lessons, ten for beginners and ten beyond, which an agent can walk a person through: `LESSONS` lists them, `n LESSON` shows lesson n (text, code to try, a task), `CHECK` tests the answer the person defined and says what is still wrong, `HINT` gives a hint and `NEXT` the next lesson.
 
 ## SQLite
 

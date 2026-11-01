@@ -26,6 +26,7 @@ mod stack;
 mod terminal;
 mod throw;
 mod trace;
+mod tutorial;
 mod typed;
 mod vfs;
 mod words;
@@ -43,6 +44,7 @@ pub use sandbox::{Limits, Permission};
 pub use terminal::Input;
 pub use throw::{LIMIT_EXCEEDED, NOT_PERMITTED, QUIT, Throw};
 pub use trace::{Debugger, TRACE_CELLS, TraceEntry};
+pub use tutorial::{Lesson, Tutorial};
 pub use typed::{FromForth, IntoForth};
 pub use vfs::{Access, FileHandle, FileSystem, MemoryFs, NativeFs};
 

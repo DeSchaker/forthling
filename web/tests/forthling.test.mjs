@@ -79,6 +79,25 @@ test("files live in the session's memory", async () => {
   assert.deepEqual(forth.files(), []);
 });
 
+test("the tutorial", async () => {
+  const forth = await fresh();
+  const lessons = forth.lessons();
+  assert.equal(lessons.length, 20);
+  assert.deepEqual(Object.keys(lessons[0]), ["number", "title", "level", "example"]);
+  assert.equal(lessons[3].title, "Defining words");
+  let r = forth.tutorial("LESSON", 4);
+  assert.ok(r.output.includes("Lesson 4 of 20, beginner: Defining words"));
+  assert.deepEqual([r.lesson, r.passed], [4, []]);
+  forth.eval(": CUBE DUP DUP * * ;");
+  r = forth.tutorial("CHECK");
+  assert.ok(r.output.startsWith("Well done!"), r.output);
+  assert.deepEqual(r.passed, [4]);
+  assert.ok(forth.tutorial("NEXT").output.includes("Lesson 5 of 20"));
+  assert.equal(forth.tutorial("LESSON", 21).error.code, -24);
+  // In the code it takes ALSO TUTORIAL.
+  assert.ok(forth.eval("ALSO TUTORIAL HINT").output.startsWith("Hint:"));
+});
+
 test("what WebAssembly lacks is handled", async () => {
   const forth = await fresh();
   // MS cannot sleep there; it does nothing.
