@@ -37,8 +37,8 @@ fn fold_and_scan() {
     assert_eq!(run(&mut f, "5 1 ' + FOLD ."), "5 ");
     assert_eq!(run(&mut f, "1 2 3 4 4 ' MAX FOLD ."), "4 ");
     assert_eq!(run(&mut f, "10 3 2 3 [: - ;] FOLD ."), "5 ");
-    assert_eq!(run(&mut f, "1 2 3 4 4 ' + SCAN . . . ."), "10 6 3 1 ");
-    assert_eq!(run(&mut f, "0 ' + SCAN DEPTH ."), "0 ");
+    assert_eq!(run(&mut f, "1 2 3 4 4 ' + RUNNING-FOLD . . . ."), "10 6 3 1 ");
+    assert_eq!(run(&mut f, "0 ' + RUNNING-FOLD DEPTH ."), "0 ");
     assert_eq!(code(&mut f, "0 ' + FOLD"), -24);
 }
 
@@ -101,10 +101,13 @@ fn the_cells_variants_work_in_memory() {
     run(&mut f, "B 5 [: 1 AND ;] FILTER-CELLS CONSTANT M");
     assert_eq!(run(&mut f, "M . B @ . B CELL+ @ . B 2 CELLS + @ ."), "3 1 9 25 ");
     run(&mut f, "CREATE C 1 , 2 , 3 , 4 ,");
-    run(&mut f, "C 4 ' + SCAN-CELLS");
+    run(&mut f, "C 4 ' + RUNNING-FOLD-CELLS");
     assert_eq!(run(&mut f, "C @ . C CELL+ @ . C 2 CELLS + @ . C 3 CELLS + @ ."), "1 3 6 10 ");
     // zero cells
-    assert_eq!(run(&mut f, "C 0 ' 1+ MAP-CELLS C 0 ' + SCAN-CELLS C 0 ' + FILTER-CELLS ."), "0 ");
+    assert_eq!(
+        run(&mut f, "C 0 ' 1+ MAP-CELLS C 0 ' + RUNNING-FOLD-CELLS C 0 ' + FILTER-CELLS ."),
+        "0 "
+    );
     assert_eq!(code(&mut f, "C 0 ' + FOLD-CELLS"), -24);
 }
 

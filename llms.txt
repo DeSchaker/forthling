@@ -78,22 +78,22 @@ Writing goes to the output, or between `<JSON` and `JSON>` to a string; the comm
 
 ## Functional words
 
-`ALSO FUNCTIONAL` gives `MAP FOLD SCAN FILTER RANGE` on the data stack. The loop runs in Rust and the token is called once per item. The token's stack effect is checked after every call. A primitive token (`' +`, `' INVERT`, `' MAX`) is called directly, without the inner interpreter. A quotation of one primitive is the same token.
+`ALSO FUNCTIONAL` gives `MAP FOLD RUNNING-FOLD FILTER RANGE` on the data stack. The loop runs in Rust and the token is called once per item. The token's stack effect is checked after every call. A primitive token (`' +`, `' INVERT`, `' MAX`) is called directly, without the inner interpreter. A quotation of one primitive is the same token.
 
 ```forth
 ALSO FUNCTIONAL
 1 6 RANGE [: DUP * ;] MAP 5 ' + FOLD .        \ 55  (RANGE gives 1 2 3 4 5 5)
 1 10 RANGE [: 2 MOD 0= ;] FILTER .S    \ <5> 2 4 6 8 4
-1 2 3 4 4 ' + SCAN .S    \ <9> 2 4 6 8 4 1 3 6 10
+1 2 3 4 4 ' + RUNNING-FOLD .S    \ <9> 2 4 6 8 4 1 3 6 10
 ```
 
 - `MAP ( x1 .. xn n xt -- y1 .. yn )`, `xt` is `( x -- y )`.
 - `FOLD ( x1 .. xn n xt -- r )`, `xt` is `( acc x -- acc' )`; `x1` is the first `acc`, so `n` must be at least 1.
-- `SCAN ( x1 .. xn n xt -- r1 .. rn )`: like `FOLD`, keeping every partial result.
+- `RUNNING-FOLD ( x1 .. xn n xt -- r1 .. rn )`: like `FOLD`, keeping every partial result.
 - `FILTER ( x1 .. xn n xt -- y1 .. ym m )`, `xt` is `( x -- flag )`.
 - `RANGE ( a b -- a .. b-1 n )`.
 - `ANY? ALL? ( x1 .. xn n xt -- flag )` and `FIND ( .. n xt -- x true | false )` stop at the answer; `COUNT-IF ( .. n xt -- m )`; `FLAT-MAP ( .. n xt -- y1 .. ym m )` with `xt` `( x -- y1 .. yk k )`; `ITERATE ( x n xt -- x1 .. xn )`; `REVERSE ( x1 .. xn n -- xn .. x1 )`; `TAKE` and `DROP-N ( x1 .. xm m n -- .. k )`; `ZIP ( a1 .. an b1 .. bn n -- a1 b1 .. an bn 2n )`; `SUM` and `PRODUCT ( x1 .. xn n -- r )` (0 and 1 for n = 0); `MIN-OF` and `MAX-OF`. `5 8 12 3 [: 6 > ;] FIND .S` shows `<2> 8 -1`.
-- `MAP-CELLS ( addr n xt -- )`, `FOLD-CELLS ( addr n xt -- r )`, `SCAN-CELLS ( addr n xt -- )` and `FILTER-CELLS ( addr n xt -- m )` are the same on a block of n cells in memory, for large amounts of data. `MAP-CELLS`, `SCAN-CELLS` and `FILTER-CELLS` change the block in place; `FILTER-CELLS` moves the cells that pass to the front and `m` is how many. `CREATE A 3 , 1 , 4 , 1 , 5 ,  A 5 ' MAX FOLD-CELLS .` prints 5. Also on a block, without changing it: `ANY?-CELLS ALL?-CELLS FIND-CELLS COUNT-IF-CELLS SUM-CELLS PRODUCT-CELLS`; `REVERSE-CELLS ( addr n -- )` works in place.
+- `MAP-CELLS ( addr n xt -- )`, `FOLD-CELLS ( addr n xt -- r )`, `RUNNING-FOLD-CELLS ( addr n xt -- )` and `FILTER-CELLS ( addr n xt -- m )` are the same on a block of n cells in memory, for large amounts of data. `MAP-CELLS`, `RUNNING-FOLD-CELLS` and `FILTER-CELLS` change the block in place; `FILTER-CELLS` moves the cells that pass to the front and `m` is how many. `CREATE A 3 , 1 , 4 , 1 , 5 ,  A 5 ' MAX FOLD-CELLS .` prints 5. Also on a block, without changing it: `ANY?-CELLS ALL?-CELLS FIND-CELLS COUNT-IF-CELLS SUM-CELLS PRODUCT-CELLS`; `REVERSE-CELLS ( addr n -- )` works in place.
 
 ## Tutorial
 

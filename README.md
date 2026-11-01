@@ -268,7 +268,7 @@ A structure that does not fit, such as a value in an object without its key, thr
 
 ### Functional words
 
-The word list `FUNCTIONAL` (`ALSO FUNCTIONAL`) has `MAP`, `FOLD`, `SCAN`, `FILTER` and `RANGE`
+The word list `FUNCTIONAL` (`ALSO FUNCTIONAL`) has `MAP`, `FOLD`, `RUNNING-FOLD`, `FILTER` and `RANGE`
 on the data stack. The loop runs in Rust and calls the execution token once per item; the
 stack effect of the token is checked after each call, and the step and time limits apply
 inside it. A primitive token (`' +`, `' INVERT`, or a quotation of one primitive) is called
@@ -286,7 +286,7 @@ ALSO FUNCTIONAL
 |---|---|
 | `MAP` | `( x1 .. xn n xt -- y1 .. yn )`, `xt` is `( x -- y )` |
 | `FOLD` | `( x1 .. xn n xt -- r )`, `xt` is `( acc x -- acc' )`; `x1` is the first `acc`, so `n` is at least 1 |
-| `SCAN` | `( x1 .. xn n xt -- r1 .. rn )`: like `FOLD`, with every partial result |
+| `RUNNING-FOLD` | `( x1 .. xn n xt -- r1 .. rn )`: like `FOLD`, with every partial result |
 | `FILTER` | `( x1 .. xn n xt -- y1 .. ym m )`, `xt` is `( x -- flag )` |
 | `RANGE` | `( a b -- a .. b-1 n )` |
 | `ANY?` `ALL?` | `( x1 .. xn n xt -- flag )`, `xt` is `( x -- flag )`; they stop at the answer; `ALL?` is true for `n` = 0 |
@@ -321,7 +321,7 @@ A 5 [: DUP * ;] MAP-CELLS  A 5 ' + FOLD-CELLS .    52
 |---|---|
 | `MAP-CELLS` | `( addr n xt -- )`, in place; `xt` is `( x -- y )` |
 | `FOLD-CELLS` | `( addr n xt -- r )`; the first cell is the first `acc`, so `n` is at least 1 |
-| `SCAN-CELLS` | `( addr n xt -- )`, in place: cell i becomes the partial result over cells 0 to i |
+| `RUNNING-FOLD-CELLS` | `( addr n xt -- )`, in place: cell i becomes the partial result over cells 0 to i |
 | `FILTER-CELLS` | `( addr n xt -- m )`, the cells that pass are moved to the front; `m` is how many |
 | `ANY?-CELLS` `ALL?-CELLS` | `( addr n xt -- flag )`; the block stays as it is |
 | `FIND-CELLS` | `( addr n xt -- x true \| false )` |

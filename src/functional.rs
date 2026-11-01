@@ -1,5 +1,5 @@
 //! Functional words: the word list FUNCTIONAL, installed as the extension
-//! `Functional`. `MAP FOLD SCAN FILTER` (and `ANY? FIND SUM` and the rest)
+//! `Functional`. `MAP FOLD RUNNING-FOLD FILTER` (and `ANY? FIND SUM` and the rest)
 //! take their items from the data stack
 //! and run the loop in Rust, calling the execution token once per item. When
 //! the token is a primitive (`' +`, `' 1+`, or a quotation of one primitive)
@@ -201,17 +201,17 @@ fn install_items(f: &mut Forth, wid: Cell) {
         f.push(acc);
         Ok(())
     });
-    // SCAN ( x1 .. xn n xt -- r1 .. rn ): like FOLD, keeping every
+    // RUNNING-FOLD ( x1 .. xn n xt -- r1 .. rn ): like FOLD, keeping every
     // partial result; r1 is x1.
-    word(f, wid, "SCAN", |f| {
-        let (call, items) = f.pop_items("SCAN")?;
+    word(f, wid, "RUNNING-FOLD", |f| {
+        let (call, items) = f.pop_items("RUNNING-FOLD")?;
         let base = f.stack.len();
         let mut out = Vec::with_capacity(items.len());
         let mut items = items.into_iter();
         if let Some(mut acc) = items.next() {
             out.push(acc);
             for x in items {
-                acc = call.apply(f, "SCAN", base, &[acc, x])?;
+                acc = call.apply(f, "RUNNING-FOLD", base, &[acc, x])?;
                 out.push(acc);
             }
         }
@@ -264,17 +264,17 @@ fn install_cells(f: &mut Forth, wid: Cell) {
         f.push(acc);
         Ok(())
     });
-    // SCAN-CELLS ( addr n xt -- ): like FOLD-CELLS; cell i becomes the
+    // RUNNING-FOLD-CELLS ( addr n xt -- ): like FOLD-CELLS; cell i becomes the
     // partial result over cells 0..=i, so the first cell stays.
-    word(f, wid, "SCAN-CELLS", |f| {
-        let (call, addr, count) = f.pop_block("SCAN-CELLS")?;
+    word(f, wid, "RUNNING-FOLD-CELLS", |f| {
+        let (call, addr, count) = f.pop_block("RUNNING-FOLD-CELLS")?;
         let base = f.stack.len();
         if count > 0 {
             let mut acc = f.get(addr);
             for i in 1..count {
                 let at = addr + i * CELL;
                 let x = f.get(at);
-                acc = call.apply(f, "SCAN-CELLS", base, &[acc, x])?;
+                acc = call.apply(f, "RUNNING-FOLD-CELLS", base, &[acc, x])?;
                 f.set(at, acc);
             }
         }
