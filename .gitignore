@@ -7,7 +7,9 @@
 # built from web/, see web/README.md
 /web/www/forthling.wasm
 __pycache__/
-# Forth-2012 test suite, cloned separately (see ROADMAP.md)
+# the roadmap and design notes of the maintainer, kept local (the open work is in the issues)
+/ROADMAP.md
+# Forth-2012 test suite, cloned separately (see the README)
 /tests/forth2012-test-suite/
 # left behind by a failing filetest.fth
 /fatest*.txt

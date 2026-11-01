@@ -89,7 +89,8 @@ latest stable Rust, on Linux and Windows.
 - Keep a change small and give it tests. If it changes how forthling behaves, update
   `COMPLIANCE.md` and the README where they describe that behaviour. `VERKLARING.md` is
   its Dutch translation; the maintainer keeps it in step, so you need not.
-- `ROADMAP.md` is the roadmap and the status; it also records the design decisions.
+- The open work is in the [issues on GitHub](https://github.com/DeSchaker/forthling/issues).
+  Open an issue before a larger change.
 - Commit messages start with a verb in the imperative, such as "Add the XCHAR word set".
 
 ## Releasing

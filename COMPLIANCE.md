@@ -7,8 +7,8 @@ standard: first the Core word set (4.1), then each optional word set (x.4.1). Th
 names are short paraphrases of the standard's; the section numbers point to the
 standard's own text.
 
-A Dutch translation is in [`VERKLARING.md`](VERKLARING.md). The roadmap and the status
-of each word set are in [`ROADMAP.md`](ROADMAP.md).
+A Dutch translation is in [`VERKLARING.md`](VERKLARING.md). The open work is in the
+[issues on GitHub](https://github.com/DeSchaker/forthling/issues).
 
 ## Labeling (5.1.1)
 

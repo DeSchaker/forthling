@@ -7,8 +7,8 @@ is die van de standaard: eerst de Core-wordset (4.1), dan elke optionele wordset
 De namen van de punten zijn korte omschrijvingen van die in de standaard; de
 paragraafnummers verwijzen naar de tekst van de standaard zelf.
 
-De Engelse versie staat in [`COMPLIANCE.md`](COMPLIANCE.md). De roadmap en de stand van
-elke wordset staan in [`ROADMAP.md`](ROADMAP.md) (in het Engels).
+De Engelse versie staat in [`COMPLIANCE.md`](COMPLIANCE.md). Het openstaande werk staat in de
+[issues op GitHub](https://github.com/DeSchaker/forthling/issues) (in het Engels).
 
 ## Vermelding (5.1.1)
 

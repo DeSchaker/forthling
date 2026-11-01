@@ -538,8 +538,8 @@ SHOW-PAGE
 
 ## Standard compliance
 
-[`ROADMAP.md`](ROADMAP.md) holds the roadmap to Forth-2012 and the
-current status. The CORE, CORE EXT, BLOCK, DOUBLE, EXCEPTION, FACILITY, FILE, LOCALS,
+The open work is in the
+[issues on GitHub](https://github.com/DeSchaker/forthling/issues). The CORE, CORE EXT, BLOCK, DOUBLE, EXCEPTION, FACILITY, FILE, LOCALS,
 MEMORY, SEARCH, STRING, TOOLS, XCHAR and FLOATING word sets are complete, and their tests in the
 [Forth-2012 test suite](https://github.com/gerryjackson/forth2012-test-suite) pass (`core.fr`,
 `coreplustest.fth`, `coreexttest.fth`, `blocktest.fth`, `doubletest.fth`, `exceptiontest.fth`,
