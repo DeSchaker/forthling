@@ -10,6 +10,7 @@ pub(crate) enum Ctrl {
     Dest(usize),
     Do(usize),
     Case,         // an open CASE
+    Assert,       // an open ASSERT(
     Of(usize),    // an OF waiting for its ENDOF
     EndOf(usize), // an ENDOF jump waiting for ENDCASE
 }

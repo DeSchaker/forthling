@@ -498,6 +498,41 @@ word, then plays the run back: forwards and back, step, over, out and on to the 
 `BREAK`, with the stack before and after each word. Since the sandbox makes a run come out
 the same each time, the record is what happened.
 
+### Inspecting code
+
+Words from Gforth help to find a fault. They are in the `forthling` program, the MCP server
+and the playground, with no word list to open.
+
+- `~~` prints the place in the source and the data stack, when the definition runs (at
+  once when typed): `file:line:column: <2> 1 2`. `~~BT` adds a backtrace. `BT` prints the
+  words that are running, the innermost first.
+- `ASSERT( code )` runs the code, which leaves a flag, and throws -2 with the place when
+  the flag is false. The variable `ASSERT-LEVEL` (1 at the start) decides what is
+  compiled: `ASSERT0(` always, `ASSERT1(` and `ASSERT(` from level 1, `ASSERT2(` from
+  level 2, `ASSERT3(` from level 3. A level that is too low skips the code up to the
+  next `)`, so it must not contain one. Set the level before the definitions.
+- `WHERE name` says where the program defined a word: `SQ defined at demo.fs:1`; a word of
+  the system says so. `LOCATE name` adds the line itself when the source is a file that
+  can be read. `SEE-CODE` is `SEE`: both show the instructions of the word.
+- `LATEST` and `LATESTXT` give the newest word, `FIND-NAME ( c-addr u -- nt | 0 )` looks a
+  name up, `NAME>LINK ( nt -- nt | 0 )` gives the word defined before it in its word list
+  and `XT>NAME ( xt -- nt )` the name token. In forthling a name token and an execution
+  token are the same number. `NAME>STRING` gives the name.
+- `VLIST` is `WORDS`. `INCLUDED? ( c-addr u -- flag )` tells whether a file was included
+  and `.INCLUDED` lists the files, in order.
+
+```
+: SQ  DUP * ;
+: F  3 ~~ SQ 1+ ;
+F .
+WHERE SQ
+```
+
+```
+demo.fs:2:8: <1> 3
+10 SQ defined at demo.fs:1
+```
+
 ### Tutorial
 
 New to Forth? The tutorial teaches it inside forthling, in 20 short lessons: ten for

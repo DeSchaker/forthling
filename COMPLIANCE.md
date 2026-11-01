@@ -596,6 +596,12 @@ that leaves room, the choice is below.
   NaN is involved.
 - Memory: `L@ L! W@ W!` and `L, W,` use 32 and 16 bits, little-endian, at any address.
   `L@` and `W@` give zero-extended values; `L!` and `W!` store the low bits.
+- Inspection: `LATEST LATESTXT FIND-NAME NAME>LINK XT>NAME WHERE LOCATE SEE-CODE BT ~~ ~~BT
+  ASSERT( ASSERT0( ASSERT1( ASSERT2( ASSERT3( ) ASSERT-LEVEL VLIST INCLUDED? .INCLUDED`.
+  A name token is the same number as the execution token. `WHERE` and `LOCATE` know where the
+  program defined a word (source and line), not the uses of it; `SEE-CODE` is `SEE`. `~~`
+  prints `source:line:column:` and `.S`. `ASSERT(` is compiled when `ASSERT-LEVEL` is high
+  enough and throws -2 on a false flag; a disabled one skips the text up to the next `)`.
 - Time and random numbers: `UTIME` gives the microseconds since 1970 (the clock of
   `TIME&DATE`; a host that sets a clock gives whole seconds). `CPUTIME` gives the time
   since the system started as the user time and 0 as the system time; there is no CPU clock

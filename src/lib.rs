@@ -125,7 +125,7 @@ pub struct Forth {
     files: Vec<Option<OpenFile>>, // open files, indexed by file id - 1
     blocks: Blocks,        // the block file and the block buffers
     vfs: Box<dyn FileSystem>, // where the files are (vfs.rs)
-    included: HashSet<String>, // files INCLUDED so far, for REQUIRED
+    included: Vec<String>, // files INCLUDED so far, in order, for REQUIRED
     extensions: HashMap<String, Cell>, // installed extensions: version by upper-case name
     host_state: HashMap<std::any::TypeId, Box<dyn std::any::Any>>, // see Forth::state
     out: Vec<u8>,
@@ -212,7 +212,7 @@ impl Forth {
             files: Vec::new(),
             blocks: Blocks::new("blocks.fb".into()),
             vfs: Box::new(NativeFs),
-            included: HashSet::new(),
+            included: Vec::new(),
             extensions: HashMap::new(),
             host_state: HashMap::new(),
             out: Vec::new(),

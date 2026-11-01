@@ -57,7 +57,10 @@ impl Forth {
         let read = Access { read: true, ..Access::default() };
         let file = (self.vfs.open(&path, read))
             .map_err(|e| Throw::with(NO_SUCH_FILE, format!("{path}: {e}")))?;
-        self.included.insert(self.vfs.canonical(&path));
+        let canonical = self.vfs.canonical(&path);
+        if !self.included.contains(&canonical) {
+            self.included.push(canonical);
+        }
         let fid = self.add_file(file, &path);
         self.include_file(fid)
     }

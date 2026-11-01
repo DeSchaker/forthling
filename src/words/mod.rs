@@ -11,6 +11,7 @@ mod facility;
 mod file;
 mod float;
 mod heap;
+mod inspect;
 mod locals;
 mod memory;
 mod search;
@@ -39,6 +40,7 @@ pub(crate) fn install(f: &mut Forth) {
     file::install(f);
     facility::install(f);
     heap::install(f);
+    inspect::install(f);
     locals::install(f);
     search::install(f);
     block::install(f);

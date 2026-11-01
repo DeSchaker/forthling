@@ -1069,3 +1069,60 @@ fn gforth_slurp() {
     assert_eq!(slurp("empty.txt", "", "SLURP-FILE NIP ."), "0 ");
     assert_ne!(err("S\" nonexistent-file.txt\" SLURP-FILE").code, 0);
 }
+
+#[test]
+fn names_and_latest() {
+    let src = ": SQ DUP * ; S\" sq\" FIND-NAME LATEST = . S\" SQ\" FIND-NAME LATESTXT = .";
+    assert_eq!(run(src), "-1 -1 ");
+    assert_eq!(run("S\" NO-SUCH-WORD\" FIND-NAME ."), "0 ");
+    // The word before it in the same word list, and 0 at the start.
+    let src = ": A 1 ; : B 2 ; S\" B\" FIND-NAME NAME>LINK S\" A\" FIND-NAME = .";
+    assert_eq!(run(src), "-1 ");
+    assert_eq!(run("0 NAME>LINK 0= ."), "-1 ");
+    assert_eq!(run(": A 1 ; ' A XT>NAME NAME>STRING TYPE"), "A");
+    assert!(err("-1 XT>NAME").to_string().contains("invalid name token"));
+}
+
+#[test]
+fn where_and_locate() {
+    assert_eq!(run(": SQ DUP * ;\n: T ;\nWHERE T"), "T defined at input:2\n");
+    assert_eq!(run("WHERE DUP"), "DUP is a word of the system\n");
+    // SEE-CODE shows what SEE shows.
+    assert_eq!(run(": T 1 ; SEE T"), run(": T 1 ; SEE-CODE T"));
+    let file = temp_file("locate.fs", "1 drop\n: ONE 1 ;\n");
+    let out = run(&format!("S\" {file}\" INCLUDED LOCATE ONE"));
+    assert!(out.contains("locate.fs:2") && out.ends_with("    2  : ONE 1 ;\n"), "{out}");
+}
+
+#[test]
+fn trace_here_and_backtrace() {
+    assert_eq!(run("1 2 ~~ + ."), "input:1:5: <2> 1 2 \n3 ");
+    assert_eq!(run(": T 7 ~~ DROP ; T T"), "input:1:7: <1> 7 \ninput:1:7: <1> 7 \n");
+    assert_eq!(run(": A BT ; : B A ; B"), "backtrace:\n  A\n  B\n");
+    assert_eq!(run("BT"), "backtrace:\n  (no words running)\n");
+    assert!(run(": A ~~BT ; A").contains("backtrace:\n  A\n"));
+}
+
+#[test]
+fn assertions() {
+    assert_eq!(run(": T 5 ASSERT( DUP 3 > ) ; T ."), "5 ");
+    let e = err(": T 5 ASSERT( DUP 9 > ) ; T");
+    assert_eq!(e.code, ABORT_QUOTE);
+    assert!(e.to_string().contains("assertion failed at input:1:"), "{e}");
+    // The level decides what is compiled.
+    assert_eq!(run("0 ASSERT-LEVEL ! : T ASSERT( 0 ) 1 ; T ."), "1 ");
+    assert_eq!(err("0 ASSERT-LEVEL ! : T ASSERT0( 0 ) 1 ; T").code, ABORT_QUOTE);
+    assert_eq!(err("3 ASSERT-LEVEL ! : T ASSERT3( 0 ) 1 ; T").code, ABORT_QUOTE);
+    assert_eq!(run("2 ASSERT-LEVEL ! : T ASSERT3( 0 ) 1 ; T ."), "1 ");
+    assert_eq!(err(": T ) ;").code, CONTROL_MISMATCH);
+}
+
+#[test]
+fn included_lists() {
+    let inc = temp_file("listed.fs", "1 drop\n");
+    let src = format!("S\" {inc}\" INCLUDED? . S\" {inc}\" INCLUDED S\" {inc}\" INCLUDED? .");
+    assert_eq!(run(&src), "0 -1 ");
+    let out = run(&format!("S\" {inc}\" INCLUDED .INCLUDED"));
+    assert!(out.contains("listed.fs"), "{out}");
+    assert_eq!(run("VLIST").trim_end(), run("WORDS").trim_end());
+}

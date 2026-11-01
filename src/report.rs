@@ -45,6 +45,21 @@ impl Forth {
     /// The state now: the stacks, the running words and the place in the
     /// input; for an error, and for a pause of the debugger.
     pub(crate) fn context(&self, first: usize) -> ErrorContext {
+        let (source, line, column, token) = self.place(first);
+        ErrorContext {
+            stack: self.stack.clone(),
+            fstack: self.fstack.clone(),
+            words: self.running_words(&token),
+            source,
+            line,
+            column,
+            token,
+        }
+    }
+
+    /// Where the input is: the source, the line, the column and the last
+    /// word read, as in an `ErrorContext`.
+    pub(crate) fn place(&self, first: usize) -> (String, usize, usize, String) {
         let s = self.sources.top();
         let bytes = &self.mem[s.buf..s.buf + s.len];
         let to_in = usize::try_from(self.get(IN_ADDR)).unwrap_or(0).min(bytes.len());
@@ -53,7 +68,7 @@ impl Forth {
         let start = bytes[..end].iter().rposition(|&b| b <= b' ').map_or(0, |i| i + 1);
         let token = String::from_utf8_lossy(&bytes[start..end]).into_owned();
         let (source, line, line_start) = match &s.origin {
-            Origin::Terminal => ("input".to_string(), s.line - first, 0),
+            Origin::Terminal => ("input".to_string(), s.line.saturating_sub(first), 0),
             Origin::Evaluate => {
                 #[allow(
                     clippy::naive_bytecount,
@@ -76,15 +91,7 @@ impl Forth {
         } else {
             String::from_utf8_lossy(&bytes[line_start..start]).chars().count() + 1
         };
-        ErrorContext {
-            stack: self.stack.clone(),
-            fstack: self.fstack.clone(),
-            words: self.running_words(&token),
-            source,
-            line,
-            column,
-            token,
-        }
+        (source, line, column, token)
     }
 
     /// The words that were running: the word of each frame, then the word

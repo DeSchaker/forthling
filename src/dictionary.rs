@@ -35,10 +35,11 @@ pub(crate) struct Word {
     pub(crate) immediate: bool,
     pub(crate) compile_only: bool, // a primitive that throws -14 outside a definition
     pub(crate) hidden: bool,
-    pub(crate) wid: usize,               // the word list it is in
-    pub(crate) here: usize,              // HERE when it was defined, for FORGET
-    pub(crate) name_addr: Option<usize>, // its name on the heap, once NAME>STRING asked
-    pub(crate) size: usize,              // what it takes outside Forth memory (Limits::space)
+    pub(crate) wid: usize,                       // the word list it is in
+    pub(crate) here: usize,                      // HERE when it was defined, for FORGET
+    pub(crate) name_addr: Option<usize>,         // its name on the heap, once NAME>STRING asked
+    pub(crate) size: usize, // what it takes outside Forth memory (Limits::space)
+    pub(crate) origin: Option<(Rc<str>, usize)>, // where the program defined it: source and line, for WHERE
 }
 
 /// The words an empty search order still finds.
@@ -48,6 +49,12 @@ pub(crate) const ROOT_WORDS: [&str; 6] =
 impl Forth {
     pub(crate) fn define(&mut self, name: &str, kind: Kind) -> usize {
         let size = WORD_SPACE + name.len();
+        let origin = if self.fence > 0 {
+            let (source, line, ..) = self.place(self.first_line);
+            Some((Rc::from(source), line))
+        } else {
+            None
+        };
         self.space += size;
         self.dict.push(Word {
             name: name.to_ascii_uppercase(),
@@ -59,6 +66,7 @@ impl Forth {
             here: self.here,
             name_addr: None,
             size,
+            origin,
         });
         self.dict.len() - 1
     }

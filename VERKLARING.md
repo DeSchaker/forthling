@@ -616,6 +616,13 @@ laat, staat de keuze hieronder.
   er een NaN in het spel is.
 - Geheugen: `L@ L! W@ W!` en `L, W,` gebruiken 32 en 16 bits, little-endian, op elk adres.
   `L@` en `W@` geven waarden zonder tekenuitbreiding; `L!` en `W!` slaan de lage bits op.
+- Inspectie: `LATEST LATESTXT FIND-NAME NAME>LINK XT>NAME WHERE LOCATE SEE-CODE BT ~~ ~~BT
+  ASSERT( ASSERT0( ASSERT1( ASSERT2( ASSERT3( ) ASSERT-LEVEL VLIST INCLUDED? .INCLUDED`.
+  Een naamtoken is hetzelfde getal als het uitvoeringstoken. `WHERE` en `LOCATE` weten waar het
+  programma een woord definieerde (bron en regel), niet waar het gebruikt wordt; `SEE-CODE` is
+  `SEE`. `~~` print `bron:regel:kolom:` en `.S`. `ASSERT(` wordt gecompileerd als
+  `ASSERT-LEVEL` hoog genoeg is en gooit -2 bij een onwaar vlag; een uitgeschakelde slaat de
+  tekst tot de volgende `)` over.
 - Tijd en willekeurige getallen: `UTIME` geeft de microseconden sinds 1970 (de klok van
   `TIME&DATE`; een host die een klok instelt geeft hele seconden). `CPUTIME` geeft de tijd
   sinds het systeem startte als gebruikerstijd en 0 als systeemtijd; er is geen CPU-klok in
