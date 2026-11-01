@@ -286,6 +286,22 @@ ALSO FUNCTIONAL
 | `FILTER` | `( x1 .. xn n xt -- y1 .. ym m )`, `xt` is `( x -- flag )` |
 | `RANGE` | `( a b -- a .. b-1 n )` |
 
+The same on a block of cells in memory, for large amounts of data, with the suffix `-CELLS`. The
+results go back into the block; the address range is checked as for other memory words.
+
+```forth
+CREATE A 3 , 1 , 4 , 1 , 5 ,
+A 5 ' MAX FOLD-CELLS .                        5
+A 5 [: DUP * ;] MAP-CELLS  A 5 ' + FOLD-CELLS .    52
+```
+
+| Word | Stack |
+|---|---|
+| `MAP-CELLS` | `( addr n xt -- )`, in place; `xt` is `( x -- y )` |
+| `FOLD-CELLS` | `( addr n xt -- r )`; the first cell is the first `acc`, so `n` is at least 1 |
+| `SCAN-CELLS` | `( addr n xt -- )`, in place: cell i becomes the partial result over cells 0 to i |
+| `FILTER-CELLS` | `( addr n xt -- m )`, the cells that pass are moved to the front; `m` is how many |
+
 Measured on 60000 numbers, 100 times, release build: summing with `RANGE ' + FOLD` takes 93 ms,
 against 471 ms for a plain `DO` loop; with a colon word instead of `+` it takes 250 ms. A
 quotation that is not one primitive (`[: DUP * ;] MAP`) goes through the inner interpreter

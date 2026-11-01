@@ -90,3 +90,39 @@ fn environment_and_word_list() {
     assert_eq!(run(&mut f, r#"S" FORTHLING-FUNCTIONAL" ENVIRONMENT? . ."#), "-1 1 ");
     assert!(f.interpret("1 2 2 ' + FOLD").is_err()); // not in the search order
 }
+
+#[test]
+fn the_cells_variants_work_in_memory() {
+    let mut f = forth();
+    run(&mut f, "CREATE B 1 , 2 , 3 , 4 , 5 ,");
+    assert_eq!(run(&mut f, "B 5 ' + FOLD-CELLS ."), "15 ");
+    assert_eq!(run(&mut f, "B 5 [: DUP * ;] MAP-CELLS B 5 ' + FOLD-CELLS ."), "55 ");
+    assert_eq!(run(&mut f, "B @ . B 4 CELLS + @ ."), "1 25 ");
+    run(&mut f, "B 5 [: 1 AND ;] FILTER-CELLS CONSTANT M");
+    assert_eq!(run(&mut f, "M . B @ . B CELL+ @ . B 2 CELLS + @ ."), "3 1 9 25 ");
+    run(&mut f, "CREATE C 1 , 2 , 3 , 4 ,");
+    run(&mut f, "C 4 ' + SCAN-CELLS");
+    assert_eq!(run(&mut f, "C @ . C CELL+ @ . C 2 CELLS + @ . C 3 CELLS + @ ."), "1 3 6 10 ");
+    // zero cells
+    assert_eq!(run(&mut f, "C 0 ' 1+ MAP-CELLS C 0 ' + SCAN-CELLS C 0 ' + FILTER-CELLS ."), "0 ");
+    assert_eq!(code(&mut f, "C 0 ' + FOLD-CELLS"), -24);
+}
+
+#[test]
+fn the_cells_variants_check_address_and_count() {
+    let mut f = forth();
+    assert_eq!(code(&mut f, "-8 1 ' 1+ MAP-CELLS"), -9);
+    assert_eq!(code(&mut f, "100000000 1 ' 1+ MAP-CELLS"), -9);
+    assert_eq!(code(&mut f, "HERE 1000000000 ' + FOLD-CELLS"), -9);
+    assert_eq!(code(&mut f, "HERE -1 ' + FOLD-CELLS"), -24);
+    assert_eq!(code(&mut f, "HERE 4611686018427387904 ' + FOLD-CELLS"), -24);
+    assert_eq!(code(&mut f, "HERE 1 [: DROP ;] MAP-CELLS"), -24);
+}
+
+#[test]
+fn the_documented_cells_example() {
+    let mut f = forth();
+    run(&mut f, "CREATE A 3 , 1 , 4 , 1 , 5 ,");
+    assert_eq!(run(&mut f, "A 5 ' MAX FOLD-CELLS ."), "5 ");
+    assert_eq!(run(&mut f, "A 5 [: DUP * ;] MAP-CELLS A 5 ' + FOLD-CELLS ."), "52 ");
+}

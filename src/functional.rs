@@ -72,6 +72,22 @@ impl Forth {
         let at = self.stack.len() - n;
         Ok((callee, self.stack.split_off(at)))
     }
+
+    /// Pops `addr n xt` of a block of `n` cells and checks the address range.
+    fn pop_block(&mut self, who: &str) -> Res<(Callee, usize, usize)> {
+        let xt = self.pop()?;
+        let n = self.pop()?;
+        let a = self.pop()?;
+        let bytes = n
+            .checked_mul(CELL as Cell)
+            .ok_or_else(|| Throw::with(INVALID_ARGUMENT, format!("{who}: bad cell count {n}")))?;
+        if n < 0 {
+            return Err(Throw::with(INVALID_ARGUMENT, format!("{who}: bad cell count {n}")));
+        }
+        let a = self.check(a, bytes)?;
+        let callee = Callee::new(self, xt, who)?;
+        Ok((callee, a, n as usize))
+    }
 }
 
 fn word(f: &mut Forth, wid: Cell, name: &str, word: impl Fn(&mut Forth) -> Res + 'static) {
@@ -140,6 +156,70 @@ impl Extension for Functional {
             }
             f.stack.extend(&out);
             f.push(out.len() as Cell);
+            Ok(())
+        });
+        // MAP-CELLS ( addr n xt -- ): xt is ( x -- y ); every cell is
+        // replaced by its result.
+        word(f, wid, "MAP-CELLS", |f| {
+            let (call, addr, count) = f.pop_block("MAP-CELLS")?;
+            let base = f.stack.len();
+            for i in 0..count {
+                let at = addr + i * CELL;
+                let x = f.get(at);
+                let res = call.apply(f, "MAP-CELLS", base, &[x])?;
+                f.set(at, res);
+            }
+            Ok(())
+        });
+        // FOLD-CELLS ( addr n xt -- r ): xt is ( acc x -- acc' ); the first
+        // cell is the first acc, so n must be at least 1.
+        word(f, wid, "FOLD-CELLS", |f| {
+            let (call, addr, count) = f.pop_block("FOLD-CELLS")?;
+            let base = f.stack.len();
+            if count == 0 {
+                return Err(Throw::with(
+                    INVALID_ARGUMENT,
+                    "FOLD-CELLS: no cells, so no start value",
+                ));
+            }
+            let mut acc = f.get(addr);
+            for i in 1..count {
+                let x = f.get(addr + i * CELL);
+                acc = call.apply(f, "FOLD-CELLS", base, &[acc, x])?;
+            }
+            f.push(acc);
+            Ok(())
+        });
+        // SCAN-CELLS ( addr n xt -- ): like FOLD-CELLS; cell i becomes the
+        // partial result over cells 0..=i, so the first cell stays.
+        word(f, wid, "SCAN-CELLS", |f| {
+            let (call, addr, count) = f.pop_block("SCAN-CELLS")?;
+            let base = f.stack.len();
+            if count > 0 {
+                let mut acc = f.get(addr);
+                for i in 1..count {
+                    let at = addr + i * CELL;
+                    let x = f.get(at);
+                    acc = call.apply(f, "SCAN-CELLS", base, &[acc, x])?;
+                    f.set(at, acc);
+                }
+            }
+            Ok(())
+        });
+        // FILTER-CELLS ( addr n xt -- m ): xt is ( x -- flag ); the cells
+        // that pass move to the front, m is how many.
+        word(f, wid, "FILTER-CELLS", |f| {
+            let (call, addr, count) = f.pop_block("FILTER-CELLS")?;
+            let base = f.stack.len();
+            let mut kept = 0;
+            for i in 0..count {
+                let x = f.get(addr + i * CELL);
+                if call.apply(f, "FILTER-CELLS", base, &[x])? != 0 {
+                    f.set(addr + kept * CELL, x);
+                    kept += 1;
+                }
+            }
+            f.push(kept as Cell);
             Ok(())
         });
         // RANGE ( a b -- a .. b-1 n ): the numbers from a up to b.

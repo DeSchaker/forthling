@@ -88,6 +88,7 @@ ALSO FUNCTIONAL
 - `SCAN ( x1 .. xn n xt -- r1 .. rn )`: like `FOLD`, keeping every partial result.
 - `FILTER ( x1 .. xn n xt -- y1 .. ym m )`, `xt` is `( x -- flag )`.
 - `RANGE ( a b -- a .. b-1 n )`.
+- `MAP-CELLS ( addr n xt -- )`, `FOLD-CELLS ( addr n xt -- r )`, `SCAN-CELLS ( addr n xt -- )` and `FILTER-CELLS ( addr n xt -- m )` are the same on a block of n cells in memory, for large amounts of data. `MAP-CELLS`, `SCAN-CELLS` and `FILTER-CELLS` change the block in place; `FILTER-CELLS` moves the cells that pass to the front and `m` is how many. `CREATE A 3 , 1 , 4 , 1 , 5 ,  A 5 ' MAX FOLD-CELLS .` prints 5.
 
 ## Tutorial
 
