@@ -192,6 +192,71 @@ impl Server {
         })
     }
 
+    fn eval(&mut self, args: &Map<String, Value>) -> Result<Value, Failure> {
+        let Some(code) = args.get("code").and_then(Value::as_str) else {
+            return Err((INVALID_PARAMS, "forth_eval needs code, a string".into()));
+        };
+        match args.get("data") {
+            None => {}
+            Some(Value::String(data)) if data.len() <= self.settings.memory => {
+                *self.data.borrow_mut() = data.clone().into_bytes();
+            }
+            Some(Value::String(_)) => {
+                return Err((INVALID_PARAMS, "data is larger than the Forth memory".into()));
+            }
+            Some(_) => return Err((INVALID_PARAMS, "data must be a string".into())),
+        }
+        match args.get("files") {
+            None => {}
+            Some(Value::Object(files)) => {
+                let Some(texts) = files.values().map(Value::as_str).collect::<Option<Vec<_>>>()
+                else {
+                    return Err((INVALID_PARAMS, "each file must be a string".into()));
+                };
+                for (name, text) in files.keys().zip(texts) {
+                    self.files
+                        .insert(name, text)
+                        .map_err(|e| (INVALID_PARAMS, format!("file {name}: {e}")))?;
+                }
+            }
+            Some(_) => {
+                return Err((INVALID_PARAMS, "files must be an object of texts".into()));
+            }
+        }
+        let trace = match args.get("trace") {
+            None | Some(Value::Bool(false)) => false,
+            Some(Value::Bool(true)) => true,
+            Some(_) => return Err((INVALID_PARAMS, "trace must be a boolean".into())),
+        };
+        self.forth.record_trace(trace.then_some(MAX_TRACE));
+        let result = self.forth.interpret(code);
+        self.forth.record_trace(None);
+        let dropped = self.forth.trace_dropped();
+        let entries = self.forth.take_trace();
+        let breaks = std::mem::take(&mut *self.breaks.borrow_mut());
+        let output = String::from_utf8_lossy(&self.forth.take_output()).into_owned();
+        let mut answer = state(&self.forth, &output, result.err());
+        let content = &mut answer["structuredContent"];
+        content["steps"] = json!(self.forth.steps_used());
+        content["max_depth"] = json!(self.forth.max_depth());
+        if trace {
+            content["trace"] = entries.iter().map(trace_json).collect();
+            content["trace_dropped"] = json!(dropped);
+            let text = &mut answer["content"][0]["text"];
+            let lines = trace_text(&entries, dropped);
+            *text = json!(format!("{lines}{}", text.as_str().unwrap_or_default()));
+        }
+        if !breaks.seen.is_empty() {
+            let content = &mut answer["structuredContent"];
+            content["breaks"] = breaks.seen.iter().map(context_json).collect();
+            content["breaks_dropped"] = json!(breaks.dropped);
+            let text = &mut answer["content"][0]["text"];
+            let lines = breaks_text(&breaks);
+            *text = json!(format!("{lines}{}", text.as_str().unwrap_or_default()));
+        }
+        Ok(answer)
+    }
+
     fn call(&mut self, params: &Value) -> Result<Value, Failure> {
         let name = params.get("name").and_then(Value::as_str).unwrap_or_default();
         let none = Map::new();
@@ -209,74 +274,7 @@ impl Server {
             return Err((INVALID_PARAMS, format!("{name} takes no argument {key}")));
         }
         match name {
-            "forth_eval" => {
-                let Some(code) = args.get("code").and_then(Value::as_str) else {
-                    return Err((INVALID_PARAMS, "forth_eval needs code, a string".into()));
-                };
-                match args.get("data") {
-                    None => {}
-                    Some(Value::String(data)) if data.len() <= self.settings.memory => {
-                        *self.data.borrow_mut() = data.clone().into_bytes();
-                    }
-                    Some(Value::String(_)) => {
-                        return Err((
-                            INVALID_PARAMS,
-                            "data is larger than the Forth memory".into(),
-                        ));
-                    }
-                    Some(_) => return Err((INVALID_PARAMS, "data must be a string".into())),
-                }
-                match args.get("files") {
-                    None => {}
-                    Some(Value::Object(files)) => {
-                        let Some(texts) =
-                            files.values().map(Value::as_str).collect::<Option<Vec<_>>>()
-                        else {
-                            return Err((INVALID_PARAMS, "each file must be a string".into()));
-                        };
-                        for (name, text) in files.keys().zip(texts) {
-                            self.files
-                                .insert(name, text)
-                                .map_err(|e| (INVALID_PARAMS, format!("file {name}: {e}")))?;
-                        }
-                    }
-                    Some(_) => {
-                        return Err((INVALID_PARAMS, "files must be an object of texts".into()));
-                    }
-                }
-                let trace = match args.get("trace") {
-                    None | Some(Value::Bool(false)) => false,
-                    Some(Value::Bool(true)) => true,
-                    Some(_) => return Err((INVALID_PARAMS, "trace must be a boolean".into())),
-                };
-                self.forth.record_trace(trace.then_some(MAX_TRACE));
-                let result = self.forth.interpret(code);
-                self.forth.record_trace(None);
-                let dropped = self.forth.trace_dropped();
-                let entries = self.forth.take_trace();
-                let breaks = std::mem::take(&mut *self.breaks.borrow_mut());
-                let output = String::from_utf8_lossy(&self.forth.take_output()).into_owned();
-                let mut answer = state(&self.forth, &output, result.err());
-                let content = &mut answer["structuredContent"];
-                content["steps"] = json!(self.forth.steps_used());
-                content["max_depth"] = json!(self.forth.max_depth());
-                if trace {
-                    content["trace"] = entries.iter().map(trace_json).collect();
-                    content["trace_dropped"] = json!(dropped);
-                    let text = &mut answer["content"][0]["text"];
-                    let lines = trace_text(&entries, dropped);
-                    *text = json!(format!("{lines}{}", text.as_str().unwrap_or_default()));
-                }
-                if !breaks.seen.is_empty() {
-                    let content = &mut answer["structuredContent"];
-                    content["breaks"] = breaks.seen.iter().map(context_json).collect();
-                    content["breaks_dropped"] = json!(breaks.dropped);
-                    let text = &mut answer["content"][0]["text"];
-                    let lines = breaks_text(&breaks);
-                    *text = json!(format!("{lines}{}", text.as_str().unwrap_or_default()));
-                }
-                Ok(answer)
-            }
+            "forth_eval" => self.eval(args),
             "forth_stack" => Ok(state(&self.forth, "", None)),
             "forth_words" => {
                 let words = self.forth.program_words();

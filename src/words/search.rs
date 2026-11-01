@@ -7,6 +7,12 @@
 use crate::*;
 
 pub(crate) fn install(f: &mut Forth) {
+    install_search(f);
+    install_search_ext(f);
+    install_tools(f);
+}
+
+fn install_search(f: &mut Forth) {
     f.prim("FORTH-WORDLIST", |f| {
         f.push(to_cell(FORTH_WID));
         Ok(())
@@ -69,6 +75,9 @@ pub(crate) fn install(f: &mut Forth) {
         }
         Ok(())
     });
+}
+
+fn install_search_ext(f: &mut Forth) {
     // SEARCH EXT
     f.prim("FORTH", |f| {
         f.set_first(FORTH_WID);
@@ -103,6 +112,9 @@ pub(crate) fn install(f: &mut Forth) {
         f.emit_str(&text);
         Ok(())
     });
+}
+
+fn install_tools(f: &mut Forth) {
     // TOOLS EXT
     f.prim("TRAVERSE-WORDLIST", |f| {
         let wid = f.pop_wid()?;

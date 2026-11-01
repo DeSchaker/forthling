@@ -4,6 +4,11 @@
 use crate::*;
 
 pub(crate) fn install(f: &mut Forth) {
+    install_xchar(f);
+    install_xchar_ext(f);
+}
+
+fn install_xchar(f: &mut Forth) {
     f.prim("X-SIZE", |f| {
         let (a, n) = f.pop2()?;
         let size = if n <= 0 { 0 } else { decode(f.xbytes(a, to_index(n))?).1 };
@@ -68,7 +73,9 @@ pub(crate) fn install(f: &mut Forth) {
         f.push(xc);
         Ok(())
     });
+}
 
+fn install_xchar_ext(f: &mut Forth) {
     // XCHAR EXT
     f.prim("+X/STRING", |f| {
         let (a, n) = f.pop2()?;

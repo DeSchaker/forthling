@@ -3,6 +3,11 @@
 use crate::*;
 
 pub(crate) fn install(f: &mut Forth) {
+    install_include(f);
+    install_input(f);
+}
+
+fn install_include(f: &mut Forth) {
     f.prim("WORDS", |f| {
         f.words();
         Ok(())
@@ -32,6 +37,9 @@ pub(crate) fn install(f: &mut Forth) {
         f.need(Permission::Files, || format!("REQUIRED {path}"))?;
         f.require(&path)
     });
+}
+
+fn install_input(f: &mut Forth) {
     f.prim("ACCEPT", |f| {
         let (i, n) = f.pop_str()?;
         let line = f.read_line().unwrap_or_default();

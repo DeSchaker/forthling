@@ -10,11 +10,14 @@
 
 use crate::*;
 
-#[allow(
-    clippy::many_single_char_names,
-    reason = "names of Forth stack items, as in the stack comments (a, n, u, x)"
-)]
 pub(crate) fn install(f: &mut Forth) {
+    install_conversion(f);
+    install_memory(f);
+    install_arithmetic(f);
+    install_output(f);
+}
+
+fn install_conversion(f: &mut Forth) {
     // conversion
     f.prim(">FLOAT", |f| {
         let (i, n) = f.pop_str()?;
@@ -51,7 +54,9 @@ pub(crate) fn install(f: &mut Forth) {
         f.push(r as Cell);
         Ok(())
     });
+}
 
+fn install_memory(f: &mut Forth) {
     // memory
     f.prim("F@", |f| {
         let a = f.pop()?;
@@ -121,7 +126,9 @@ pub(crate) fn install(f: &mut Forth) {
         f.new_word(&name, Kind::FValue(addr))?;
         Ok(())
     });
+}
 
+fn install_arithmetic(f: &mut Forth) {
     // arithmetic
     f.prim("F+", |f| f.fbinop(|a, b| a + b));
     f.prim("F-", |f| f.fbinop(|a, b| a - b));
@@ -195,7 +202,13 @@ pub(crate) fn install(f: &mut Forth) {
         f.push(flag(near));
         Ok(())
     });
+}
 
+#[allow(
+    clippy::many_single_char_names,
+    reason = "names of Forth stack items, as in the stack comments (a, n, u, x)"
+)]
+fn install_output(f: &mut Forth) {
     // output
     f.prim("REPRESENT", |f| {
         let (a, u) = f.pop2()?;

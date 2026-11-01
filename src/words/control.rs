@@ -3,6 +3,12 @@
 use crate::*;
 
 pub(crate) fn install(f: &mut Forth) {
+    install_branches(f);
+    install_case(f);
+    install_loops(f);
+}
+
+fn install_branches(f: &mut Forth) {
     f.compile_imm("IF", |f| {
         let p = f.emit_fwd(Instr::ZBranch(0));
         f.ctrl.push(Ctrl::Orig(p));
@@ -68,6 +74,9 @@ pub(crate) fn install(f: &mut Forth) {
         f.ctrl.push(item);
         Ok(())
     });
+}
+
+fn install_case(f: &mut Forth) {
     f.compile_imm("CASE", |f| {
         f.ctrl.push(Ctrl::Case);
         Ok(())
@@ -98,6 +107,9 @@ pub(crate) fn install(f: &mut Forth) {
             }
         }
     });
+}
+
+fn install_loops(f: &mut Forth) {
     f.compile_imm("DO", |f| {
         let p = f.emit_fwd(Instr::Do(0));
         f.ctrl.push(Ctrl::Do(p));

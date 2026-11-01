@@ -449,178 +449,182 @@ impl Extension for Json {
 
     fn install(&self, f: &mut Forth) {
         let wid = f.wordlist("JSON");
-        // Reading: a JSON value is ( c-addr u ); a piece of it is too.
-        word(f, wid, "JSON-VALID?", |f| {
-            let v = f.pop_json()?;
-            f.push(flag(v.is_some()));
-            Ok(())
-        });
-        // JSON-TYPE ( json -- n ): 0 null, 1 boolean, 2 number, 3 string,
-        // 4 array, 5 object, -1 no valid JSON.
-        word(f, wid, "JSON-TYPE", |f| {
-            let v = f.pop_json()?;
-            let n = v.map_or(-1, |(s, _)| match f.mem[s] {
-                b'n' => 0,
-                b't' | b'f' => 1,
-                b'"' => 3,
-                b'[' => 4,
-                b'{' => 5,
-                _ => 2,
-            });
-            f.push(n);
-            Ok(())
-        });
-        // JSON-GET ( json c-addr u -- json' flag ): the value of a key.
-        word(f, wid, "JSON-GET", |f| {
-            let key = f.pop_bytes()?;
-            let v = f.pop_json()?;
-            f.charge_again(v, 1)?;
-            let found = v.and_then(|v| get(&f.mem, v, &key));
-            f.push_span(found);
-            Ok(())
-        });
-        // JSON-NTH ( json n -- json' flag ): element n (from 0) of an array,
-        // or the value of entry n of an object.
-        word(f, wid, "JSON-NTH", |f| {
-            let n = f.pop()?;
-            let v = f.pop_json()?;
-            f.charge_again(v, 1)?;
-            let found = v.and_then(|v| nth(&f.mem, v, n)).map(|e| e.value);
-            f.push_span(found);
-            Ok(())
-        });
-        // JSON-NAME ( json n -- c-addr u flag ): the key of entry n of an
-        // object, ALLOCATEd.
-        word(f, wid, "JSON-NAME", |f| {
-            let n = f.pop()?;
-            let v = f.pop_json()?;
-            f.charge_again(v, 1)?;
-            let key = v.and_then(|v| nth(&f.mem, v, n)).and_then(|e| e.key);
-            f.push_unescaped(key)
-        });
-        // JSON-LENGTH ( json -- n ): the elements of an array or object; -1
-        // for anything else.
-        word(f, wid, "JSON-LENGTH", |f| {
-            let v = f.pop_json()?;
-            f.charge_again(v, 1)?;
-            let n = v.and_then(|v| elements(&f.mem, v)).map_or(-1, |e| to_cell(e.len()));
-            f.push(n);
-            Ok(())
-        });
-        // JSON@ ( json c-addr u -- json' flag ): the value at a path, such as
-        // users[0].name, or ["a key"] for a key with a dot in it.
-        word(f, wid, "JSON@", |f| {
-            let path = f.pop_bytes()?;
-            let v = f.pop_json()?;
-            let steps = path.iter().filter(|&&c| c == b'.' || c == b'[').count() + 1;
-            f.charge_again(v, steps)?;
-            let found = v.and_then(|v| follow(&f.mem, v, &path));
-            f.push_span(found);
-            Ok(())
-        });
-        // JSON>NUMBER ( json -- n flag ): an integer that fits in a cell.
-        word(f, wid, "JSON>NUMBER", |f| {
-            let v = f.pop_json()?;
-            let number = kind(&f.mem, v, |c| c == b'-' || c.is_ascii_digit());
-            let n = number.and_then(|(s, e)| std::str::from_utf8(&f.mem[s..e]).ok()?.parse().ok());
-            f.push(n.unwrap_or(0));
-            f.push(flag(n.is_some()));
-            Ok(())
-        });
-        // JSON>FLOAT ( json -- flag ) ( F: -- r | ): any number.
-        word(f, wid, "JSON>FLOAT", |f| {
-            let v = f.pop_json()?;
-            let number = kind(&f.mem, v, |c| c == b'-' || c.is_ascii_digit());
-            match number.and_then(|(s, e)| std::str::from_utf8(&f.mem[s..e]).ok()?.parse().ok()) {
-                Some(r) => {
-                    f.fpush(r)?;
-                    f.push(-1);
-                }
-                None => f.push(0),
-            }
-            Ok(())
-        });
-        // JSON>FLAG ( json -- flag ok ): true or false.
-        word(f, wid, "JSON>FLAG", |f| {
-            let v = f.pop_json()?;
-            let b = kind(&f.mem, v, |c| c == b't' || c == b'f').map(|(s, _)| f.mem[s] == b't');
-            f.push(flag(b == Some(true)));
-            f.push(flag(b.is_some()));
-            Ok(())
-        });
-        // JSON>STRING ( json -- c-addr u flag ): a string without its
-        // escapes, ALLOCATEd.
-        word(f, wid, "JSON>STRING", |f| {
-            let v = f.pop_json()?;
-            let string = kind(&f.mem, v, |c| c == b'"');
-            f.push_unescaped(string)
-        });
-
-        // Writing, to the output or between <JSON and JSON> to a string.
-        word(f, wid, "JSON{", |f| f.open_json(true));
-        word(f, wid, "JSON}", |f| f.close_json(true));
-        word(f, wid, "JSON[", |f| f.open_json(false));
-        word(f, wid, "JSON]", |f| f.close_json(false));
-        // JSON-KEY ( c-addr u -- ): the key of the next value in an object.
-        word(f, wid, "JSON-KEY", |f| {
-            let key = f.pop_bytes()?;
-            let comma = f.state::<Writers>().current().key()?;
-            f.write_json(comma)?;
-            f.write_json(&quoted(&key))?;
-            f.write_json(b":")
-        });
-        // JSON-STRING ( c-addr u -- )
-        word(f, wid, "JSON-STRING", |f| {
-            let text = f.pop_bytes()?;
-            f.charge(text.len())?;
-            f.write_value(&quoted(&text))
-        });
-        // JSON-NUMBER ( n -- ), always in decimal.
-        word(f, wid, "JSON-NUMBER", |f| {
-            let n = f.pop()?;
-            f.write_value(n.to_string().as_bytes())
-        });
-        // JSON-FLOAT ( F: r -- ); null for an infinity or a NaN, which JSON
-        // does not have.
-        word(f, wid, "JSON-FLOAT", |f| {
-            let r = f.fpop()?;
-            let text = if r.is_finite() { format!("{r:?}") } else { "null".into() };
-            f.write_value(text.as_bytes())
-        });
-        // JSON-FLAG ( flag -- ): true unless 0.
-        word(f, wid, "JSON-FLAG", |f| {
-            let b = f.pop()? != 0;
-            f.write_value(if b { b"true" } else { b"false" })
-        });
-        word(f, wid, "JSON-NULL", |f| f.write_value(b"null"));
-        // JSON-RAW ( json -- ): a JSON value as it is; -24 if it is none.
-        word(f, wid, "JSON-RAW", |f| {
-            let v = f.pop_json()?;
-            let (s, e) = v.ok_or_else(|| Throw::with(INVALID_ARGUMENT, "JSON-RAW needs JSON"))?;
-            let text = f.mem[s..e].to_vec();
-            f.write_value(&text)
-        });
-        // <JSON ( -- ) and JSON> ( -- c-addr u ): what is written in between
-        // becomes a string, ALLOCATEd; they can be nested.
-        word(f, wid, "<JSON", |f| {
-            let strings = &mut f.state::<Writers>().strings;
-            if strings.len() >= MAX_DEPTH {
-                return Err(mismatch("<JSON nested deeper than 512"));
-            }
-            strings.push(Writer::default());
-            Ok(())
-        });
-        word(f, wid, "JSON>", |f| {
-            let w = f
-                .state::<Writers>()
-                .strings
-                .pop()
-                .ok_or_else(|| mismatch("JSON> without <JSON"))?;
-            if !w.open.is_empty() {
-                return Err(mismatch("JSON> before the arrays and objects are closed"));
-            }
-            f.charge(w.text.len())?;
-            f.push_bytes(&w.text)
-        });
+        install_reading(f, wid);
+        install_writing(f, wid);
     }
+}
+
+fn install_reading(f: &mut Forth, wid: Cell) {
+    // Reading: a JSON value is ( c-addr u ); a piece of it is too.
+    word(f, wid, "JSON-VALID?", |f| {
+        let v = f.pop_json()?;
+        f.push(flag(v.is_some()));
+        Ok(())
+    });
+    // JSON-TYPE ( json -- n ): 0 null, 1 boolean, 2 number, 3 string,
+    // 4 array, 5 object, -1 no valid JSON.
+    word(f, wid, "JSON-TYPE", |f| {
+        let v = f.pop_json()?;
+        let n = v.map_or(-1, |(s, _)| match f.mem[s] {
+            b'n' => 0,
+            b't' | b'f' => 1,
+            b'"' => 3,
+            b'[' => 4,
+            b'{' => 5,
+            _ => 2,
+        });
+        f.push(n);
+        Ok(())
+    });
+    // JSON-GET ( json c-addr u -- json' flag ): the value of a key.
+    word(f, wid, "JSON-GET", |f| {
+        let key = f.pop_bytes()?;
+        let v = f.pop_json()?;
+        f.charge_again(v, 1)?;
+        let found = v.and_then(|v| get(&f.mem, v, &key));
+        f.push_span(found);
+        Ok(())
+    });
+    // JSON-NTH ( json n -- json' flag ): element n (from 0) of an array,
+    // or the value of entry n of an object.
+    word(f, wid, "JSON-NTH", |f| {
+        let n = f.pop()?;
+        let v = f.pop_json()?;
+        f.charge_again(v, 1)?;
+        let found = v.and_then(|v| nth(&f.mem, v, n)).map(|e| e.value);
+        f.push_span(found);
+        Ok(())
+    });
+    // JSON-NAME ( json n -- c-addr u flag ): the key of entry n of an
+    // object, ALLOCATEd.
+    word(f, wid, "JSON-NAME", |f| {
+        let n = f.pop()?;
+        let v = f.pop_json()?;
+        f.charge_again(v, 1)?;
+        let key = v.and_then(|v| nth(&f.mem, v, n)).and_then(|e| e.key);
+        f.push_unescaped(key)
+    });
+    // JSON-LENGTH ( json -- n ): the elements of an array or object; -1
+    // for anything else.
+    word(f, wid, "JSON-LENGTH", |f| {
+        let v = f.pop_json()?;
+        f.charge_again(v, 1)?;
+        let n = v.and_then(|v| elements(&f.mem, v)).map_or(-1, |e| to_cell(e.len()));
+        f.push(n);
+        Ok(())
+    });
+    // JSON@ ( json c-addr u -- json' flag ): the value at a path, such as
+    // users[0].name, or ["a key"] for a key with a dot in it.
+    word(f, wid, "JSON@", |f| {
+        let path = f.pop_bytes()?;
+        let v = f.pop_json()?;
+        let steps = path.iter().filter(|&&c| c == b'.' || c == b'[').count() + 1;
+        f.charge_again(v, steps)?;
+        let found = v.and_then(|v| follow(&f.mem, v, &path));
+        f.push_span(found);
+        Ok(())
+    });
+    // JSON>NUMBER ( json -- n flag ): an integer that fits in a cell.
+    word(f, wid, "JSON>NUMBER", |f| {
+        let v = f.pop_json()?;
+        let number = kind(&f.mem, v, |c| c == b'-' || c.is_ascii_digit());
+        let n = number.and_then(|(s, e)| std::str::from_utf8(&f.mem[s..e]).ok()?.parse().ok());
+        f.push(n.unwrap_or(0));
+        f.push(flag(n.is_some()));
+        Ok(())
+    });
+    // JSON>FLOAT ( json -- flag ) ( F: -- r | ): any number.
+    word(f, wid, "JSON>FLOAT", |f| {
+        let v = f.pop_json()?;
+        let number = kind(&f.mem, v, |c| c == b'-' || c.is_ascii_digit());
+        match number.and_then(|(s, e)| std::str::from_utf8(&f.mem[s..e]).ok()?.parse().ok()) {
+            Some(r) => {
+                f.fpush(r)?;
+                f.push(-1);
+            }
+            None => f.push(0),
+        }
+        Ok(())
+    });
+    // JSON>FLAG ( json -- flag ok ): true or false.
+    word(f, wid, "JSON>FLAG", |f| {
+        let v = f.pop_json()?;
+        let b = kind(&f.mem, v, |c| c == b't' || c == b'f').map(|(s, _)| f.mem[s] == b't');
+        f.push(flag(b == Some(true)));
+        f.push(flag(b.is_some()));
+        Ok(())
+    });
+    // JSON>STRING ( json -- c-addr u flag ): a string without its
+    // escapes, ALLOCATEd.
+    word(f, wid, "JSON>STRING", |f| {
+        let v = f.pop_json()?;
+        let string = kind(&f.mem, v, |c| c == b'"');
+        f.push_unescaped(string)
+    });
+}
+
+fn install_writing(f: &mut Forth, wid: Cell) {
+    // Writing, to the output or between <JSON and JSON> to a string.
+    word(f, wid, "JSON{", |f| f.open_json(true));
+    word(f, wid, "JSON}", |f| f.close_json(true));
+    word(f, wid, "JSON[", |f| f.open_json(false));
+    word(f, wid, "JSON]", |f| f.close_json(false));
+    // JSON-KEY ( c-addr u -- ): the key of the next value in an object.
+    word(f, wid, "JSON-KEY", |f| {
+        let key = f.pop_bytes()?;
+        let comma = f.state::<Writers>().current().key()?;
+        f.write_json(comma)?;
+        f.write_json(&quoted(&key))?;
+        f.write_json(b":")
+    });
+    // JSON-STRING ( c-addr u -- )
+    word(f, wid, "JSON-STRING", |f| {
+        let text = f.pop_bytes()?;
+        f.charge(text.len())?;
+        f.write_value(&quoted(&text))
+    });
+    // JSON-NUMBER ( n -- ), always in decimal.
+    word(f, wid, "JSON-NUMBER", |f| {
+        let n = f.pop()?;
+        f.write_value(n.to_string().as_bytes())
+    });
+    // JSON-FLOAT ( F: r -- ); null for an infinity or a NaN, which JSON
+    // does not have.
+    word(f, wid, "JSON-FLOAT", |f| {
+        let r = f.fpop()?;
+        let text = if r.is_finite() { format!("{r:?}") } else { "null".into() };
+        f.write_value(text.as_bytes())
+    });
+    // JSON-FLAG ( flag -- ): true unless 0.
+    word(f, wid, "JSON-FLAG", |f| {
+        let b = f.pop()? != 0;
+        f.write_value(if b { b"true" } else { b"false" })
+    });
+    word(f, wid, "JSON-NULL", |f| f.write_value(b"null"));
+    // JSON-RAW ( json -- ): a JSON value as it is; -24 if it is none.
+    word(f, wid, "JSON-RAW", |f| {
+        let v = f.pop_json()?;
+        let (s, e) = v.ok_or_else(|| Throw::with(INVALID_ARGUMENT, "JSON-RAW needs JSON"))?;
+        let text = f.mem[s..e].to_vec();
+        f.write_value(&text)
+    });
+    // <JSON ( -- ) and JSON> ( -- c-addr u ): what is written in between
+    // becomes a string, ALLOCATEd; they can be nested.
+    word(f, wid, "<JSON", |f| {
+        let strings = &mut f.state::<Writers>().strings;
+        if strings.len() >= MAX_DEPTH {
+            return Err(mismatch("<JSON nested deeper than 512"));
+        }
+        strings.push(Writer::default());
+        Ok(())
+    });
+    word(f, wid, "JSON>", |f| {
+        let w =
+            f.state::<Writers>().strings.pop().ok_or_else(|| mismatch("JSON> without <JSON"))?;
+        if !w.open.is_empty() {
+            return Err(mismatch("JSON> before the arrays and objects are closed"));
+        }
+        f.charge(w.text.len())?;
+        f.push_bytes(&w.text)
+    });
 }

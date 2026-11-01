@@ -3,6 +3,12 @@
 use crate::*;
 
 pub(crate) fn install(f: &mut Forth) {
+    install_parsing(f);
+    install_strings(f);
+    install_substitute(f);
+}
+
+fn install_parsing(f: &mut Forth) {
     f.imm("(", |f| {
         // In a file, a comment continues on the next lines until the `)`.
         loop {
@@ -71,7 +77,9 @@ pub(crate) fn install(f: &mut Forth) {
         f.code.push(Instr::Lit(to_cell(addr)));
         Ok(())
     });
+}
 
+fn install_strings(f: &mut Forth) {
     // strings; /STRING BLANK -TRAILING are in the prelude
     f.prim("COMPARE", |f| {
         let (a2, n2) = f.pop2()?;
@@ -115,6 +123,9 @@ pub(crate) fn install(f: &mut Forth) {
         }
         Ok(())
     });
+}
+
+fn install_substitute(f: &mut Forth) {
     f.compile_imm("SLITERAL", |f| {
         let (a, n) = f.pop2()?;
         let text = f.bytes(a, n)?;

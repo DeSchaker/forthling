@@ -301,154 +301,162 @@ impl Extension for Sqlite {
     }
 
     fn install(&self, f: &mut Forth) {
-        // DB-OPEN ( c-addr u -- db ior ): opens or creates a database file;
-        // :memory: is a database in memory, the only kind unless the
-        // program may use the disk (Permission::Files and the disk as its
-        // file system; a database file does not go through the file system).
-        word(f, "DB-OPEN", |f| {
-            let path = pop_text(f)?;
-            let (files, room) = (f.disk_files(), f.memory().len());
-            let result = f.state::<State>().open(&path, files, room);
-            push_value_ior(f, result);
-            Ok(())
-        });
-        // DB-CLOSE ( db -- ior ), which also finalizes its statements.
-        word(f, "DB-CLOSE", |f| {
-            let db = f.pop()?;
-            let result = f.state::<State>().close(db);
-            push_ior(f, result);
-            Ok(())
-        });
-        // DB-EXEC ( c-addr u db -- ior ): runs SQL without results, which
-        // may be several statements separated by semicolons.
-        word(f, "DB-EXEC", |f| {
-            let db = f.pop()?;
-            let sql = pop_text(f)?;
-            f.charge(sql.len())?;
-            let bounds = bounds(f);
-            let result = f.state::<State>().exec(&sql, db, bounds);
-            f.check_time()?; // SQLite was stopped because the time is up
-            push_ior(f, result);
-            Ok(())
-        });
-        // DB-PREPARE ( c-addr u db -- stmt ior ): one statement, which may
-        // have parameters ?1, ?2, …
-        word(f, "DB-PREPARE", |f| {
-            let db = f.pop()?;
-            let sql = pop_text(f)?;
-            let result = f.state::<State>().prepare(sql, db);
-            push_value_ior(f, result);
-            Ok(())
-        });
-        // DB-BIND ( x n stmt -- ior ): an integer for parameter n.
-        word(f, "DB-BIND", |f| {
-            let (stmt, n, x) = (f.pop()?, f.pop()?, f.pop()?);
-            let result = f.state::<State>().bind(Value::Integer(x), n, stmt);
-            push_ior(f, result);
-            Ok(())
-        });
-        // DB-BIND-TEXT ( c-addr u n stmt -- ior )
-        word(f, "DB-BIND-TEXT", |f| {
-            let (stmt, n) = (f.pop()?, f.pop()?);
-            let text = pop_text(f)?;
-            let result = f.state::<State>().bind(Value::Text(text), n, stmt);
-            push_ior(f, result);
-            Ok(())
-        });
-        // DB-BIND-FLOAT ( n stmt -- ior ) ( F: r -- )
-        word(f, "DB-BIND-FLOAT", |f| {
-            let (stmt, n) = (f.pop()?, f.pop()?);
-            let r = f.fpop()?;
-            let result = f.state::<State>().bind(Value::Real(r), n, stmt);
-            push_ior(f, result);
-            Ok(())
-        });
-        // DB-BIND-NULL ( n stmt -- ior )
-        word(f, "DB-BIND-NULL", |f| {
-            let (stmt, n) = (f.pop()?, f.pop()?);
-            let result = f.state::<State>().bind(Value::Null, n, stmt);
-            push_ior(f, result);
-            Ok(())
-        });
-        // DB-STEP ( stmt -- flag ior ): true when there is a next row.
-        word(f, "DB-STEP", |f| {
-            let stmt = f.pop()?;
-            let bounds = bounds(f);
-            let result = f.state::<State>().step(stmt, bounds);
-            f.check_time()?; // SQLite was stopped because the time is up
-            let result = result.map(|(row, read)| (if row { -1 } else { 0 }, read));
-            f.charge(result.as_ref().map_or(0, |&(_, read)| read))?;
-            push_value_ior(f, result.map(|(flag, _)| flag));
-            Ok(())
-        });
-        // DB-RESET ( stmt -- ior ): the next DB-STEP runs it again.
-        word(f, "DB-RESET", |f| {
-            let stmt = f.pop()?;
-            let result = f.state::<State>().reset(stmt);
-            push_ior(f, result);
-            Ok(())
-        });
-        // DB-FINALIZE ( stmt -- ior )
-        word(f, "DB-FINALIZE", |f| {
-            let stmt = f.pop()?;
-            let result = f.state::<State>().finalize(stmt);
-            push_ior(f, result);
-            Ok(())
-        });
-        // DB-COLUMNS ( stmt -- n ): the columns of the current row.
-        word(f, "DB-COLUMNS", |f| {
-            let stmt = f.pop()?;
-            let state = f.state::<State>();
-            let s = state.stmt(stmt).map_err(|Failure(code, m)| Throw::with(code, m))?;
-            let n = s.row.as_ref().map_or(0, Vec::len);
-            f.push(n as Cell);
-            Ok(())
-        });
-        // DB-COLUMN ( n stmt -- c-addr u ): column n as text, ALLOCATEd.
-        word(f, "DB-COLUMN", |f| {
-            let value = column(f)?;
-            f.push_bytes(&text(value))
-        });
-        // DB-COLUMN-INT ( n stmt -- x )
-        word(f, "DB-COLUMN-INT", |f| {
-            let value = column(f)?;
-            f.push(integer(value));
-            Ok(())
-        });
-        // DB-COLUMN-FLOAT ( n stmt -- ) ( F: -- r )
-        word(f, "DB-COLUMN-FLOAT", |f| {
-            let value = column(f)?;
-            f.fpush(real(value))
-        });
-        // DB-NULL? ( n stmt -- flag )
-        word(f, "DB-NULL?", |f| {
-            let value = column(f)?;
-            f.push(if value == Value::Null { -1 } else { 0 });
-            Ok(())
-        });
-        // DB-CHANGES ( db -- n ): the rows the latest statement changed.
-        word(f, "DB-CHANGES", |f| {
-            let db = f.pop()?;
-            let state = f.state::<State>();
-            let conn = state.db(db).map_err(|Failure(code, m)| Throw::with(code, m))?;
-            let n = conn.changes() as Cell;
-            f.push(n);
-            Ok(())
-        });
-        // DB-LAST-ROWID ( db -- n ): the rowid of the latest INSERT.
-        word(f, "DB-LAST-ROWID", |f| {
-            let db = f.pop()?;
-            let state = f.state::<State>();
-            let conn = state.db(db).map_err(|Failure(code, m)| Throw::with(code, m))?;
-            let n = conn.last_insert_rowid();
-            f.push(n);
-            Ok(())
-        });
-        // DB-ERROR ( -- c-addr u ): the message of the latest nonzero ior,
-        // ALLOCATEd.
-        word(f, "DB-ERROR", |f| {
-            let message = f.state::<State>().error.clone();
-            f.push_bytes(message.as_bytes())
-        });
+        install_statements(f);
+        install_results(f);
     }
+}
+
+fn install_statements(f: &mut Forth) {
+    // DB-OPEN ( c-addr u -- db ior ): opens or creates a database file;
+    // :memory: is a database in memory, the only kind unless the
+    // program may use the disk (Permission::Files and the disk as its
+    // file system; a database file does not go through the file system).
+    word(f, "DB-OPEN", |f| {
+        let path = pop_text(f)?;
+        let (files, room) = (f.disk_files(), f.memory().len());
+        let result = f.state::<State>().open(&path, files, room);
+        push_value_ior(f, result);
+        Ok(())
+    });
+    // DB-CLOSE ( db -- ior ), which also finalizes its statements.
+    word(f, "DB-CLOSE", |f| {
+        let db = f.pop()?;
+        let result = f.state::<State>().close(db);
+        push_ior(f, result);
+        Ok(())
+    });
+    // DB-EXEC ( c-addr u db -- ior ): runs SQL without results, which
+    // may be several statements separated by semicolons.
+    word(f, "DB-EXEC", |f| {
+        let db = f.pop()?;
+        let sql = pop_text(f)?;
+        f.charge(sql.len())?;
+        let bounds = bounds(f);
+        let result = f.state::<State>().exec(&sql, db, bounds);
+        f.check_time()?; // SQLite was stopped because the time is up
+        push_ior(f, result);
+        Ok(())
+    });
+    // DB-PREPARE ( c-addr u db -- stmt ior ): one statement, which may
+    // have parameters ?1, ?2, …
+    word(f, "DB-PREPARE", |f| {
+        let db = f.pop()?;
+        let sql = pop_text(f)?;
+        let result = f.state::<State>().prepare(sql, db);
+        push_value_ior(f, result);
+        Ok(())
+    });
+    // DB-BIND ( x n stmt -- ior ): an integer for parameter n.
+    word(f, "DB-BIND", |f| {
+        let (stmt, n, x) = (f.pop()?, f.pop()?, f.pop()?);
+        let result = f.state::<State>().bind(Value::Integer(x), n, stmt);
+        push_ior(f, result);
+        Ok(())
+    });
+    // DB-BIND-TEXT ( c-addr u n stmt -- ior )
+    word(f, "DB-BIND-TEXT", |f| {
+        let (stmt, n) = (f.pop()?, f.pop()?);
+        let text = pop_text(f)?;
+        let result = f.state::<State>().bind(Value::Text(text), n, stmt);
+        push_ior(f, result);
+        Ok(())
+    });
+    // DB-BIND-FLOAT ( n stmt -- ior ) ( F: r -- )
+    word(f, "DB-BIND-FLOAT", |f| {
+        let (stmt, n) = (f.pop()?, f.pop()?);
+        let r = f.fpop()?;
+        let result = f.state::<State>().bind(Value::Real(r), n, stmt);
+        push_ior(f, result);
+        Ok(())
+    });
+    // DB-BIND-NULL ( n stmt -- ior )
+    word(f, "DB-BIND-NULL", |f| {
+        let (stmt, n) = (f.pop()?, f.pop()?);
+        let result = f.state::<State>().bind(Value::Null, n, stmt);
+        push_ior(f, result);
+        Ok(())
+    });
+}
+
+fn install_results(f: &mut Forth) {
+    // DB-STEP ( stmt -- flag ior ): true when there is a next row.
+    word(f, "DB-STEP", |f| {
+        let stmt = f.pop()?;
+        let bounds = bounds(f);
+        let result = f.state::<State>().step(stmt, bounds);
+        f.check_time()?; // SQLite was stopped because the time is up
+        let result = result.map(|(row, read)| (if row { -1 } else { 0 }, read));
+        f.charge(result.as_ref().map_or(0, |&(_, read)| read))?;
+        push_value_ior(f, result.map(|(flag, _)| flag));
+        Ok(())
+    });
+    // DB-RESET ( stmt -- ior ): the next DB-STEP runs it again.
+    word(f, "DB-RESET", |f| {
+        let stmt = f.pop()?;
+        let result = f.state::<State>().reset(stmt);
+        push_ior(f, result);
+        Ok(())
+    });
+    // DB-FINALIZE ( stmt -- ior )
+    word(f, "DB-FINALIZE", |f| {
+        let stmt = f.pop()?;
+        let result = f.state::<State>().finalize(stmt);
+        push_ior(f, result);
+        Ok(())
+    });
+    // DB-COLUMNS ( stmt -- n ): the columns of the current row.
+    word(f, "DB-COLUMNS", |f| {
+        let stmt = f.pop()?;
+        let state = f.state::<State>();
+        let s = state.stmt(stmt).map_err(|Failure(code, m)| Throw::with(code, m))?;
+        let n = s.row.as_ref().map_or(0, Vec::len);
+        f.push(n as Cell);
+        Ok(())
+    });
+    // DB-COLUMN ( n stmt -- c-addr u ): column n as text, ALLOCATEd.
+    word(f, "DB-COLUMN", |f| {
+        let value = column(f)?;
+        f.push_bytes(&text(value))
+    });
+    // DB-COLUMN-INT ( n stmt -- x )
+    word(f, "DB-COLUMN-INT", |f| {
+        let value = column(f)?;
+        f.push(integer(value));
+        Ok(())
+    });
+    // DB-COLUMN-FLOAT ( n stmt -- ) ( F: -- r )
+    word(f, "DB-COLUMN-FLOAT", |f| {
+        let value = column(f)?;
+        f.fpush(real(value))
+    });
+    // DB-NULL? ( n stmt -- flag )
+    word(f, "DB-NULL?", |f| {
+        let value = column(f)?;
+        f.push(if value == Value::Null { -1 } else { 0 });
+        Ok(())
+    });
+    // DB-CHANGES ( db -- n ): the rows the latest statement changed.
+    word(f, "DB-CHANGES", |f| {
+        let db = f.pop()?;
+        let state = f.state::<State>();
+        let conn = state.db(db).map_err(|Failure(code, m)| Throw::with(code, m))?;
+        let n = conn.changes() as Cell;
+        f.push(n);
+        Ok(())
+    });
+    // DB-LAST-ROWID ( db -- n ): the rowid of the latest INSERT.
+    word(f, "DB-LAST-ROWID", |f| {
+        let db = f.pop()?;
+        let state = f.state::<State>();
+        let conn = state.db(db).map_err(|Failure(code, m)| Throw::with(code, m))?;
+        let n = conn.last_insert_rowid();
+        f.push(n);
+        Ok(())
+    });
+    // DB-ERROR ( -- c-addr u ): the message of the latest nonzero ior,
+    // ALLOCATEd.
+    word(f, "DB-ERROR", |f| {
+        let message = f.state::<State>().error.clone();
+        f.push_bytes(message.as_bytes())
+    });
 }

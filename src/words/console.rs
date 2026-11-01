@@ -9,6 +9,11 @@
 use crate::*;
 
 pub(crate) fn install(f: &mut Forth) {
+    install_output(f);
+    install_input(f);
+}
+
+fn install_output(f: &mut Forth) {
     // pictured numeric output; #S SIGN HOLDS . U. are in the prelude
     f.prim("<#", |f| {
         f.hld = HOLD_END;
@@ -55,7 +60,9 @@ pub(crate) fn install(f: &mut Forth) {
         }
         Ok(())
     });
+}
 
+fn install_input(f: &mut Forth) {
     // input and parsing
     f.prim("SOURCE", |f| {
         let s = f.sources.top();

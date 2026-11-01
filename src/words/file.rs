@@ -4,6 +4,11 @@ use crate::*;
 use std::io::{Read, SeekFrom};
 
 pub(crate) fn install(f: &mut Forth) {
+    install_management(f);
+    install_io(f);
+}
+
+fn install_management(f: &mut Forth) {
     f.prim("OPEN-FILE", |f| {
         let fam = f.pop()?;
         let name = f.pop_name()?;
@@ -74,6 +79,9 @@ pub(crate) fn install(f: &mut Forth) {
         f.push(ior(done.is_some(), FLUSH_FILE_FAILED));
         Ok(())
     });
+}
+
+fn install_io(f: &mut Forth) {
     f.prim("READ-FILE", |f| {
         let fid = f.pop()?;
         let (i, n) = f.pop_str()?;

@@ -3,6 +3,13 @@
 use crate::*;
 
 pub(crate) fn install(f: &mut Forth) {
+    install_colon(f);
+    install_defining(f);
+    install_to_and_execute(f);
+    install_compiling(f);
+}
+
+fn install_colon(f: &mut Forth) {
     f.prim(":", |f| {
         let name = f.name()?;
         f.start_def(&name)?;
@@ -37,6 +44,9 @@ pub(crate) fn install(f: &mut Forth) {
         f.dict.last_mut().unwrap().immediate = true;
         Ok(())
     });
+}
+
+fn install_defining(f: &mut Forth) {
     f.prim("CREATE", |f| {
         let name = f.name()?;
         f.align_here();
@@ -104,6 +114,9 @@ pub(crate) fn install(f: &mut Forth) {
         f.forget_from(xt);
         Ok(())
     });
+}
+
+fn install_to_and_execute(f: &mut Forth) {
     // TO, IS and ACTION-OF parse a name; compiled, they become Store/Fetch.
     f.imm("TO", |f| {
         let name = f.name()?;
@@ -194,6 +207,9 @@ pub(crate) fn install(f: &mut Forth) {
             _ => Err(Throw::new(NOT_CREATED)),
         }
     });
+}
+
+fn install_compiling(f: &mut Forth) {
     f.prim("CHAR", |f| {
         let (a, n) = f.parse_name();
         if n == 0 {
