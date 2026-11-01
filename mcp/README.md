@@ -6,12 +6,17 @@ agent keeps one session: the words it defines and the stacks stay between calls.
 
 ## Installing
 
+From [crates.io](https://crates.io/crates/forthling-mcp), with Rust 1.85 or newer:
+
 ```
-cargo install --path mcp
+cargo install forthling-mcp
 ```
 
-or build it with `cargo build --release --manifest-path mcp/Cargo.toml`; the program is
-then `mcp/target/release/forthling-mcp`. With Claude Code:
+It builds SQLite along, which takes a C compiler (on Windows that of Visual Studio, which
+Rust there uses anyway); `cargo install forthling-mcp --no-default-features` leaves SQLite
+out. From a clone of the repository: `cargo install --path mcp`, or
+`cargo build --release --manifest-path mcp/Cargo.toml`, and the program is then
+`mcp/target/release/forthling-mcp`. With Claude Code:
 
 ```
 claude mcp add forthling -- forthling-mcp
@@ -21,7 +26,7 @@ Other clients start it the same way: the command `forthling-mcp`, over stdio.
 
 When a client connects, the server tells the model the basics in its instructions: the
 idioms that trip models up, locals rather than `ROT`, `PICK` and `ROLL`, the JSON words and
-the limits. [`llms.txt`](../llms.txt) says the same at more length, for a model that reads
+the limits. [`llms.txt`](https://github.com/DeSchaker/forthling/blob/main/llms.txt) says the same at more length, for a model that reads
 it beforehand; a test keeps the limits in both the same.
 
 ## Tools
@@ -161,3 +166,10 @@ as a user with few rights.
 cargo test --manifest-path mcp/Cargo.toml
 cargo test --manifest-path mcp/Cargo.toml --no-default-features
 ```
+
+## Links
+
+- Source and the rest of forthling: https://github.com/DeSchaker/forthling
+- The MCP Registry knows this server as `io.github.DeSchaker/forthling` (the line below lets
+  it check that the crate is ours).
+- mcp-name: io.github.DeSchaker/forthling

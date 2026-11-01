@@ -6,7 +6,9 @@ rust-version = "1.85"
 description = "SQLite words for forthling, a Forth interpreter in Rust"
 license = "MIT"
 repository = "https://github.com/DeSchaker/forthling"
-publish = false
+readme = "README.md"
+keywords = ["forth", "sqlite", "interpreter"]
+categories = ["database"]
 
 # A workspace of its own, so the core keeps its own Cargo.lock without rusqlite.
 [workspace]
@@ -16,5 +18,5 @@ name = "forthling-sqlite"
 path = "src/main.rs"
 
 [dependencies]
-forthling = { path = ".." }
+forthling = { path = "..", version = "0.1.0" }
 rusqlite = { version = "0.40", features = ["bundled", "hooks", "limits"] }

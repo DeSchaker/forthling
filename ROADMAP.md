@@ -124,8 +124,31 @@ A new word set gets its own `words/<name>.rs` with an `install(f)`, called in
 
 ### Next session: resume here
 
-- **Next step:** step 16, publishing `forthling-mcp` in the MCP Registry, which needs a
-  choice of package first (MCPB, OCI or PyPI; see there); or step 14, practical glue.
+- **Next step:** finish step 16: publish the crates and tag `v0.1.0` (see "Publishing"
+  below); then MCPB bundles as its part 2, or step 14, practical glue.
+- **Publishing (2026-11-01, step 16, part 1 prepared):** the maintainer chose crates.io
+  first (the Registry now knows `cargo`) and MCPB bundles later, as a second package in
+  the same `server.json`; it all costs nothing for a public repository. Prepared: the
+  three crates can be published (`publish = false` gone; `forthling` has an `include`
+  list; `forthling-sqlite` and `forthling-mcp` name their path dependencies with
+  `version = "0.1.0"` and carry a copy of `LICENSE`); `cargo publish --dry-run` passes
+  for all three (the two that depend on the core with `--config patch.crates-io…path`,
+  since the core is not on crates.io yet). `mcp/server.json` names the server
+  `io.github.DeSchaker/forthling` (the case of the GitHub account; mixed-case names exist
+  in the Registry), valid against the 2025-12-11 schema; `mcp/README.md` has the line
+  `mcp-name: io.github.DeSchaker/forthling` as visible text (crates.io strips HTML
+  comments) and installs with `cargo install forthling-mcp`. A test in `mcp/tests`
+  keeps `server.json`, the README and the versions in step.
+  `.github/workflows/release.yml` runs on a tag `v*`: it checks that the tag, the three
+  `Cargo.toml` and `server.json` name one version, publishes the crates crates.io does
+  not have yet through trusted publishing (`rust-lang/crates-io-auth-action`, OIDC),
+  then downloads `mcp-publisher` v1.8.1, checks its Sigstore signature with cosign,
+  signs in with `login github-oidc` and publishes `mcp/server.json`. Still to do, by the
+  maintainer: a crates.io account (GitHub login; it asks `read:org`, no code), an API
+  token with publish-new and publish-update (and yank) limited to `forthling*`,
+  `cargo login` in a terminal of their own, the first `cargo publish` of `forthling`,
+  `forthling-sqlite` and `forthling-mcp` in that order, trusted publishing for each crate
+  with `release.yml`, then the tag `v0.1.0`. After that the token can go.
 - **Tutorial (2026-11-01):** step 17 is done. The maintainer chose English only, 10
   lessons for beginners and 10 advanced, off by default (`ALSO TUTORIAL`), and a GIF of
   it in the README with its recording script in the repo, in the light theme. Built in
@@ -982,7 +1005,10 @@ positioning and what agents need. The old step 8 (debugging and tracing) became 
 
     To decide first: which of these, versioning and release tags (there are no releases
     yet), and whether `forthling-mcp` also goes to crates.io for `cargo install`.
-    Independent of the other steps; it can come any time.
+    Independent of the other steps; it can come any time. *Update (2026-11-01):* the
+    Registry now knows crates.io too (`registryType: "cargo"`, ownership through a visible
+    line `mcp-name: …` in the crate's README). The maintainer chose crates.io first and
+    MCPB later, as a second package of the same `server.json`; see "Next session".
 17. ✅ **A tutorial extension** (added 2026-11-01, at the maintainer's wish; built the same
     day, see "Next session"): an extension
     `Tutorial` (`FORTHLING-TUTORIAL`, word list `TUTORIAL`) with short lessons that teach

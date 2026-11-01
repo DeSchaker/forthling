@@ -1,0 +1,100 @@
+name: Release
+
+# On a version tag such as v0.1.0: the crates go to crates.io (those not there
+# yet), then forthling-mcp goes to the MCP Registry as io.github.DeSchaker/forthling.
+# Both sign in through GitHub OIDC, without secrets: crates.io by trusted
+# publishing (set up for each crate on crates.io, with this workflow), the
+# Registry by the owner of this repository. The very first version of a crate
+# is published by hand, since trusted publishing needs the crate to exist.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  versions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: The tag, the crates and server.json name the same version
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          for manifest in Cargo.toml sqlite/Cargo.toml mcp/Cargo.toml; do
+            grep -qx "version = \"$v\"" "$manifest" || { echo "$manifest is not version $v"; exit 1; }
+          done
+          jq -e --arg v "$v" '.version == $v and .packages[0].version == $v' mcp/server.json
+
+  crates:
+    needs: versions
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Which crates crates.io does not have yet
+        id: todo
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          todo=""
+          for crate in forthling forthling-sqlite forthling-mcp; do
+            if curl -sf -A "forthling release (https://github.com/DeSchaker/forthling)" \
+                "https://crates.io/api/v1/crates/$crate/$v" > /dev/null; then
+              echo "$crate $v is on crates.io already"
+            else
+              todo="$todo $crate"
+            fi
+          done
+          echo "crates=$todo" >> "$GITHUB_OUTPUT"
+      - uses: rust-lang/crates-io-auth-action@v1
+        if: steps.todo.outputs.crates != ''
+        id: auth
+      - name: Publish them, the core first
+        if: steps.todo.outputs.crates != ''
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+          CRATES: ${{ steps.todo.outputs.crates }}
+        run: |
+          for crate in $CRATES; do
+            case "$crate" in
+              forthling) cargo publish --manifest-path Cargo.toml ;;
+              forthling-sqlite) cargo publish --manifest-path sqlite/Cargo.toml ;;
+              forthling-mcp) cargo publish --manifest-path mcp/Cargo.toml ;;
+            esac
+          done
+
+  registry:
+    needs: crates
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      MCP_PUBLISHER_VERSION: v1.8.1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Download mcp-publisher and verify its signature
+        run: |
+          set -euo pipefail
+          archive="mcp-publisher_linux_amd64.tar.gz"
+          base_url="https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}"
+          curl --fail --location --silent --show-error --output "$archive" "$base_url/$archive"
+          curl --fail --location --silent --show-error --output "$archive.sigstore.json" "$base_url/$archive.sigstore.json"
+          cosign verify-blob \
+            --bundle "$archive.sigstore.json" \
+            --certificate-identity "https://github.com/modelcontextprotocol/registry/.github/workflows/release.yml@refs/tags/${MCP_PUBLISHER_VERSION}" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$archive"
+          tar xzf "$archive" mcp-publisher
+          rm -f "$archive" "$archive.sigstore.json"
+      - name: Sign in to the MCP Registry
+        run: ./mcp-publisher login github-oidc
+      - name: Publish mcp/server.json
+        working-directory: mcp
+        run: ../mcp-publisher publish

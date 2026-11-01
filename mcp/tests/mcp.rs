@@ -406,3 +406,21 @@ fn sql_stops_in_time() {
     }
     assert!(start.elapsed() < Duration::from_secs(3), "{:?}", start.elapsed());
 }
+
+#[test]
+fn server_json_matches_the_crate() {
+    // The MCP Registry gets server.json; it must name this version and the
+    // name that the README gives for the Registry's check of ownership.
+    let server: Value = serde_json::from_str(include_str!("../server.json")).unwrap();
+    let version = env!("CARGO_PKG_VERSION");
+    assert_eq!(server["version"], version);
+    assert_eq!(server["packages"][0]["registryType"], "cargo");
+    assert_eq!(server["packages"][0]["identifier"], env!("CARGO_PKG_NAME"));
+    assert_eq!(server["packages"][0]["version"], version);
+    let name = server["name"].as_str().unwrap();
+    assert!(include_str!("../README.md").contains(&format!("mcp-name: {name}\n")));
+    // The crates it depends on are of the same version.
+    let manifest = include_str!("../Cargo.toml");
+    assert!(manifest.contains(&format!("path = \"..\", version = \"{version}\"")));
+    assert!(manifest.contains(&format!("path = \"../sqlite\", version = \"{version}\"")));
+}

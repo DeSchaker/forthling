@@ -84,6 +84,14 @@ latest stable Rust, on Linux and Windows.
 - `ROADMAP.md` is the roadmap and the status; it also records the design decisions.
 - Commit messages start with a verb in the imperative, such as "Add the XCHAR word set".
 
+## Releasing
+
+The version is the same for `forthling`, `forthling-sqlite` and `forthling-mcp`, and in
+`mcp/server.json` (a test in `mcp/tests` checks the last two). To release: raise the
+version in the three `Cargo.toml`, the two path dependencies and `server.json`, and push a
+tag such as `v0.2.0`. `.github/workflows/release.yml` then publishes the crates to
+crates.io and the server to the MCP Registry, both through GitHub OIDC, without secrets.
+
 ## License
 
 By contributing, you agree that your contribution is licensed under the

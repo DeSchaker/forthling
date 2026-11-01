@@ -3,11 +3,13 @@ name = "forthling"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
-description = "A small Forth interpreter, working towards the Forth-2012 standard"
+description = "A Forth-2012 system in Rust: no dependencies, a sandbox, JSON words and a tutorial"
 license = "MIT"
 repository = "https://github.com/DeSchaker/forthling"
 readme = "README.md"
 keywords = ["forth", "interpreter", "repl", "stack", "language"]
 categories = ["compilers", "command-line-utilities"]
+# What goes to crates.io: the code, its tests and the documents the README links to.
+include = ["/src", "/tests/*.rs", "/tests/*.fth", "/examples", "/README.md", "/LICENSE", "/COMPLIANCE.md", "/llms.txt"]
 
 [dependencies]
