@@ -20,3 +20,6 @@ __pycache__/
 # secrets, such as the crates.io token for publishing (never committed)
 /.env
 /http/target/
+
+# Local comparison with the Gforth word index
+/gforth-compare/
