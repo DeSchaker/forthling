@@ -230,6 +230,27 @@ fn find_and_state() {
 }
 
 #[test]
+fn the_index_follows_the_dictionary() {
+    // The newest definition wins; FORGET brings the older one back.
+    assert_eq!(run(": A 1 ; : A 2 ; A . FORGET A A . FORGET A"), "2 1 ");
+    // MARKER removes what came after it, and the older word shows again.
+    assert_eq!(run(": A 1 ; MARKER M : A 2 ; A . M A ."), "2 1 ");
+    // A word is hidden until its definition ends, so it can call its older self.
+    assert_eq!(run(": A 1 ; : A A 1 + ; A ."), "2 ");
+    // Names match without regard to case, short and long, with non-ASCII bytes.
+    assert_eq!(run(": Dup2 2 ; dUP2 ."), "2 ");
+    let long = "x".repeat(100);
+    assert_eq!(run(&format!(": {long} 7 ; {} .", long.to_uppercase())), "7 ");
+    assert_eq!(run(": é 5 ; é ."), "5 ");
+    // The same name in two word lists: the search order decides.
+    let two = "WORDLIST CONSTANT W : A 1 ; GET-CURRENT W SET-CURRENT : A 2 ; SET-CURRENT \
+               A . GET-ORDER W SWAP 1+ SET-ORDER A .";
+    assert_eq!(run(two), "1 2 ");
+    // A :NONAME word does not hide or replace a named word.
+    assert_eq!(run(": A 1 ; :NONAME 2 ; DROP A ."), "1 ");
+}
+
+#[test]
 fn include_nests_and_restores_input() {
     let inner = temp_file("inner.fs", "10 20\n+ \\ a comment\n");
     let outer = temp_file("outer.fs", &format!("1 INCLUDE {inner} 2 .S\n"));

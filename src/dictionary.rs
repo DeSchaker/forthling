@@ -56,8 +56,10 @@ impl Forth {
             None
         };
         self.space += size;
+        let name = name.to_ascii_uppercase();
+        self.index.entry(name.clone()).or_default().push(self.dict.len());
         self.dict.push(Word {
-            name: name.to_ascii_uppercase(),
+            name,
             kind,
             immediate: false,
             compile_only: false,
@@ -119,6 +121,13 @@ impl Forth {
     /// Deletes the words from index `len` on, for MARKER and FORGET.
     pub(crate) fn forget_from(&mut self, len: usize) {
         for w in self.dict.drain(len..) {
+            // The forgotten words are the newest of their name, so each one takes the last xt.
+            if let Some(xts) = self.index.get_mut(&w.name) {
+                xts.pop();
+                if xts.is_empty() {
+                    self.index.remove(&w.name);
+                }
+            }
             self.space -= w.size;
             if let Some(a) = w.name_addr {
                 self.heap.free(a);
@@ -126,20 +135,50 @@ impl Forth {
         }
     }
 
-    /// Looks a word up in the word lists of the search order, in turn.
     /// Looks a word up in the search order. An empty search order still
     /// finds the words of `ROOT_WORDS`, so the system stays usable.
     pub(crate) fn find(&self, name: &str) -> Option<usize> {
-        if self.order.is_empty() && ROOT_WORDS.contains(&name.to_ascii_uppercase().as_str()) {
-            return self.find_in(name, FORTH_WID);
-        }
-        self.order.iter().find_map(|&wid| self.find_in(name, wid))
+        Self::with_upper(name, |upper| {
+            if self.order.is_empty() {
+                if !ROOT_WORDS.contains(&upper) {
+                    return None;
+                }
+                return self.find_upper(upper, |wid| wid == FORTH_WID);
+            }
+            self.order.iter().find_map(|&wid| self.find_upper(upper, |w| w == wid))
+        })
     }
 
     /// Looks a word up in one word list.
     pub(crate) fn find_in(&self, name: &str, wid: usize) -> Option<usize> {
-        let upper = name.to_ascii_uppercase();
-        self.dict.iter().rposition(|w| !w.hidden && w.wid == wid && w.name == upper)
+        Self::with_upper(name, |upper| self.find_upper(upper, |w| w == wid))
+    }
+
+    /// The newest visible word with this upper-case name in a word list
+    /// that `wanted` accepts.
+    fn find_upper(&self, upper: &str, wanted: impl Fn(usize) -> bool) -> Option<usize> {
+        let xts = self.index.get(upper)?;
+        xts.iter().rev().copied().find(|&xt| {
+            let w = &self.dict[xt];
+            !w.hidden && wanted(w.wid)
+        })
+    }
+
+    /// Runs `f` with `name` in upper case, without allocating for the
+    /// usual short names.
+    fn with_upper<T>(name: &str, f: impl FnOnce(&str) -> T) -> T {
+        let mut buf = [0u8; 64];
+        let bytes = name.as_bytes();
+        if bytes.len() <= buf.len() {
+            let buf = &mut buf[..bytes.len()];
+            buf.copy_from_slice(bytes);
+            buf.make_ascii_uppercase();
+            // Upper-casing ASCII letters leaves valid UTF-8 valid.
+            if let Ok(upper) = std::str::from_utf8(buf) {
+                return f(upper);
+            }
+        }
+        f(&name.to_ascii_uppercase())
     }
 
     pub(crate) fn find_or_err(&self, name: &str) -> Res<usize> {

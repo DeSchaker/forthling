@@ -108,9 +108,10 @@ pub struct Forth {
     here: usize,
     heap: Heap,
     dict: Vec<Word>,
-    wordlists: Vec<Option<String>>, // by wid - 1: the name, if the list has one
-    order: Vec<usize>,              // the search order, first searched first
-    current_wid: usize,             // the word list new definitions go into
+    index: HashMap<String, Vec<usize>>, // upper-case name -> xts with that name, oldest first
+    wordlists: Vec<Option<String>>,     // by wid - 1: the name, if the list has one
+    order: Vec<usize>,                  // the search order, first searched first
+    current_wid: usize,                 // the word list new definitions go into
     current: Option<usize>,
     encoding_name: Option<usize>, // where XCHAR-ENCODING keeps its answer, once asked
     fence: usize,                 // the words of the system itself, which FORGET leaves alone
@@ -189,6 +190,7 @@ impl Forth {
             here: DICT_START,
             heap: Heap::new(size),
             dict: Vec::new(),
+            index: HashMap::new(),
             wordlists: vec![Some("FORTH".into())],
             order: vec![FORTH_WID],
             current_wid: FORTH_WID,
