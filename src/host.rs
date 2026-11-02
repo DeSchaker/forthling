@@ -58,7 +58,11 @@ impl Forth {
     /// ENVIRONMENT?. Its words then belong to the system, so FORGET leaves
     /// them alone.
     pub fn install(&mut self, extension: &dyn Extension) {
+        // The limits are for the program; an extension that compiles Forth
+        // source while it installs must not run into them.
+        let limits = std::mem::take(&mut self.limits);
         extension.install(self);
+        self.limits = limits;
         self.extensions.insert(extension.name().to_ascii_uppercase(), extension.version());
         self.fence = self.dict.len();
         self.system_space += self.space_used();

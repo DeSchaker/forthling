@@ -1,6 +1,6 @@
 //! The STRINGS words, used from Forth.
 
-use forthling::{Cell, Forth, MemoryFs, Strings};
+use forthling::{Cell, Forth, Limits, MemoryFs, Strings};
 use std::io::Cursor;
 
 fn forth() -> Forth {
@@ -137,4 +137,13 @@ fn memory_comes_from_the_heap() {
     assert_eq!(code(&mut f, "1000000 S $!LEN"), -59);
     assert_eq!(run(&mut f, "S @ ."), "0 ");
     run(&mut f, "100 S $!LEN S $FREE");
+}
+
+#[test]
+fn install_ignores_the_limits_of_the_program() {
+    let mut f = Forth::new();
+    f.set_limits(Limits { steps: Some(10), space: Some(10), ..Limits::default() });
+    f.install(&Strings);
+    f.set_limits(Limits::default());
+    run(&mut f, "ALSO DYNAMIC-STRINGS $VARIABLE S");
 }
