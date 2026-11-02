@@ -49,9 +49,9 @@ fn system_runs_a_command_and_keeps_its_status() {
 #[test]
 fn getenv_gives_the_value_or_nothing() {
     let mut f = forth();
-    let name = "FORTHLING_OS_TEST_VALUE";
-    unsafe { std::env::set_var(name, "yes") };
-    assert_eq!(run(&mut f, &format!("S\" {name}\" GETENV TYPE")), "yes");
+    // Cargo sets this for every test run, so the test needs no `set_var` (which is `unsafe`).
+    let name = "CARGO_PKG_NAME";
+    assert_eq!(run(&mut f, &format!("S\" {name}\" GETENV TYPE")), "forthling");
     assert_eq!(run(&mut f, "S\" FORTHLING_OS_NOT_SET\" GETENV NIP ."), "0 ");
 }
 

@@ -18,6 +18,10 @@ include = ["/src", "/tests/*.rs", "/tests/*.fth", "/examples", "/benches", "/REA
 name = "bench"
 harness = false
 
+[lints.rust]
+# CONTRIBUTING.md: this crate has no `unsafe` code, and the compiler keeps it so.
+unsafe_code = "forbid"
+
 [lints.clippy]
 # All of pedantic, so that new code cannot bring the warnings back; CI runs clippy
 # with `-D warnings`. Priority -1 lets the lints below this line override the group.

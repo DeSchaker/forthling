@@ -83,6 +83,9 @@ latest stable Rust, on Linux and Windows.
 - Keep the core small. The core never gets a dependency or `unsafe` code. So the rule is:
   - Something that needs a dependency, or `unsafe` code, gets a crate of its own, as
     `python/`, `sqlite/`, `regex/`, `http/` and `mcp/` do.
+  - The compiler enforces the rule: the core, `mcp/`, `sqlite/`, `regex/`, `http/` and
+    `python/` have `unsafe_code = "forbid"` in `[lints.rust]`. `web/` does not, since the
+    exports of a WebAssembly module are `#[unsafe(no_mangle)]`.
   - Something that needs neither goes in the core, as the sandbox, the JSON words and the
     functional words (`src/functional.rs`) do.
 
@@ -118,7 +121,8 @@ latest stable Rust, on Linux and Windows.
 
 The version is the same for `forthling`, `forthling-sqlite`, `forthling-regex`, `forthling-http` and
 `forthling-mcp`, and in `mcp/server.json` (a test in `mcp/tests` checks the last two) and
-`mcp/mcpb/manifest.json`. To
+`mcp/mcpb/manifest.json`. `python/` and `web/` have a version of their own (0.1.0): they
+are not published through `release.yml` and are not raised with a release. To
 release: raise the version in the five `Cargo.toml`, the path dependencies, `server.json` and `manifest.json`, and push a
 tag such as `v0.2.1`. `.github/workflows/release.yml` then publishes the crates to
 crates.io and the server to the MCP Registry, both through GitHub OIDC, without secrets.

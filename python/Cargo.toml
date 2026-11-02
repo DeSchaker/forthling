@@ -21,6 +21,9 @@ forthling-regex = { path = "../regex" }
 forthling-http = { path = "../http" }
 pyo3 = { version = "0.30", features = ["extension-module"] }
 
+[lints.rust]
+unsafe_code = "forbid"
+
 [lints.clippy]
 # All of pedantic, so that new code cannot bring the warnings back; CI runs clippy
 # with `-D warnings`. Priority -1 lets the lints below this line override the group.

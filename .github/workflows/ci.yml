@@ -31,7 +31,7 @@ jobs:
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
 
-  # The tests on the latest stable Rust, on Linux and Windows.
+  # Clippy and the tests on the latest stable Rust, on Linux and Windows.
   test:
     strategy:
       matrix:
@@ -40,22 +40,29 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
       - uses: Swatinem/rust-cache@v2
       - name: Fetch the Forth-2012 test suite
         shell: bash
         run: |
           git clone --quiet "$SUITE_REPO" tests/forth2012-test-suite
           git -C tests/forth2012-test-suite checkout --quiet "$SUITE_COMMIT"
+      - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
 
   # The Python module in python/, a crate of its own with PyO3, on Python
-  # 3.14, the version it is developed with.
+  # 3.14, the version it is developed with, on Rust 1.85 and on the latest stable.
   python:
+    strategy:
+      matrix:
+        rust: ["1.85", stable]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ matrix.rust }}
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
         with:
