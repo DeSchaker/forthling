@@ -10,9 +10,13 @@ readme = "README.md"
 keywords = ["forth", "interpreter", "repl", "stack", "language"]
 categories = ["compilers", "command-line-utilities"]
 # What goes to crates.io: the code, its tests and the documents the README links to.
-include = ["/src", "/tests/*.rs", "/tests/*.fth", "/examples", "/README.md", "/LICENSE", "/COMPLIANCE.md", "/llms.txt"]
+include = ["/src", "/tests/*.rs", "/tests/*.fth", "/examples", "/benches", "/README.md", "/LICENSE", "/COMPLIANCE.md", "/llms.txt"]
 
 [dependencies]
+
+[[bench]]
+name = "bench"
+harness = false
 
 [lints.clippy]
 # All of pedantic, so that new code cannot bring the warnings back; CI runs clippy

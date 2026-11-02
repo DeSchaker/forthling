@@ -67,6 +67,12 @@ latest stable Rust, on Linux and Windows.
   JavaScript in `www/forthling.js`, tests in `tests/forthling.test.mjs` (Node 22). The
   core builds for `wasm32-unknown-unknown`: code that needs a thread, the clock or sleep
   has a `#[cfg(target_arch = "wasm32")]` alternative (see `sleep`, `now`, `deadline`).
+- `benches/bench.rs`: the benchmarks of the interpreter, with no dependencies. `cargo bench`
+  prints the shortest time of a few runs for a new system, the empty `DO LOOP`, `27 FIB`,
+  many definitions and many lookups (`cargo bench -- fib` runs the cases with `fib` in the
+  name). To check a change to the inner interpreter or the dictionary, run it in a checkout
+  of the previous commit too (a `git worktree` does) and compare the two tables. Times
+  depend on the machine, so compare runs on the same one.
 - `src/cli.rs`: the forthling program (options, config file, REPL), in the library so
   that a program with extensions calls `forthling::cli::main(&[&Extension])`.
 - `src/tests.rs`: the unit tests; `tests/suite.rs` runs the files of the test suite.
