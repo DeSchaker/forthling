@@ -9,7 +9,9 @@
 //! memory; `fl_write_file`, `fl_read_file`, `fl_delete_file` and `fl_files`
 //! reach them.
 
-use forthling::{Debugger, Forth, Functional, Json, MemoryFs, Throw, TraceEntry, Tutorial};
+use forthling::{
+    Debugger, Forth, Functional, Json, MemoryFs, Strings, Throw, TraceEntry, Tutorial,
+};
 use std::cell::{Cell, RefCell};
 use std::fmt::Write as _;
 
@@ -33,6 +35,7 @@ fn session() -> Forth {
     FILES.with(|f| *f.borrow_mut() = files);
     f.install(&Json);
     f.install(&Functional);
+    f.install(&Strings);
     f.install(&forthling_regex::Regex);
     f.install(&Debugger);
     f.install(&Tutorial);

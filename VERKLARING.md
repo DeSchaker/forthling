@@ -667,7 +667,8 @@ getal dat geen les is. `CHECK` draait de tests van de les op de woorden van het
 programma, elk vanaf een lege stack, decimaal en binnen `CATCH`, en zet daarna de stacks,
 `BASE` en de uitvoer terug zoals ze waren; een limiet die in een test bereikt wordt, stopt
 het met -258. De vierde zijn de functionele woorden (`FORTHLING-FUNCTIONAL`, woordenlijst
-`FUNCTIONAL`; zie de README). `Forth::new()` installeert niets.
+`FUNCTIONAL`; zie de README). De vijfde zijn de dynamische strings (`FORTHLING-DYNAMIC-STRINGS`,
+woordenlijst `DYNAMIC-STRINGS`, de `$`-woorden van Gforth; zie de README). `Forth::new()` installeert niets.
 De Python-module (`python/`)
 installeert `FORTHLING-PYTHON` (versie 1), zonder eigen woorden: de woorden die een
 Python-programma toevoegt, komen in `FORTH-WORDLIST` of in een woordenlijst die het noemt.

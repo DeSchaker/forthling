@@ -7,5 +7,6 @@ fn main() {
         &forthling::Debugger,
         &forthling::Tutorial,
         &forthling::Functional,
+        &forthling::Strings,
     ]);
 }

@@ -338,6 +338,56 @@ quotation that is not one primitive (`[: DUP * ;] MAP`) goes through the inner i
 and is not faster than a loop (460 ms against 361 ms for a loop with the same work, `MAP`
 and a `FOLD` to add up the result included).
 
+### Dynamic strings
+
+The word list `DYNAMIC-STRINGS` (`ALSO DYNAMIC-STRINGS`) has the Gforth `$` words: strings that grow and
+shrink, and arrays of them. A dynamic string lives in one cell that holds 0 (the empty
+string) or the address of a block from `ALLOCATE`: a cell with the length, then the
+characters. So the memory counts towards the limits of the sandbox, and `$FREE` gives it back.
+The words are in their own word list because names such as `$@` and `$!` could clash with code
+of your own. The forthling program, the MCP server, the Python module and the playground
+install it; a Rust program does with `forth.install(&forthling::Strings)`. The behaviour is
+built from the Gforth manual, not from the Gforth source.
+
+```forth
+ALSO DYNAMIC-STRINGS
+$VARIABLE S
+S" Hello" S $!   S" , world" S $+!
+S $@ TYPE                                     \ Hello, world
+: PART ( c-addr u -- )  ." <" TYPE ." >" ;
+S" a,bb,c" S $!   S 44 ' PART $ITER           \ <a><bb><c>
+$[]VARIABLE A
+S" one" A $[]+!   S" two" A $[]+!
+A ' PART $[]MAP                               \ <one><two>
+```
+
+| Word | Stack |
+|---|---|
+| `$VARIABLE` | `( "name" -- )`, a variable that holds an empty string |
+| `$!` `$@` | `( c-addr u a -- )`, `( a -- c-addr u )`: store a copy, fetch (the empty string is `0 0`) |
+| `$+!` | `( c-addr u a -- )`, append; the text may be part of the string itself |
+| `$@LEN` | `( a -- u )` |
+| `$!LEN` | `( u a -- )`, set the length; new characters are zero |
+| `$+!LEN` | `( u a -- c-addr )`, make room for `u` more characters, give their address |
+| `$INS` | `( c-addr u a pos -- )`, insert at offset `pos` (clamped to the string) |
+| `$DEL` | `( a pos u -- )`, delete `u` characters at `pos` (clamped) |
+| `$SPLIT` | `( c-addr u char -- c-addr u1 c-addr2 u2 )`, at the first `char`; nothing is allocated; without `char`, `u1` = `u` and `u2` = 0 |
+| `$ITER` | `( .. a char xt -- .. )`, `xt` is `( .. c-addr u -- .. )`, once for each part between the `char`s; the empty string has no parts |
+| `$INIT` `$FREE` | `( a -- )`: set to empty without freeing; free and set to empty |
+| `$TMP` | `( xt -- c-addr u )`: run `xt` and give what it printed; valid until the next `$TMP` |
+| `$EXEC` | `( xt a -- )`: run `xt` and append what it printed to the string |
+| `$SLURP` `$SLURP-FILE` | `( fid a -- )`, `( c-addr u a -- )`: the whole file into the string |
+| `$[]VARIABLE` | `( "name" -- )`, an empty array |
+| `$[]` | `( n a -- a' )`: the cell of string `n`; the array grows to hold it |
+| `$[]!` `$[]@` | `( c-addr u n a -- )`, `( n a -- c-addr u )`; `$[]@` past the end gives `0 0` and does not grow the array |
+| `$[]#` | `( a -- n )` |
+| `$[]+!` | `( c-addr u a -- )`: add the string as a new last element |
+| `$[]MAP` | `( a xt -- )`, `xt` is `( c-addr u -- )` for each element |
+| `$[]SLURP` `$[]SLURP-FILE` | `( fid a -- )`, `( c-addr u a -- )`: the lines of a file (`CR LF` too) become the elements; old elements are freed |
+| `$[]FREE` | `( a -- )`: free the elements and the array |
+
+A string that `$ITER` or `$[]MAP` is going through must not be changed by `xt`.
+
 ### Sandbox
 
 Code that is not trusted, from a user or an AI agent, runs in a sandbox:
