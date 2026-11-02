@@ -114,10 +114,10 @@ The version is the same for `forthling`, `forthling-sqlite`, `forthling-regex`, 
 `forthling-mcp`, and in `mcp/server.json` (a test in `mcp/tests` checks the last two) and
 `mcp/mcpb/manifest.json`. To
 release: raise the version in the five `Cargo.toml`, the path dependencies, `server.json` and `manifest.json`, and push a
-tag such as `v0.2.0`. `.github/workflows/release.yml` then publishes the crates to
+tag such as `v0.2.1`. `.github/workflows/release.yml` then publishes the crates to
 crates.io and the server to the MCP Registry, both through GitHub OIDC, without secrets.
-With a new minor version (0.x), also change the `forthling = "0.x"` examples in `README.md`:
-`"0.1"` does not match 0.2.0.
+With every release, also change the `forthling = "0.x.y"` examples in `README.md`.
+They name the full version (`"0.2.1"`), so they are easy to miss.
 
 ## License
 
