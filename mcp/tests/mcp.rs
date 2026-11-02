@@ -166,6 +166,11 @@ fn the_sandbox_holds() {
         );
         assert_eq!(r["structuredContent"]["output"], "42 ");
     }
+    // The machine is closed: no programs, no environment, no directories.
+    assert_eq!(code(&mut s, "ALSO OPERATING-SYSTEM S\" echo hi\" SYSTEM"), -259);
+    assert_eq!(code(&mut s, "S\" PATH\" GETENV"), -259);
+    let r = eval(&mut s, "S\" .\" OPEN-DIR . .");
+    assert_eq!(r["structuredContent"]["output"], "-259 0 ");
     let r = eval(&mut s, "ALSO JSON JSON[ 1 JSON-NUMBER JSON]");
     assert_eq!(r["structuredContent"]["output"], "[1]");
     // A limit of one call does not carry over to the next.

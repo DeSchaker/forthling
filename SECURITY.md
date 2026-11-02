@@ -6,7 +6,9 @@ not a vulnerability.
 
 For code you do not trust there is the sandbox (`Forth::sandboxed()`, `--sandbox`, or
 `sandbox=True` in Python): no files on the disk for Forth, which gets files in memory
-instead, limits on the steps, the time and
+instead, no network (`Permission::Network`), no machine (`Permission::System`: starting
+programs, environment variables, the command line, directories and standard error, which
+the word list `OPERATING-SYSTEM` offers), limits on the steps, the time and
 the output of each evaluation, and a limit on the space a program takes outside its Forth
 memory. Getting around it is a vulnerability: reaching a file on the disk, running on after a limit
 was reached, one step that takes far longer than the time limit, or memory of the host
@@ -21,7 +23,8 @@ other tools, such as a shell: such an agent can start another program. See
 [mcp/README.md](mcp/README.md#the-sandbox).
 
 A vulnerability is also, for example, a way to make forthling read or write memory outside
-its own Forth memory, run other programs, or touch files without a FILE or BLOCK word
+its own Forth memory, run other programs (other than with the words of `OPERATING-SYSTEM`,
+which `Permission::System` guards), or touch files without a FILE or BLOCK word
 asking for it. forthling has no `unsafe` code and no dependencies, so a memory problem
 would most likely lie in Rust's standard library. A Rust panic is a bug: please report it as an issue.
 

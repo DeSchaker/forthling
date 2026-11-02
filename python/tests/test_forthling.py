@@ -116,6 +116,10 @@ class SandboxTest(unittest.TestCase):
             f.interpret(": FOREVER BEGIN AGAIN ; FOREVER")
         self.assertEqual(cm.exception.code, -258)
         self.assertEqual(f.interpret("6 7 * ."), "42 ")
+        # The machine is closed: no programs, no environment.
+        with self.assertRaises(forthling.ForthError) as cm:
+            f.interpret('ALSO OPERATING-SYSTEM S" echo hi" SYSTEM')
+        self.assertEqual(cm.exception.code, -259)
 
 
 class FilesTest(unittest.TestCase):

@@ -644,7 +644,7 @@ go on, and quitting there throws -28 (user interrupt). The third is the tutorial
 lesson. `CHECK` runs the lesson's tests on the program's words, each from an empty stack
 in decimal inside `CATCH`, and then puts the stacks, `BASE` and the output back as they
 were; a limit reached in a test stops it with -258. The fourth is the functional words
-(`FORTHLING-FUNCTIONAL`, word list `FUNCTIONAL`; see the README). The fifth is the dynamic strings (`FORTHLING-DYNAMIC-STRINGS`, word list `DYNAMIC-STRINGS`, the Gforth `$` words; see the README). `Forth::new()` installs nothing. The Python module (`python/`) installs
+(`FORTHLING-FUNCTIONAL`, word list `FUNCTIONAL`; see the README). The fifth is the dynamic strings (`FORTHLING-DYNAMIC-STRINGS`, word list `DYNAMIC-STRINGS`, the Gforth `$` words; see the README). The sixth is the operating-system words (`FORTHLING-OPERATING-SYSTEM`, word list `OPERATING-SYSTEM`, the Gforth words `SYSTEM`, `OPEN-PIPE`, `GETENV`, `ARG`, `OPEN-DIR` and the like; see the README); they need `Permission::System`, and a word with an ior gives -259 when it is denied. `Forth::new()` installs nothing. The Python module (`python/`) installs
 `FORTHLING-PYTHON` (version 1), without words of its own: the words that a Python program
 adds go into `FORTH-WORDLIST` or into a word list it names. A Python exception in such a
 word throws -257, which `CATCH` catches; uncaught, the Python program gets the exception

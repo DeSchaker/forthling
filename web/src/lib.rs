@@ -10,7 +10,8 @@
 //! reach them.
 
 use forthling::{
-    Debugger, Forth, Functional, Json, MemoryFs, Strings, Throw, TraceEntry, Tutorial,
+    Debugger, Forth, Functional, Json, MemoryFs, OperatingSystem, Strings, Throw, TraceEntry,
+    Tutorial,
 };
 use std::cell::{Cell, RefCell};
 use std::fmt::Write as _;
@@ -36,6 +37,7 @@ fn session() -> Forth {
     f.install(&Json);
     f.install(&Functional);
     f.install(&Strings);
+    f.install(&OperatingSystem);
     f.install(&forthling_regex::Regex);
     f.install(&Debugger);
     f.install(&Tutorial);

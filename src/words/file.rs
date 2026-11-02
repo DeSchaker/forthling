@@ -97,7 +97,7 @@ fn install_io(f: &mut Forth) {
         let fid = f.pop()?;
         let (i, n) = f.pop_str()?;
         f.charge(n)?;
-        let line = f.with_file(fid, |file| read_line_from(file, n));
+        let line = f.with_file(fid, |file| file.read_line(n));
         let (data, more) = match &line {
             Some(Some(data)) => (&data[..], true),
             _ => (&[][..], false),

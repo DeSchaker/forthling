@@ -357,13 +357,18 @@ fn run_forth(run: &Run, extensions: Extensions) -> i32 {
     }
     if run.sandbox {
         forth.permit(Permission::Network, false);
+        forth.permit(Permission::System, false);
     }
     forth.set_limits(run.limits);
     forth.set_interactive(true);
     forth.set_debugger(Some(Box::new(debugger)));
+    // The files still to include are the arguments of the program that are not
+    // used yet (Gforth's way): a script can take the rest with NEXT-ARG.
+    let program = std::env::args().next().unwrap_or_else(|| "forthling".into());
+    forth.set_arguments(std::iter::once(program).chain(run.files.iter().cloned()).collect());
     if !run.files.is_empty() {
-        for path in &run.files {
-            let result = forth.include(path);
+        while let Some(path) = forth.take_argument() {
+            let result = forth.include(&path);
             forth.flush();
             match result {
                 // There is no terminal to return to, so QUIT ends the run.

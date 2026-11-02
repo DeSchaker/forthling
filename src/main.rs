@@ -8,5 +8,6 @@ fn main() {
         &forthling::Tutorial,
         &forthling::Functional,
         &forthling::Strings,
+        &forthling::OperatingSystem,
     ]);
 }

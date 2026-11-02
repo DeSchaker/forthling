@@ -52,6 +52,11 @@ pub enum Permission {
     /// program reaches a given machine is up to the extension, which keeps
     /// a list of the hosts it may connect to.
     Network,
+    /// The machine itself: starting programs, environment variables, the
+    /// command line, directories and standard error, which the words of
+    /// the word list `OPERATING-SYSTEM` (`OperatingSystem`) use.
+    /// `Forth::sandboxed` denies it.
+    System,
 }
 
 /// What is left of the limits in the current evaluation.
@@ -118,6 +123,7 @@ impl Forth {
         let mut f = Forth::new();
         f.set_limits(Limits::SANDBOX);
         f.permit(Permission::Network, false);
+        f.permit(Permission::System, false);
         f.vfs = Box::new(MemoryFs::with_limit(MemoryFs::SANDBOX_LIMIT));
         f.set_input(Box::new(io::Cursor::new(Vec::new())));
         f
@@ -353,6 +359,31 @@ impl Forth {
         #[cfg(target_arch = "wasm32")]
         let _ = time;
         Ok(())
+    }
+
+    /// Waits for a child process to end. With a time limit it is killed when
+    /// the limit is reached, and the evaluation throws -258.
+    pub(crate) fn wait_child(
+        &mut self,
+        child: &mut std::process::Child,
+    ) -> Res<std::process::ExitStatus> {
+        let io_error = |e: io::Error| Throw::with(FILE_IO, e.to_string());
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(deadline) = self.budget.deadline {
+            loop {
+                if let Some(status) = child.try_wait().map_err(io_error)? {
+                    return Ok(status);
+                }
+                if Instant::now() >= deadline {
+                    child.kill().ok();
+                    child.wait().ok();
+                    self.budget.spend("time");
+                    return Err(limit_reached("time"));
+                }
+                std::thread::sleep(Duration::from_millis(2));
+            }
+        }
+        child.wait().map_err(io_error)
     }
 
     /// Appends to the output, as far as the output limit allows.

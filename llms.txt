@@ -112,6 +112,17 @@ S $@ TYPE    \ Hello, world
 - `$TMP ( xt -- c-addr u )` and `$EXEC ( xt a -- )` catch what `xt` prints; `$SLURP ( fid a -- )` and `$SLURP-FILE ( c-addr u a -- )` read a file.
 - Arrays: `$[]VARIABLE`, `$[]! ( c-addr u n a -- )`, `$[]@ ( n a -- c-addr u )`, `$[]+! ( c-addr u a -- )`, `$[]# ( a -- n )`, `$[]MAP ( a xt -- )`, `$[]SLURP`, `$[]SLURP-FILE` and `$[]FREE`.
 
+## Operating system
+
+`ALSO OPERATING-SYSTEM` gives the Gforth words for the machine: `SYSTEM ( c-addr u -- )` and `SH` run a command and set `$?`, `OPEN-PIPE` and `CLOSE-PIPE` read the output of a command or write to its input, `GETENV` reads an environment variable, `ARGC ARGV ARG NEXT-ARG` give the command line, `OPEN-DIR READ-DIR CLOSE-DIR GET-DIR SET-DIR MKDIR-PARENTS` work on directories, `BASENAME DIRNAME FILENAME-MATCH` on file names, and `STDIN STDOUT STDERR` are file ids. The forthling program has them; the files it still has to include are its arguments, so a script takes the next one with `NEXT-ARG`. They are closed by default: they need `Permission::System`, which the sandbox, the MCP server and the playground deny (-259, or that ior).
+
+```forth
+ALSO OPERATING-SYSTEM
+S" echo hello" R/O OPEN-PIPE THROW  DUP >R
+PAD 80 ROT READ-LINE THROW DROP PAD SWAP TYPE CR     \ hello
+R> CLOSE-PIPE THROW .                                \ 0, the exit status
+```
+
 ## Tutorial
 
 `ALSO TUTORIAL` gives a Forth course of 20 lessons, ten for beginners and ten beyond, which an agent can walk a person through: `LESSONS` lists them, `n LESSON` shows lesson n (text, code to try, a task), `CHECK` tests the answer the person defined and says what is still wrong, `HINT` gives a hint and `NEXT` the next lesson.

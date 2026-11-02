@@ -388,6 +388,51 @@ A ' PART $[]MAP                               \ <one><two>
 
 A string that `$ITER` or `$[]MAP` is going through must not be changed by `xt`.
 
+### Operating system
+
+The word list `OPERATING-SYSTEM` (`ALSO OPERATING-SYSTEM`) has the operating-system words of
+Gforth: start a program, read the environment and the command line, walk directories, and use
+the standard streams. The forthling program installs it; the MCP server, the Python module and
+the playground install it too, but keep the machine closed (see below); a Rust program does with
+`forth.install(&forthling::OperatingSystem)`. The behaviour is built from the Gforth manual, not
+from the Gforth source. A script can start with a `#!` line, which is skipped.
+
+```forth
+#! /usr/bin/env forthling
+ALSO OPERATING-SYSTEM
+S" echo hello" R/O OPEN-PIPE THROW  DUP >R
+PAD 80 ROT READ-LINE THROW DROP PAD SWAP TYPE CR     \ hello
+R> CLOSE-PIPE THROW .                                \ 0, the exit status
+S" src/lib.rs" BASENAME TYPE SPACE
+S" src/lib.rs" DIRNAME TYPE                          \ lib.rs src/
+```
+
+| Word | Stack |
+|---|---|
+| `SYSTEM` | `( c-addr u -- )`: run the command in the shell of the system and wait; its exit status is `$?` |
+| `SH` | `( "rest-of-line" -- )`, the same for the rest of the line |
+| `$?` | `( -- n )`, the exit status of the last `SYSTEM`, `SH` or `CLOSE-PIPE` |
+| `OPEN-PIPE` `CLOSE-PIPE` | `( c-addr u fam -- fileid ior )`, `( fileid -- status ior )`: `R/O` reads the output of the command, `W/O` writes to its input; the file words work on it (a pipe cannot be repositioned) |
+| `GETENV` | `( c-addr u -- c-addr' u' )`: the value of an environment variable; `u'` is 0 if it is not set |
+| `ARGC` `ARGV` | variables: the number of arguments (the program name included) and the address of a vector of zero-terminated strings, as in C |
+| `ARG` | `( u -- c-addr u' )`: argument `u`; `0 ARG` is the program; `0 0` past the last |
+| `NEXT-ARG` `SHIFT-ARGS` | `( -- c-addr u )`, `( -- )`: take the first argument after the program away; `0 0` if none |
+| `OPEN-DIR` `READ-DIR` `CLOSE-DIR` | `( c-addr u -- dirid ior )`, `( c-addr u1 dirid -- u2 flag ior )`, `( dirid -- ior )`: `READ-DIR` gives the next name (not `.` and `..`) in the buffer, flag false at the end |
+| `GET-DIR` `SET-DIR` | `( c-addr u -- c-addr u' )`, `( c-addr u -- ior )`: the current directory |
+| `MKDIR-PARENTS` | `( c-addr u mode -- ior )`: the directory and the ones above it; one that exists is no error |
+| `BASENAME` `DIRNAME` | `( c-addr u -- c-addr' u' )`: the file name, or the directory with its last `/` (empty if none) |
+| `FILENAME-MATCH` | `( c-addr u c-addr2 u2 -- flag )`: does the name match the pattern (`*` and `?`) |
+| `STDIN` `STDOUT` `STDERR` | `( -- fileid )`: the standard streams as files; `STDIN` and `STDOUT` are the input and output of the Forth system itself, `STDERR` is standard error |
+| `OUTFILE-EXECUTE` `INFILE-EXECUTE` | `( xt fileid -- )`: run `xt` with `TYPE` writing to the file, or with `KEY` and `ACCEPT` reading from it |
+
+The arguments of the forthling program are the files it still has to include: a script that
+calls `NEXT-ARG` takes the next file for itself, so `forthling script.fs data.txt` lets the
+script read `data.txt` without including it. A command started by `SYSTEM` or a pipe writes to
+the real standard output, not through the Forth output. The words that touch the machine need
+`Permission::System`, which `Forth::sandboxed()` and `--sandbox` deny: they then throw -259, or
+give it as the ior. The MCP server always denies it, and the Python module when `sandbox=True`.
+`BASENAME`, `DIRNAME`, `FILENAME-MATCH`, `$?`, `STDIN` and `STDOUT` need no permission.
+
 ### Sandbox
 
 Code that is not trusted, from a user or an AI agent, runs in a sandbox:
@@ -409,7 +454,7 @@ one. A limit that is reached throws -258, and every step after it throws again, 
 `CATCH` cannot go on. `permit(Permission::Files, false)` takes files away altogether (the
 FILE words give the ior -259, `INCLUDE` and the block words throw -259). The sandbox restricts the Forth program, not the host: `include`
 called by the host still reads its file. Extensions follow the permissions too; SQLite
-opens only `:memory:` unless the program may use the disk (`Forth::disk_files()`). `Forth::sandboxed()` also denies `Permission::Network`, which the HTTP words need (see [HTTP](#http)); `--sandbox` of the program does the same.
+opens only `:memory:` unless the program may use the disk (`Forth::disk_files()`). `Forth::sandboxed()` also denies `Permission::Network`, which the HTTP words need (see [HTTP](#http)), and `Permission::System`, which the words of `OPERATING-SYSTEM` need (see [Operating system](#operating-system)); `--sandbox` of the program does the same.
 
 ### Files
 

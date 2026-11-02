@@ -1,7 +1,8 @@
 //! Files: file ids, INCLUDED and REQUIRED, and helpers for the FILE words.
 
+use crate::os::Std;
 use crate::*;
-use std::io::{Read, SeekFrom};
+use std::io::{BufRead, Read, Seek, SeekFrom};
 use std::path::Path;
 
 // File access methods, as R/O and W/O in the prelude; R/W is 2 and BIN adds 4,
@@ -13,6 +14,9 @@ pub(crate) const W_O: Cell = 1;
 pub(crate) struct OpenFile {
     pub(crate) file: Box<dyn FileHandle>,
     pub(crate) name: String,
+    /// Set for STDIN, STDOUT and STDERR: `with_file` then reads and writes
+    /// the terminal of the system instead of `file` (see os.rs).
+    pub(crate) std: Option<Std>,
 }
 
 /// The ior of a file word: 0 on success, else the word's THROW code.
@@ -23,7 +27,10 @@ pub(crate) fn ior(ok: bool, code: Cell) -> Cell {
 /// The core of READ-LINE: reads at most `max` characters of the next line,
 /// without its line ending. Returns None at the end of the file. A line
 /// longer than `max` is continued by the next read.
-pub(crate) fn read_line_from(file: &mut dyn FileHandle, max: usize) -> io::Result<Option<Vec<u8>>> {
+pub(crate) fn read_line_from<F: Read + Seek + ?Sized>(
+    file: &mut F,
+    max: usize,
+) -> io::Result<Option<Vec<u8>>> {
     let mut chunk = Vec::new();
     Read::take(&mut *file, max as u64 + 2).read_to_end(&mut chunk)?;
     if chunk.is_empty() {
@@ -40,6 +47,55 @@ pub(crate) fn read_line_from(file: &mut dyn FileHandle, max: usize) -> io::Resul
     file.seek(SeekFrom::Current(to_cell(used) - to_cell(chunk.len())))?;
     chunk.truncate(len);
     Ok(Some(chunk))
+}
+
+/// READ-LINE for a stream that cannot seek (a pipe, the terminal): reads the
+/// line a piece at a time and takes only what belongs to it. Same result as
+/// `read_line_from`; a CR just past a full buffer is dropped with the line ending.
+pub(crate) fn read_line_buffered<R: BufRead + ?Sized>(
+    r: &mut R,
+    max: usize,
+) -> io::Result<Option<Vec<u8>>> {
+    let mut line = Vec::new();
+    let mut any = false;
+    let mut ended = false;
+    loop {
+        let buf = r.fill_buf()?;
+        if buf.is_empty() {
+            break;
+        }
+        any = true;
+        let room = max - line.len();
+        if room == 0 {
+            // The line is full; a line ending right after it still belongs to it.
+            let cr = buf[0] == b'\r';
+            if cr || buf[0] == b'\n' {
+                r.consume(1);
+                if cr && r.fill_buf()?.first() == Some(&b'\n') {
+                    r.consume(1);
+                }
+                ended = true;
+            }
+            break;
+        }
+        let window = &buf[..buf.len().min(room)];
+        if let Some(i) = window.iter().position(|&c| c == b'\n') {
+            line.extend_from_slice(&window[..i]);
+            r.consume(i + 1);
+            ended = true;
+            break;
+        }
+        let n = window.len();
+        line.extend_from_slice(window);
+        r.consume(n);
+    }
+    if !any {
+        return Ok(None);
+    }
+    if ended && line.last() == Some(&b'\r') {
+        line.pop();
+    }
+    Ok(Some(line))
 }
 
 impl Forth {
@@ -109,7 +165,12 @@ impl Forth {
     /// Interprets the lines of a file as a nested input source with its own
     /// line buffer.
     pub(crate) fn include_lines(&mut self, fid: Cell, path: &str, bytes: &[u8]) -> Res {
-        let lines = String::from_utf8_lossy(bytes).lines().map(String::from).collect();
+        let mut lines: Vec<String> =
+            String::from_utf8_lossy(bytes).lines().map(String::from).collect();
+        // A script may start with `#!/usr/bin/env forthling`; that line is not Forth.
+        if let Some(first) = lines.first_mut().filter(|l| l.starts_with("#!")) {
+            first.clear();
+        }
         let buf = SOURCE_AREA + self.sources.len() * LINE_MAX;
         self.push_source(Origin::File { fid, lines: Rc::new(lines) }, buf, 0)?;
         // Read the line number before interpreting: a nested source may be
@@ -130,7 +191,7 @@ impl Forth {
 
     /// Registers an open file and returns its file id, reusing a free one.
     pub(crate) fn add_file(&mut self, file: Box<dyn FileHandle>, name: &str) -> Cell {
-        let entry = Some(OpenFile { file, name: name.to_string() });
+        let entry = Some(OpenFile { file, name: name.to_string(), std: None });
         if let Some(i) = self.files.iter().position(Option::is_none) {
             self.files[i] = entry;
             to_cell(i) + 1
@@ -165,7 +226,10 @@ impl Forth {
         fid: Cell,
         op: impl FnOnce(&mut dyn FileHandle) -> io::Result<T>,
     ) -> Option<T> {
-        op(&mut *self.open_file_mut(fid)?.file).ok()
+        let Some(kind) = self.open_file(fid)?.std else {
+            return op(&mut *self.open_file_mut(fid)?.file).ok();
+        };
+        crate::os::with_std(self, kind, op)
     }
 
     /// Pushes a file position or size as ( ud ior ).

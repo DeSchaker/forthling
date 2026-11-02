@@ -32,6 +32,17 @@ pub trait FileHandle: Read + Write + Seek {
     /// # Errors
     /// Returns the error of the file system.
     fn set_size(&mut self, size: u64) -> io::Result<()>;
+    /// Reads the next line for READ-LINE: at most `max` characters, without
+    /// its line ending; `None` at the end. A line longer than `max` is
+    /// continued by the next read. The default reads ahead and seeks back,
+    /// which is right for a file; a stream that cannot seek, such as a
+    /// pipe, reads the line itself.
+    ///
+    /// # Errors
+    /// Returns the error of the file system.
+    fn read_line(&mut self, max: usize) -> io::Result<Option<Vec<u8>>> {
+        crate::files::read_line_from(self, max)
+    }
 }
 
 /// Where the files of a Forth program are. Paths are the text the program

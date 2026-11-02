@@ -86,3 +86,60 @@ fn the_functional_words_are_installed() {
     let out = run("ALSO FUNCTIONAL\n1 6 RANGE [: DUP * ;] MAP 5 ' + FOLD .\n", "");
     assert!(out.contains("55 "), "{out}");
 }
+
+/// Runs the program on several files (name, source) with `--sandbox` or not.
+fn run_files(files: &[(&str, &str)], flags: &[&str]) -> (String, String, i32) {
+    static DIRS: AtomicUsize = AtomicUsize::new(0);
+    let n = DIRS.fetch_add(1, Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!("forthling-cli-files-{}-{n}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let paths: Vec<_> = files
+        .iter()
+        .map(|(name, source)| {
+            let path = dir.join(name);
+            std::fs::write(&path, source).unwrap();
+            path
+        })
+        .collect();
+    let out = Command::new(env!("CARGO_BIN_EXE_forthling"))
+        .args(flags)
+        .args(&paths)
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    std::fs::remove_dir_all(&dir).ok();
+    (
+        String::from_utf8_lossy(&out.stdout).into_owned(),
+        String::from_utf8_lossy(&out.stderr).into_owned(),
+        out.status.code().unwrap_or(-1),
+    )
+}
+
+#[test]
+fn a_script_takes_the_rest_of_the_files_as_arguments() {
+    let script = "#! /usr/bin/env forthling\nALSO OPERATING-SYSTEM\nARGC @ .\nNEXT-ARG BASENAME TYPE SPACE ARGC @ .\n";
+    let (out, err, code) = run_files(&[("one.fs", script), ("two.fs", ".\" never\"")], &[]);
+    assert_eq!((out.as_str(), err.as_str(), code), ("2 two.fs 1 ", "", 0));
+}
+
+#[test]
+fn files_are_included_in_order_without_arguments_taken() {
+    let (out, _, code) = run_files(&[("a.fs", ".\" a\""), ("b.fs", ".\" b\"")], &[]);
+    assert_eq!((out.as_str(), code), ("ab", 0));
+}
+
+#[test]
+fn stderr_goes_to_standard_error_in_order() {
+    let source = "ALSO OPERATING-SYSTEM\n.\" out\" S\" err\" STDERR WRITE-LINE DROP\n";
+    let (out, err, _) = run_files(&[("e.fs", source)], &[]);
+    assert_eq!((out.as_str(), err.trim()), ("out", "err"));
+}
+
+#[test]
+fn the_sandbox_has_no_machine() {
+    let source = "ALSO OPERATING-SYSTEM\nS\" echo hi\" SYSTEM\n";
+    let (out, err, code) = run_files(&[("s.fs", source)], &["--sandbox"]);
+    assert_eq!(out, "");
+    assert!(err.contains("-259") || err.to_lowercase().contains("permitted"), "{err}");
+    assert_eq!(code, 1);
+}

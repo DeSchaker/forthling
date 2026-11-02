@@ -306,6 +306,7 @@ fn sandbox(
     f.install(&forthling::Json);
     f.install(&forthling::Functional);
     f.install(&forthling::Strings);
+    f.install(&forthling::OperatingSystem);
     f.install(&forthling::Debugger);
     f.install(&forthling::Tutorial);
     // BREAK does not stop the program, which no one is watching: it records
@@ -324,6 +325,8 @@ fn sandbox(
     f.install(&forthling_sqlite::Sqlite);
     #[cfg(feature = "regex")]
     f.install(&forthling_regex::Regex);
+    // The machine stays closed: an agent that calls this server may not start programs.
+    f.permit(Permission::System, false);
     // The network stays closed unless the server was started with hosts.
     f.permit(Permission::Network, false);
     #[cfg(feature = "http")]
@@ -661,7 +664,7 @@ fn instructions(s: &Settings) -> String {
          `ALSO JSON` gives JSON words: `JSON@` reads a path such \
          as `users[0].name` from JSON text, and `JSON{{ S\" key\" JSON-KEY 1 JSON-NUMBER JSON}}` \
          writes JSON. `ALSO FUNCTIONAL` gives `MAP FOLD RUNNING-FOLD FILTER RANGE ANY? ALL? FIND COUNT-IF FLAT-MAP ITERATE REVERSE TAKE DROP-N ZIP SUM PRODUCT MIN-OF MAX-OF` on the data stack, and the same on a block of cells in memory (`MAP-CELLS FOLD-CELLS RUNNING-FOLD-CELLS FILTER-CELLS ANY?-CELLS` and more), \
-         such as `1 6 RANGE [: DUP * ;] MAP 5 ' + FOLD .` (55). `ALSO DYNAMIC-STRINGS` gives dynamic strings: `$VARIABLE S  S\" hi\" S $!  S\" !\" S $+!  S $@ TYPE`, with `$@LEN $INS $DEL $SPLIT $ITER $TMP $EXEC` and arrays (`$[]VARIABLE $[]! $[]@ $[]+! $[]# $[]MAP`), all on the heap, so `$FREE` and `$[]FREE` give memory back. `ALSO TUTORIAL` gives a Forth course of 20 lessons to walk a person \
+         such as `1 6 RANGE [: DUP * ;] MAP 5 ' + FOLD .` (55). `ALSO DYNAMIC-STRINGS` gives dynamic strings: `$VARIABLE S  S\" hi\" S $!  S\" !\" S $+!  S $@ TYPE`, with `$@LEN $INS $DEL $SPLIT $ITER $TMP $EXEC` and arrays (`$[]VARIABLE $[]! $[]@ $[]+! $[]# $[]MAP`), all on the heap, so `$FREE` and `$[]FREE` give memory back. `ALSO OPERATING-SYSTEM` is there, but the machine is closed: `SYSTEM`, `GETENV`, the command line and the directories give -259 here (`BASENAME`, `DIRNAME` and `FILENAME-MATCH` work). `ALSO TUTORIAL` gives a Forth course of 20 lessons to walk a person \
          through: `LESSONS`, `n LESSON`, `CHECK` (tests their answer), `HINT`, `NEXT`.{sqlite}{regex}{http} \
          Each call may take at most {} steps, {} ms and {} bytes of output; \
          the session's definitions and the like at most {} bytes in all. Files are in memory, \
