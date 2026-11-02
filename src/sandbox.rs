@@ -363,6 +363,10 @@ impl Forth {
 
     /// Waits for a child process to end. With a time limit it is killed when
     /// the limit is reached, and the evaluation throws -258.
+    #[cfg_attr(
+        target_arch = "wasm32",
+        allow(clippy::unused_self, reason = "the deadline is not used on wasm")
+    )]
     pub(crate) fn wait_child(
         &mut self,
         child: &mut std::process::Child,

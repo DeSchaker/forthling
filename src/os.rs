@@ -31,6 +31,10 @@ pub(crate) enum Std {
 
 /// What the words keep between calls.
 #[derive(Default)]
+#[cfg_attr(
+    target_arch = "wasm32",
+    allow(clippy::zero_sized_map_values, reason = "a Child is empty on wasm")
+)]
 pub(crate) struct Os {
     args: Vec<String>,                             // args[0] is the program, as in C
     cells: Option<(usize, usize)>,                 // where the variables ARGC and ARGV are
