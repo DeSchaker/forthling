@@ -138,6 +138,18 @@ impl Forth {
         if word.compile_only && self.current.is_none() {
             return Err(Throw::with(COMPILE_ONLY, word.name.clone()));
         }
+        // The two common kinds first, so that nothing else is cloned for them.
+        match &word.kind {
+            Kind::Prim(f) => {
+                let f = *f;
+                return f(self);
+            }
+            Kind::Colon(code) => {
+                let code = Rc::clone(code);
+                return self.enter(xt, code, 0);
+            }
+            _ => {}
+        }
         match word.kind.clone() {
             Kind::Prim(f) => f(self),
             Kind::Host(f) => f(self),
