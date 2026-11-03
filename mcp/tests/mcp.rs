@@ -190,6 +190,9 @@ fn the_sandbox_holds() {
         );
         assert_eq!(r["structuredContent"]["output"], "42 ");
     }
+    // The timing words need no permission.
+    let r = eval(&mut s, "ALSO BENCHMARK : TWICE 2 2 + DROP ; 3 ' TWICE BENCH-BEST 0 >= . DEPTH .");
+    assert_eq!(r["structuredContent"]["output"], "-1 0 ");
     // The machine is closed: no programs, no environment, no directories.
     assert_eq!(code(&mut s, "ALSO OPERATING-SYSTEM S\" echo hi\" SYSTEM"), -259);
     assert_eq!(code(&mut s, "S\" PATH\" GETENV"), -259);

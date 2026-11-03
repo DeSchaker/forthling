@@ -72,7 +72,9 @@ latest stable Rust, on Linux and Windows.
   many definitions and many lookups (`cargo bench -- fib` runs the cases with `fib` in the
   name). To check a change to the inner interpreter or the dictionary, run it in a checkout
   of the previous commit too (a `git worktree` does) and compare the two tables. Times
-  depend on the machine, so compare runs on the same one.
+  depend on the machine, so compare runs on the same one. `benches/*.fs` are the same cases
+  as Forth files that time themselves with the `BENCHMARK` words (`forthling benches/fib.fs`);
+  `definitions.fs` uses 5000 lines, not 20000, to fit the default memory of 1 MiB.
 - `src/cli.rs`: the forthling program (options, config file, REPL), in the library so
   that a program with extensions calls `forthling::cli::main(&[&Extension])`.
 - `src/tests.rs`: the unit tests; `tests/suite.rs` runs the files of the test suite.

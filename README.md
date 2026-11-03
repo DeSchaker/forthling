@@ -433,6 +433,35 @@ the real standard output, not through the Forth output. The words that touch the
 give it as the ior. The MCP server always denies it, and the Python module when `sandbox=True`.
 `BASENAME`, `DIRNAME`, `FILENAME-MATCH`, `$?`, `STDIN` and `STDOUT` need no permission.
 
+### Benchmarks
+
+The word list `BENCHMARK` (`ALSO BENCHMARK`) times code from Forth, with the clock that
+`UTIME` and `CPUTIME` use, so a program, or an agent, can measure its own words. The forthling
+program, the MCP server and the Python module install it; a Rust program does with
+`forth.install(&forthling::Benchmark)`. The playground does not: its clock counts whole
+seconds only. The words need no permission.
+
+```forth
+ALSO BENCHMARK
+: SQUARES  1000000 0 DO I DUP * DROP LOOP ;
+' SQUARES BENCH .                \ the time of one run, in microseconds
+5 ' SQUARES BENCH-BEST .         \ the shortest time of 5 runs
+```
+
+| Word | Stack |
+|---|---|
+| `BENCH` | `( xt -- microseconds )`: run `xt` once, which must have the effect `( -- )`, and give the time it took |
+| `BENCH-BEST` | `( n xt -- microseconds )`: run `xt` `n` times (at least 1) and give the shortest time, which is the least disturbed by the machine |
+
+An error in `xt` comes through, and so do the limits of the sandbox. The time is a wall-clock
+time, so a `MS` in `xt` counts.
+
+The programs of `cargo bench` (`benches/bench.rs`) are also Forth files that time themselves:
+`forthling benches/loop.fs` (the empty `DO LOOP`, 30 million trips), `benches/fib.fs` (`27 FIB`)
+and `benches/definitions.fs` (5000 definitions and constants, and lookups among them). Each
+prints the name of the case and the time in ms. The start of a system stays with `cargo bench`,
+since a Forth program cannot time the start of its own system.
+
 ### Sandbox
 
 Code that is not trusted, from a user or an AI agent, runs in a sandbox:

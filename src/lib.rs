@@ -6,6 +6,7 @@
 //! Forth program may inspect (BASE, STATE, >IN, the input buffers) lives in
 //! that memory, and errors are standard THROW codes.
 
+mod bench;
 mod blocks;
 pub mod cli;
 mod compiler;
@@ -38,6 +39,7 @@ mod xchar;
 #[cfg(test)]
 mod tests;
 
+pub use bench::Benchmark;
 pub use debug::{DebugHook, Pause, Reason, Resume};
 pub use functional::Functional;
 pub use host::Extension;

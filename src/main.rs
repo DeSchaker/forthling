@@ -9,5 +9,6 @@ fn main() {
         &forthling::Functional,
         &forthling::Strings,
         &forthling::OperatingSystem,
+        &forthling::Benchmark,
     ]);
 }
