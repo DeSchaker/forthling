@@ -141,6 +141,7 @@ pub struct Forth {
     budget: Budget,                      // what is left of them in this evaluation
     denied: HashSet<Permission>,         // what the program may not do
     clock: Option<Box<dyn Fn() -> u64>>, // seconds since 1970 for TIME&DATE (set_clock)
+    clock_micros: Option<Box<dyn Fn() -> u64>>, // microseconds since 1970 (set_clock_micros)
     started: u64,      // the clock in microseconds when the system began, for CPUTIME
     rng: Option<u64>,  // the state of RANDOM and RND; None until first used
     watching: bool,    // whether invoke calls watch() for each word (trace.rs)
@@ -229,6 +230,7 @@ impl Forth {
             budget: Budget::default(),
             denied: HashSet::new(),
             clock: None,
+            clock_micros: None,
             started: 0,
             rng: None,
             watching: false,

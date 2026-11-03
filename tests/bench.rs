@@ -90,3 +90,25 @@ fn the_definitions_file_runs_with_the_default_memory() {
         assert!(out.contains(case), "{case} is missing in {out}");
     }
 }
+
+#[test]
+fn a_host_clock_in_microseconds_is_read_at_each_use() {
+    use std::cell::Cell as Counter;
+    use std::rc::Rc;
+    let ticks = Rc::new(Counter::new(5_000_000_u64));
+    let mut f = Forth::new();
+    f.set_input(Box::new(Cursor::new(Vec::new())));
+    f.install(&Benchmark);
+    let clock = Rc::clone(&ticks);
+    // Each reading moves the clock on by 250 microseconds.
+    f.set_clock_micros(move || {
+        clock.set(clock.get() + 250);
+        clock.get()
+    });
+    f.interpret("ALSO BENCHMARK : NOOP ;").unwrap();
+    // BENCH reads the clock twice around the run: one step of 250.
+    assert_eq!(run(&mut f, "' NOOP BENCH ."), "250 ");
+    assert_eq!(run(&mut f, "3 ' NOOP BENCH-BEST ."), "250 ");
+    // TIME&DATE reads whole seconds of the same clock.
+    f.interpret("TIME&DATE 2DROP 2DROP 2DROP").unwrap();
+}

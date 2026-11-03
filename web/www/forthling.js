@@ -48,7 +48,7 @@ export class Forth {
     new Uint8Array(this.#wasm.memory.buffer, at, bytes.length).set(bytes);
     this.#wasm.fl_record(trace);
     try {
-      return this.#answer(this.#wasm.fl_eval(Date.now() / 1000));
+      return this.#answer(this.#wasm.fl_eval());
     } finally {
       this.#wasm.fl_record(0);
     }
@@ -134,8 +134,14 @@ export async function load(source) {
     source = fetch(source);
   }
   source = await source;
+  // The module's one import: the clock, in microseconds since 1970, read at
+  // each TIME&DATE, UTIME, CPUTIME and BENCH. Browsers round performance.now()
+  // (often to 0.1 ms or more), so BENCH of a short word is coarse there.
+  const imports = {
+    env: { fl_now_micros: () => (performance.timeOrigin + performance.now()) * 1000 },
+  };
   const { instance } = source instanceof Response
-    ? await WebAssembly.instantiateStreaming(source, {})
-    : await WebAssembly.instantiate(source, {});
+    ? await WebAssembly.instantiateStreaming(source, imports)
+    : await WebAssembly.instantiate(source, imports);
   return new Forth(instance);
 }

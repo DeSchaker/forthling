@@ -624,7 +624,9 @@ laat, staat de keuze hieronder.
   `ASSERT-LEVEL` hoog genoeg is en gooit -2 bij een onwaar vlag; een uitgeschakelde slaat de
   tekst tot de volgende `)` over.
 - Tijd en willekeurige getallen: `UTIME` geeft de microseconden sinds 1970 (de klok van
-  `TIME&DATE`; een host die een klok instelt geeft hele seconden). `CPUTIME` geeft de tijd
+  `TIME&DATE`; een host die een klok in seconden instelt met `set_clock` geeft hele seconden,
+  een host die hem instelt met `set_clock_micros`, zoals de speeltuin, geeft de resolutie
+  van die klok). `CPUTIME` geeft de tijd
   sinds het systeem startte als gebruikerstijd en 0 als systeemtijd; er is geen CPU-klok in
   de sandbox. `RND` geeft een willekeurige cel, `RANDOM ( u1 -- u2 )` een getal van 0 tot
   `u1`, en `SEED! ( x -- )` laat de reeks zich herhalen. De generator is splitmix64, gezaaid

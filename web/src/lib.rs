@@ -10,8 +10,8 @@
 //! reach them.
 
 use forthling::{
-    Debugger, Forth, Functional, Json, MemoryFs, OperatingSystem, Strings, Throw, TraceEntry,
-    Tutorial,
+    Benchmark, Debugger, Forth, Functional, Json, MemoryFs, OperatingSystem, Strings, Throw,
+    TraceEntry, Tutorial,
 };
 use std::cell::{Cell, RefCell};
 use std::fmt::Write as _;
@@ -20,15 +20,35 @@ thread_local! {
     static SESSION: RefCell<Option<Forth>> = const { RefCell::new(None) };
     static INPUT: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
     static ANSWER: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
-    static NOW: Cell<u64> = const { Cell::new(0) }; // seconds since 1970, from the page
     static RECORD: Cell<usize> = const { Cell::new(0) }; // trace entries to record, 0 for none
     static FILES: RefCell<MemoryFs> = RefCell::new(MemoryFs::new()); // the session's files
+}
+
+#[link(wasm_import_module = "env")]
+unsafe extern "C" {
+    /// The page's clock in microseconds since 1970 (`performance.timeOrigin +
+    /// performance.now()`), read at each use; the module's one import, from `env`.
+    fn fl_now_micros() -> f64;
+}
+
+/// The page's clock in whole microseconds.
+fn now_micros() -> u64 {
+    // SAFETY: the import takes nothing and only reads the clock.
+    let micros = unsafe { fl_now_micros() };
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "a time is not negative (max) and the cast saturates"
+    )]
+    let micros = micros.max(0.0) as u64;
+    micros
 }
 
 /// A new session: the sandbox (files only in memory, at most 4 MiB, no
 /// terminal input, 10 million steps and 1 MiB of output per run;
 /// WebAssembly has no clock for a time limit), the JSON words, TRACE-ON and
-/// TRACE-OFF, and the time of the page for TIME&DATE.
+/// TRACE-OFF, the benchmark words, and the clock of the page for TIME&DATE,
+/// UTIME and BENCH.
 fn session() -> Forth {
     let mut f = Forth::sandboxed();
     let files = MemoryFs::with_limit(MemoryFs::SANDBOX_LIMIT);
@@ -41,7 +61,8 @@ fn session() -> Forth {
     f.install(&forthling_regex::Regex);
     f.install(&Debugger);
     f.install(&Tutorial);
-    f.set_clock(|| NOW.with(Cell::get));
+    f.install(&Benchmark);
+    f.set_clock_micros(now_micros);
     f
 }
 
@@ -68,17 +89,9 @@ pub extern "C" fn fl_record(max: usize) {
     RECORD.with(|r| r.set(max));
 }
 
-/// Runs the input as Forth code, with the time of the page (seconds since
-/// 1970); returns the length of the answer.
+/// Runs the input as Forth code; returns the length of the answer.
 #[unsafe(no_mangle)]
-pub extern "C" fn fl_eval(now: f64) -> usize {
-    #[allow(
-        clippy::cast_possible_truncation,
-        clippy::cast_sign_loss,
-        reason = "a time is not negative (max) and the cast saturates"
-    )]
-    let seconds = now.max(0.0) as u64;
-    NOW.with(|n| n.set(seconds));
+pub extern "C" fn fl_eval() -> usize {
     let code = INPUT.with(|i| String::from_utf8_lossy(&i.borrow()).into_owned());
     let record = RECORD.with(Cell::get);
     let answer = with_session(|f| {

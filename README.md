@@ -437,9 +437,10 @@ give it as the ior. The MCP server always denies it, and the Python module when 
 
 The word list `BENCHMARK` (`ALSO BENCHMARK`) times code from Forth, with the clock that
 `UTIME` and `CPUTIME` use, so a program, or an agent, can measure its own words. The forthling
-program, the MCP server and the Python module install it; a Rust program does with
-`forth.install(&forthling::Benchmark)`. The playground does not: its clock counts whole
-seconds only. The words need no permission.
+program, the MCP server, the Python module and the playground install it; a Rust program does
+with `forth.install(&forthling::Benchmark)`. In the playground the clock is
+`performance.now()`, which a browser rounds (how much depends on the browser), so time a word that runs for
+milliseconds, or use `BENCH-BEST`. The words need no permission.
 
 ```forth
 ALSO BENCHMARK

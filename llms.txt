@@ -125,7 +125,7 @@ R> CLOSE-PIPE THROW .                                \ 0, the exit status
 
 ## Benchmarks
 
-`ALSO BENCHMARK` times your own code, with no permission needed (not in the playground, whose clock counts whole seconds): `BENCH ( xt -- microseconds )` runs a word once, `BENCH-BEST ( n xt -- microseconds )` gives the shortest of n runs. For example `: SQUARES 1000000 0 DO I DUP * DROP LOOP ;  5 ' SQUARES BENCH-BEST .`. An error in the word comes through. The files `benches/loop.fs`, `benches/fib.fs` and `benches/definitions.fs` time the interpreter itself.
+`ALSO BENCHMARK` times your own code, with no permission needed (in the playground too, where a browser rounds the clock: time a word that runs for milliseconds): `BENCH ( xt -- microseconds )` runs a word once, `BENCH-BEST ( n xt -- microseconds )` gives the shortest of n runs. For example `: SQUARES 1000000 0 DO I DUP * DROP LOOP ;  5 ' SQUARES BENCH-BEST .`. An error in the word comes through. The files `benches/loop.fs`, `benches/fib.fs` and `benches/definitions.fs` time the interpreter itself.
 
 ## Tutorial
 

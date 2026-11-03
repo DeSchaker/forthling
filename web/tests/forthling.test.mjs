@@ -136,3 +136,19 @@ test("regular expressions", async () => {
   assert.equal(r.output, "-1 2 6 ");
   assert.equal(forth.eval('S" a" S" (" RE-MATCH?').error.code, -262);
 });
+
+test("the benchmark words use the clock of the page, in microseconds", async () => {
+  const forth = await fresh();
+  // The clock is read at each use, so it advances during one call.
+  let r = forth.eval("UTIME 2DROP : SPIN 300000 0 DO I DROP LOOP ; ALSO BENCHMARK ' SPIN BENCH");
+  assert.equal(r.error, null);
+  assert.equal(r.stack.length, 1);
+  assert.ok(r.stack[0] > 0 && r.stack[0] < 5_000_000, `BENCH gave ${r.stack[0]}`);
+  r = forth.eval("DROP 3 ' SPIN BENCH-BEST");
+  assert.equal(r.error, null);
+  assert.ok(r.stack[0] > 0, `BENCH-BEST gave ${r.stack[0]}`);
+  // UTIME is in microseconds since 1970, not whole seconds.
+  r = forth.eval("DROP UTIME DROP");
+  assert.ok(Math.abs(r.stack[0] / 1000 - Date.now()) < 5000, `UTIME gave ${r.stack[0]}`);
+  assert.equal(forth.eval("999999999 BENCH").error.code, -24);
+});

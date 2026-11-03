@@ -59,6 +59,20 @@ plays such a record back, word by word, forwards and back, with the stack before
 each word and jumps to each `BREAK`; WebAssembly cannot wait in the middle of a run, but
 the sandbox makes a run come out the same each time, so the record is what happened.
 
+`load()` instantiates the module for you. To do it yourself, give the module its one
+import, `fl_now_micros` in the module `env`: a function without arguments that returns the
+time in microseconds since 1970 as a number (an `f64`), read afresh at each call. Without
+it `WebAssembly.instantiate` fails (a `TypeError`: `Import #0 module="env"`). The exports are then the `fl_*`
+functions, which `forthling.js` wraps (`fl_eval()` takes no argument).
+
+```js
+const imports = {
+  env: { fl_now_micros: () => (performance.timeOrigin + performance.now()) * 1000 },
+};
+const { instance } = await WebAssembly.instantiateStreaming(fetch("forthling.wasm"), imports);
+const forth = new Forth(instance); // the class of forthling.js, which it exports
+```
+
 The session's files are in memory. `INCLUDE`, the FILE words and the block words use
 them, and the page can too:
 
@@ -80,14 +94,20 @@ over* gives them back to the new session, also the files a program wrote.
 - The sandbox: files only in memory (at most 4 MiB, gone at `reset()`), no terminal input, at most 10 million steps and 1 MiB of
   output per run and 4 MiB of definitions and the like in all. WebAssembly has no clock
   for a time limit, so the steps are the limit there.
-- `MS` does nothing (WebAssembly cannot sleep); `TIME&DATE` has the time of the page
-  (`Forth::set_clock`).
+- `MS` does nothing (WebAssembly cannot sleep). The time is that of the page, in
+  microseconds (`Forth::set_clock_micros`): the module imports one function, `fl_now_micros`
+  from `env`, which `forthling.js` gives as `performance.timeOrigin + performance.now()`,
+  and reads it at each use, so `UTIME`, `CPUTIME` and `BENCH` advance during a run. A
+  program that loads the `.wasm` itself must give that import. Browsers round
+  `performance.now()` to a resolution that depends on the browser, so time a word that
+  runs for milliseconds, or use `BENCH-BEST`.
 - The memory is 1 MiB, as natively; the most it can be is 1 GiB (`MAX_MEMORY` on a
   32-bit target).
 - The JSON words are installed (`ALSO JSON`), the debug words (`ALSO DEBUG`,
   `TRACE-ON`, `TRACE-OFF`, `BREAK`, which does nothing there but shows in a record) and
   the tutorial (`ALSO TUTORIAL`; from JavaScript `forth.lessons()` and
-  `forth.tutorial(word, n)`) and the regular expression words (`ALSO REGEX`); SQLite is not.
+  `forth.tutorial(word, n)`), the regular expression words (`ALSO REGEX`) and the timing
+  words (`ALSO BENCHMARK`); SQLite is not.
 
 ## Testing
 

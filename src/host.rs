@@ -143,8 +143,21 @@ impl Forth {
         self.started = self.now_micros();
     }
 
+    /// Sets the clock in microseconds since 1970-01-01 UTC. It replaces
+    /// `set_clock`: `TIME&DATE` reads its whole seconds, and `UTIME`,
+    /// `CPUTIME` and the `BENCHMARK` words its microseconds. It is read at
+    /// each use, so it advances while a program runs. The resolution is that
+    /// of the clock given; a browser rounds `performance.now()`.
+    pub fn set_clock_micros(&mut self, now: impl Fn() -> u64 + 'static) {
+        self.clock_micros = Some(Box::new(now));
+        self.started = self.now_micros();
+    }
+
     /// The time of the clock, in seconds since 1970-01-01 UTC.
     pub(crate) fn now(&self) -> u64 {
+        if let Some(clock) = &self.clock_micros {
+            return clock() / 1_000_000;
+        }
         if let Some(clock) = &self.clock {
             return clock();
         }
@@ -160,6 +173,9 @@ impl Forth {
     /// The time of the clock in microseconds since 1970-01-01 UTC: the
     /// system clock to the microsecond, or the seconds of `set_clock`.
     pub(crate) fn now_micros(&self) -> u64 {
+        if let Some(clock) = &self.clock_micros {
+            return clock();
+        }
         #[cfg(not(target_arch = "wasm32"))]
         if self.clock.is_none() {
             use std::time::{SystemTime, UNIX_EPOCH};

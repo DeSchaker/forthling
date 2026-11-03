@@ -603,7 +603,8 @@ that leaves room, the choice is below.
   prints `source:line:column:` and `.S`. `ASSERT(` is compiled when `ASSERT-LEVEL` is high
   enough and throws -2 on a false flag; a disabled one skips the text up to the next `)`.
 - Time and random numbers: `UTIME` gives the microseconds since 1970 (the clock of
-  `TIME&DATE`; a host that sets a clock gives whole seconds). `CPUTIME` gives the time
+  `TIME&DATE`; a host that sets a clock in seconds with `set_clock` gives whole seconds, one
+  that sets it with `set_clock_micros`, as the playground does, gives its resolution). `CPUTIME` gives the time
   since the system started as the user time and 0 as the system time; there is no CPU clock
   in the sandbox. `RND` gives a random cell, `RANDOM ( u1 -- u2 )` a number from 0 up to
   `u1`, `SEED! ( x -- )` makes the sequence repeat. The generator is splitmix64, seeded
