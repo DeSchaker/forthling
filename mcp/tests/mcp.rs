@@ -530,3 +530,95 @@ fn hosts_need_the_feature() {
     let s = Settings { hosts: vec!["example.org".into()], ..Settings::default() };
     assert!(s.check().unwrap_err().contains("feature http"));
 }
+
+/// One case of the table in `mcp/README.md` ("What an agent sees for typical mistakes"):
+/// the THROW code (`None` for no error), the `token`, a stable fragment of the text and
+/// the longest text allowed. Without an error the case asserts the stack instead.
+struct Case {
+    code: &'static str,
+    throw: Option<i64>,
+    token: &'static str,
+    fragment: &'static str,
+    max_len: usize,
+    stack: Option<&'static str>,
+}
+
+#[test]
+fn the_error_cases_of_the_readme_answer_as_documented() {
+    let c = |code, throw, token, fragment| Case {
+        code,
+        throw,
+        token,
+        fragment,
+        max_len: 400,
+        stack: None,
+    };
+    let quiet = |code, fragment, stack| Case {
+        code,
+        throw: None,
+        token: "",
+        fragment,
+        max_len: 100,
+        stack: Some(stack),
+    };
+    let long = format!("S\" {}\" TYPE", "x".repeat(1100));
+    let long: &'static str = Box::leak(long.into_boxed_str());
+    #[allow(unused_mut)] // only the SQLite case below adds to it
+    let mut cases = vec![
+        c("1 2 FOO .", Some(-13), "FOO", "undefined word: FOO"),
+        c(": sq DUPP * ;", Some(-13), "DUPP", "undefined word: DUPP"),
+        c(": add2 + ; 1 add2", Some(-4), "add2", "in: ADD2 > +"),
+        c(": f ( n -- ) DROP ; f", Some(-4), "f", "in: F > DROP"),
+        c("1 IF 2 THEN", Some(-14), "IF", "interpreting a compile-only word: IF"),
+        c(": foo 1 IF 2 ;", Some(-22), ";", "control structure mismatch"),
+        c(": f LOOP ;", Some(-22), "LOOP", "control structure mismatch"),
+        c("1 0 /", Some(-10), "/", "in: /"),
+        c("12345678 @", Some(-9), "@", "invalid memory address: 12345678"),
+        c(": spin BEGIN 1 DROP AGAIN ; spin", Some(-258), "spin", "in: SPIN > DROP"),
+        c("S\" nofile.fth\" INCLUDED", Some(-38), "INCLUDED", "non-existent file: nofile.fth"),
+        c("S\" 1 2 FOO\" EVALUATE", Some(-13), "FOO", "at evaluate, line 1, column 5: FOO"),
+        c(long, Some(-18), "", "input line too long"),
+        c(": chk 0= ABORT\" zero\" ; 0 chk", Some(-2), "chk", "aborted: zero"),
+        // The runaway cases stay short.
+        c(": grow BEGIN 1 AGAIN ; grow", Some(-3), "grow", "stack at the error: ... ("),
+        c(": r RECURSE ; r", Some(-5), "r", "in: ... ("),
+        // The output limit keeps the output, then the error; the output is capped at 1 MiB.
+        Case {
+            max_len: 1_048_576 + 1024,
+            ..c(": p BEGIN 65 EMIT AGAIN ; p", Some(-258), "p", "limit exceeded: output")
+        },
+        // No error: the agent reads the stack, so "no error" stays a choice.
+        quiet(": foo 1 2 +", "a definition is still open", "[]"),
+        quiet(": t 1 0 / ; : u ['] t CATCH . ; u", "-10", "[]"),
+        quiet("-1 ALLOCATE", "ok", "[0,-59]"),
+        quiet("10 ALLOCATE DROP DUP FREE DROP FREE", "ok", "[-60]"),
+        quiet("ALSO JSON S\" {}\" S\" a.b\" JSON@", "ok", "[0,0,0]"),
+    ];
+    #[cfg(feature = "sqlite")]
+    cases.push(c("S\" :memory:\" DB-OPEN", Some(-13), "DB-OPEN", "ALSO SQLITE finds it"));
+    // An unclosed S" takes the rest of the line; its address is not fixed, its length is.
+    let r = eval(&mut server(), "S\" abc");
+    assert_eq!(r["isError"], false);
+    assert_eq!(r["structuredContent"]["stack"][1], 3);
+    for case in cases {
+        let mut s = server();
+        let r = eval(&mut s, case.code);
+        let t = text(&r);
+        let shown = &case.code[..case.code.len().min(60)];
+        assert!(t.len() <= case.max_len, "{shown}: {} bytes", t.len());
+        assert!(t.contains(case.fragment), "{shown}: {}", &t[t.len().saturating_sub(300)..]);
+        if let Some(throw) = case.throw {
+            assert_eq!(r["isError"], true, "{shown}");
+            let error = &r["structuredContent"]["error"];
+            assert_eq!(
+                (error["code"].clone(), error["token"].clone()),
+                (json!(throw), json!(case.token)),
+                "{shown}"
+            );
+        } else {
+            assert_eq!(r["isError"], false, "{shown}: {t}");
+            let stack = r["structuredContent"]["stack"].to_string();
+            assert_eq!(stack, case.stack.unwrap(), "{shown}");
+        }
+    }
+}
