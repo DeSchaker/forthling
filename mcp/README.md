@@ -94,6 +94,47 @@ failed, such as `/` here, has taken them. An undefined word that is in a word li
 outside the search order gets a `hint`, which the text adds after the word:
 `error -13: undefined word: JSON@ (it is in the word list JSON; ALSO JSON finds it)`.
 
+A runaway program can leave a hundred thousand cells on the stack, or as many words
+running (endless recursion). The result then keeps the top 32 cells and the innermost 32
+words, the text says `... (n more)` and the JSON has the full depth in `stack_depth`,
+`fstack_depth` and `words_depth`. A definition that is still open (`compiling` true)
+says so in the text: `compiled (a definition is still open; `;` ends it)`.
+
+### What an agent sees for typical mistakes
+
+Each case was run through `forth_eval` (#47); the answer is the first lines of the text.
+The code was run from a fresh session.
+
+| Mistake | Code | Answer |
+|---|---|---|
+| undefined word | `1 2 FOO .` | `error -13: undefined word: FOO`, the column, the stack at the error `1 2` |
+| word in a word list not in the search order | `S" :memory:" DB-OPEN` | `error -13: undefined word: DB-OPEN (it is in the word list SQLITE; ALSO SQLITE finds it)` |
+| undefined word in a definition | `: sq DUPP * ;` | `error -13: undefined word: DUPP`, at its column |
+| stack underflow | `: add2 + ; 1 add2` | `error -4: stack underflow`, `in: ADD2 > +`, the stack at the error |
+| word that eats too much | `: f ( n -- ) DROP ; f` | `error -4`, `in: F > DROP` |
+| `IF`, `DO`, `BEGIN` outside a definition | `1 IF 2 THEN` | `error -14: interpreting a compile-only word: IF` |
+| unclosed `IF` | `: foo 1 IF 2 ;` | `error -22: control structure mismatch`, at the `;` |
+| `LOOP` without `DO` | `: f LOOP ;` | `error -22: control structure mismatch` |
+| unclosed definition | `: foo 1 2 +` | `compiled (a definition is still open; `;` ends it)` |
+| division by zero | `1 0 /` | `error -10: division by zero`, `in: /`, stack at the error empty (`/` took its arguments) |
+| bad address | `12345678 @` | `error -9: invalid memory address: 12345678` |
+| step limit | `: spin BEGIN 1 DROP AGAIN ; spin` | `error -258: limit exceeded: steps`, `in: SPIN > DROP` |
+| output limit | `: p BEGIN 65 EMIT AGAIN ; p` | the output up to the limit, then `error -258: limit exceeded: output` |
+| endless stack growth | `: grow BEGIN 1 AGAIN ; grow` | `error -3: stack overflow`, the top 32 cells and `... (n more)` |
+| endless recursion | `: r RECURSE ; r` | `error -5: return stack overflow`, the innermost 32 words |
+| missing file | `S" nofile.fth" INCLUDED` | `error -38: non-existent file: nofile.fth: no such file` |
+| error inside `EVALUATE` | `S" 1 2 FOO" EVALUATE` | `at evaluate, line 1, column 5: FOO`, stack `1 2` |
+| line over 1024 characters | `S" xxxx…" TYPE` | `error -18: parsed string overflow: input line too long` |
+| `ABORT"` | `: chk 0= ABORT" zero" ; 0 chk` | `error -2: aborted: zero` |
+| `CATCH` | `: t 1 0 / ; : u ['] t CATCH . ; u` | prints `-10`, no error result |
+
+What gives no error, and so no message: an unclosed `S"` or `(` takes the rest of the
+line (as the standard says); `: f >R ;` leaves the return stack unbalanced and `1 f`
+returns without a word; `ALLOCATE` of a negative size and `FREE` twice answer with a
+non-zero `ior` on the stack (`-59`, `-60`), and so does a failed `DB-EXEC` (`-261`); a
+JSON path that is not there gives `0 0 0`. These follow the standard or the word's
+stack effect; the agent must read the stack.
+
 With `"trace": true`, `forth_eval` also returns a trace: each word that ran, with how deep
 it was nested and the data stack when it started (at most its top 8 cells), at most 1000
 words; `trace_dropped` counts the rest. The insides of the system's own words are left

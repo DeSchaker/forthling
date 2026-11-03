@@ -76,7 +76,10 @@ fn a_session_keeps_its_definitions() {
     let r = eval(&mut s, ": HALF 2 /");
     assert_eq!(
         (r["structuredContent"]["compiling"].clone(), text(&r)),
-        (json!(true), " compiled\nstack: empty\nfloat stack: 1.5E0")
+        (
+            json!(true),
+            " compiled (a definition is still open; `;` ends it)\nstack: empty\nfloat stack: 1.5E0"
+        )
     );
     eval(&mut s, ";");
     assert_eq!(
@@ -117,6 +120,27 @@ fn forth_errors_are_results() {
     let hint = "it is in the word list JSON; ALSO JSON finds it";
     assert_eq!(r["structuredContent"]["error"]["hint"], hint);
     assert!(text(&r).starts_with(&format!("error -13: undefined word: JSON@ ({hint})")));
+}
+
+#[test]
+fn a_runaway_error_shows_only_the_end_of_the_stacks() {
+    let mut s = server();
+    // A stack overflow leaves a hundred thousand cells; the result keeps the top 32.
+    let r = eval(&mut s, ": GROW BEGIN 1 AGAIN ; GROW");
+    let error = &r["structuredContent"]["error"];
+    assert_eq!(error["code"], -3);
+    assert_eq!(error["stack"].as_array().unwrap().len(), 32);
+    assert!(error["stack_depth"].as_u64().unwrap() > 1000);
+    let t = text(&r);
+    assert!(t.len() < 1000, "{} bytes", t.len());
+    assert!(t.contains("stack at the error: ... ("), "{t}");
+    // Endless recursion fills the return stack; the words keep the innermost 32.
+    let r = eval(&mut s, ": R RECURSE ; R");
+    let error = &r["structuredContent"]["error"];
+    assert_eq!(error["code"], -5);
+    assert_eq!(error["words"].as_array().unwrap().len(), 32);
+    assert!(error["words_depth"].as_u64().unwrap() > 1000);
+    assert!(text(&r).len() < 1000, "{}", text(&r));
 }
 
 #[test]

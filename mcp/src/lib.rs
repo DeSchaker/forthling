@@ -374,10 +374,29 @@ fn reply(id: &Value, result: Result<Value, Failure>) -> String {
 
 /// The result of a tool that shows the state: the output, the stacks and
 /// the error, as text the way the REPL shows them, and as JSON.
+///
+/// The stacks and the running words at an error are cut to their last
+/// `MAX_SHOWN` entries (the top of a stack, the innermost words): a runaway
+/// loop can leave a hundred thousand cells, which would fill the agent's
+/// context and say nothing more than the last few.
+const MAX_SHOWN: usize = 32;
+
+/// The last `MAX_SHOWN` entries of `items`, and how many came before them.
+fn tail<T>(items: &[T]) -> (&[T], usize) {
+    let cut = items.len().saturating_sub(MAX_SHOWN);
+    (&items[cut..], cut)
+}
+
 fn state(f: &Forth, output: &str, error: Option<Throw>) -> Value {
-    let cells = |stack: &[i64]| stack.iter().map(i64::to_string).collect::<Vec<_>>().join(" ");
-    let float_cells =
-        |stack: &[f64]| stack.iter().map(|r| format!("{r:E}")).collect::<Vec<_>>().join(" ");
+    let more = |n: usize| if n > 0 { format!("... ({n} more) ") } else { String::new() };
+    let cells = |stack: &[i64]| {
+        let (shown, cut) = tail(stack);
+        more(cut) + &shown.iter().map(i64::to_string).collect::<Vec<_>>().join(" ")
+    };
+    let float_cells = |stack: &[f64]| {
+        let (shown, cut) = tail(stack);
+        more(cut) + &shown.iter().map(|r| format!("{r:E}")).collect::<Vec<_>>().join(" ")
+    };
     let floats = float_cells(f.fstack());
     let mut text = output.to_string();
     match &error {
@@ -397,7 +416,8 @@ fn state(f: &Forth, output: &str, error: Option<Throw>) -> Value {
                     );
                 }
                 if !c.words.is_empty() {
-                    let _ = write!(text, "\nin: {}", c.words.join(" > "));
+                    let (shown, cut) = tail(&c.words);
+                    let _ = write!(text, "\nin: {}{}", more(cut), shown.join(" > "));
                 }
                 let at = if c.stack.is_empty() { "empty".to_string() } else { cells(&c.stack) };
                 let _ = write!(text, "\nstack at the error: {at}");
@@ -406,7 +426,9 @@ fn state(f: &Forth, output: &str, error: Option<Throw>) -> Value {
                 }
             }
         }
-        None if f.in_definition() => text += " compiled",
+        None if f.in_definition() => {
+            text += " compiled (a definition is still open; `;` ends it)";
+        }
         None => text += " ok",
     }
     let stack = if f.stack().is_empty() { "empty".to_string() } else { cells(f.stack()) };
@@ -423,9 +445,15 @@ fn state(f: &Forth, output: &str, error: Option<Throw>) -> Value {
             "hint": e.hint(),
         });
         if let Some(c) = e.context() {
-            error["stack"] = json!(c.stack);
-            error["fstack"] = json!(c.fstack);
-            error["words"] = json!(c.words);
+            let (stack, _) = tail(&c.stack);
+            let (fstack, _) = tail(&c.fstack);
+            let (words, _) = tail(&c.words);
+            error["stack"] = json!(stack);
+            error["stack_depth"] = json!(c.stack.len());
+            error["fstack"] = json!(fstack);
+            error["fstack_depth"] = json!(c.fstack.len());
+            error["words"] = json!(words);
+            error["words_depth"] = json!(c.words.len());
             error["source"] = json!(c.source);
             error["line"] = json!(c.line);
             error["column"] = json!(c.column);
@@ -528,9 +556,12 @@ fn state_schema() -> Value {
                     "detail": { "type": ["string", "null"] },
                     "location": { "type": ["string", "null"] },
                     "hint": { "type": ["string", "null"], "description": "how to put the error right, such as the ALSO that finds an undefined word" },
-                    "stack": { "type": "array", "items": { "type": "integer" }, "description": "the data stack at the error, before it was emptied; a word that took its arguments before it failed has taken them" },
-                    "fstack": { "type": "array", "items": { "type": ["number", "null"] }, "description": "the float stack at the error" },
-                    "words": { "type": "array", "items": { "type": "string" }, "description": "the words that were running, outermost first, such as MAIN, STEP, /" },
+                    "stack": { "type": "array", "items": { "type": "integer" }, "description": "the top 32 cells of the data stack at the error, before it was emptied; a word that took its arguments before it failed has taken them; stack_depth is the full depth" },
+                    "stack_depth": { "type": "integer", "description": "how many cells the data stack held at the error" },
+                    "fstack": { "type": "array", "items": { "type": ["number", "null"] }, "description": "the top 32 values of the float stack at the error" },
+                    "fstack_depth": { "type": "integer", "description": "how many values the float stack held at the error" },
+                    "words": { "type": "array", "items": { "type": "string" }, "description": "the innermost 32 of the words that were running, outermost first, such as MAIN, STEP, /" },
+                    "words_depth": { "type": "integer", "description": "how many words were running at the error" },
                     "source": { "type": "string", "description": "input (the code of this call), evaluate (a string given to EVALUATE) or block n" },
                     "line": { "type": "integer", "description": "the line in that source, from 1" },
                     "column": { "type": "integer", "description": "the column of token, in characters from 1; 0 when no word was read" },
@@ -658,7 +689,7 @@ fn instructions(s: &Settings) -> String {
          the like work only inside a definition; `S\" text\"` gives ( c-addr u ) and TYPE prints \
          it. For more than two or three values, name them with locals rather than juggling \
          them with ROT, PICK and ROLL: `: HYP2 {{: a b -- c :}} a a * b b * + ;` (the last \
-         name gets the top). An error empties the stacks, but the result shows them as they were at the error, with where it happened and the words that were running. To see what code does word by word, pass `trace: true` to forth_eval: the result then lists each word that ran with the data stack when it started. Or put BREAK (after `ALSO DEBUG`) where you want to look: the result then shows the stacks and the running words at each BREAK. A line of code, and so a string in `S\" \"`, is at most \
+         name gets the top). An error empties the stacks, but the result shows them as they were at the error, with where it happened and the words that were running (at most the top 32 cells and the innermost 32 words). To see what code does word by word, pass `trace: true` to forth_eval: the result then lists each word that ran with the data stack when it started. Or put BREAK (after `ALSO DEBUG`) where you want to look: the result then shows the stacks and the running words at each BREAK. A line of code, and so a string in `S\" \"`, is at most \
          1024 characters: give larger input, such as a JSON document, as the `data` argument of \
          forth_eval, and read it in the code with `DATA ( -- c-addr u )`, an ALLOCATEd copy. \
          `ALSO JSON` gives JSON words: `JSON@` reads a path such \
