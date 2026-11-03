@@ -21,6 +21,11 @@ path = "src/main.rs"
 forthling = { path = "..", version = "0.2.1" }
 rusqlite = { version = "0.40", features = ["bundled", "hooks", "limits"] }
 
+[profile.release]
+# The profile of the core does not apply when it is a dependency, so this crate sets its own.
+lto = true
+codegen-units = 1
+
 [lints.rust]
 # CONTRIBUTING.md: this crate has no `unsafe` code, and the compiler keeps it so.
 unsafe_code = "forbid"
