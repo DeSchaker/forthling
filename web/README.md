@@ -107,7 +107,8 @@ over* gives them back to the new session, also the files a program wrote.
   `TRACE-ON`, `TRACE-OFF`, `BREAK`, which does nothing there but shows in a record) and
   the tutorial (`ALSO TUTORIAL`; from JavaScript `forth.lessons()` and
   `forth.tutorial(word, n)`), the regular expression words (`ALSO REGEX`) and the timing
-  words (`ALSO BENCHMARK`); SQLite is not.
+  words (`ALSO BENCHMARK`) and the test words (`ALSO TESTING`; the failure lines are in the
+  output, there is no structured result in the playground); SQLite is not.
 
 ## Testing
 

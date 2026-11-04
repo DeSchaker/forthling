@@ -625,3 +625,38 @@ fn the_error_cases_of_the_readme_answer_as_documented() {
         }
     }
 }
+
+#[test]
+fn tests_are_reported_per_call() {
+    let mut s = server();
+    // No tests, no field.
+    let r = eval(&mut s, "ALSO TESTING 1 2 + .");
+    assert!(r["structuredContent"].get("tests").is_none());
+    let r = eval(&mut s, "TESTING sums\nT{ 1 2 + -> 3 }T\nT{ 1 1 + -> 3 }T\n");
+    let t = &r["structuredContent"]["tests"];
+    assert_eq!(
+        (&t["passed"], &t["failed"], &t["failures_dropped"]),
+        (&json!(1), &json!(1), &json!(0))
+    );
+    assert_eq!(
+        t["failures"][0],
+        json!({
+            "source": "input", "line": 3, "group": "sums",
+            "expected": [3], "expected_depth": 1, "actual": [2], "actual_depth": 1, "stack": [],
+        })
+    );
+    assert!(text(&r).starts_with("tests: 1 passed, 1 failed\n"));
+    assert!(r["structuredContent"]["output"].as_str().unwrap().starts_with("FAIL input:3 (sums)"));
+    assert_eq!(r["isError"], false);
+    // The next call counts from zero.
+    let r = eval(&mut s, "T{ 1 -> 1 }T");
+    assert_eq!(r["structuredContent"]["tests"]["passed"], 1);
+    assert_eq!(r["structuredContent"]["tests"]["failed"], 0);
+    // A file given with `files` is reported with its name.
+    let r = call(
+        &mut s,
+        "forth_eval",
+        &json!({ "code": "INCLUDE t.fs", "files": { "t.fs": "T{ 1 -> 2 }T\n" } }),
+    );
+    assert_eq!(r["structuredContent"]["tests"]["failures"][0]["source"], "t.fs");
+}

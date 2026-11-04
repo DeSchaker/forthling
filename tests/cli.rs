@@ -143,3 +143,34 @@ fn the_sandbox_has_no_machine() {
     assert!(err.contains("-259") || err.to_lowercase().contains("permitted"), "{err}");
     assert_eq!(code, 1);
 }
+
+#[test]
+fn test_mode_reports_the_tests_and_sets_the_exit_code() {
+    let good = "ALSO TESTING\nT{ 1 2 + -> 3 }T\nT{ 2 2 * -> 4 }T\n";
+    let (out, _, code) = run_files(&[("good.fs", good)], &["--test"]);
+    assert_eq!((out.as_str(), code), ("tests: 2 passed, 0 failed\n", 0));
+
+    let bad = "ALSO TESTING\nTESTING sums\nT{ 1 2 + -> 4 }T\nT{ 1 1 + -> 2 }T\n";
+    let (out, _, code) = run_files(&[("bad.fs", bad)], &["--test"]);
+    assert_eq!(code, 1);
+    assert!(out.contains("bad.fs:3 (sums): incorrect result: expected <1> 4, got <1> 3"), "{out}");
+    assert!(out.ends_with("tests: 1 passed, 1 failed\n"), "{out}");
+
+    // The counts run over all the files; an error ends the run with exit code 1.
+    let (out, err, code) =
+        run_files(&[("a.fs", good), ("b.fs", "T{ 1 0 / -> 0 }T\n")], &["--test"]);
+    assert_eq!(code, 1);
+    assert!(out.ends_with("tests: 2 passed, 0 failed\n") && err.contains("-10"), "{out} {err}");
+
+    // Without --test nothing is counted or printed, and the exit code is 0.
+    let (out, _, code) = run_files(&[("bad.fs", bad)], &[]);
+    assert_eq!(code, 0);
+    assert!(out.contains("FAIL ") && !out.contains("tests:"), "{out}");
+}
+
+#[test]
+fn test_mode_needs_a_file() {
+    let out = Command::new(env!("CARGO_BIN_EXE_forthling")).arg("--test").output().unwrap();
+    assert_eq!(out.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("--test needs a file"));
+}

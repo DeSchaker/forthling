@@ -100,6 +100,15 @@ words, the text says `... (n more)` and the JSON has the full depth in `stack_de
 `fstack_depth` and `words_depth`. A definition that is still open (`compiling` true)
 says so in the text: `compiled (a definition is still open; `;` ends it)`.
 
+When the code ran `T{ ... -> ... }T` tests (`ALSO TESTING`), the result also has the counts
+of that call, and the text starts with `tests: 1 passed, 1 failed`. The failure lines
+(`FAIL input:3 (sums): incorrect result: expected <1> 3, got <1> 2`) are in the output.
+In JSON: `"tests": {"passed": 1, "failed": 1, "failures": [{"source": "input", "line": 3,
+"group": "sums", "expected": [3], "expected_depth": 1, "actual": [2], "actual_depth": 1,
+"stack": []}], "failures_dropped": 0}`. The first 32 failures are kept, and each list
+keeps its top 32 cells (the depths tell how many there were). A file given with `files`
+shows its name as `source`.
+
 ### What an agent sees for typical mistakes
 
 Each case was run through `forth_eval` (#47); the answer is the first lines of the text.

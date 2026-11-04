@@ -214,7 +214,9 @@ impl Server {
             Some(_) => return Err((INVALID_PARAMS, "trace must be a boolean".into())),
         };
         self.forth.record_trace(trace.then_some(MAX_TRACE));
+        self.forth.take_test_results();
         let result = self.forth.interpret(code);
+        let tests = self.forth.take_test_results();
         self.forth.record_trace(None);
         let dropped = self.forth.trace_dropped();
         let entries = self.forth.take_trace();
@@ -224,6 +226,13 @@ impl Server {
         let content = &mut answer["structuredContent"];
         content["steps"] = json!(self.forth.steps_used());
         content["max_depth"] = json!(self.forth.max_depth());
+        if tests.passed + tests.failed > 0 {
+            content["tests"] = tests_json(&tests);
+            let text = &mut answer["content"][0]["text"];
+            let line = format!("tests: {} passed, {} failed\n", tests.passed, tests.failed);
+            *text = json!(format!("{line}{}", text.as_str().unwrap_or_default()));
+        }
+        let content = &mut answer["structuredContent"];
         if trace {
             content["trace"] = entries.iter().map(trace_json).collect();
             content["trace_dropped"] = json!(dropped);
@@ -308,6 +317,7 @@ fn sandbox(
     f.install(&forthling::Strings);
     f.install(&forthling::OperatingSystem);
     f.install(&forthling::Benchmark);
+    f.install(&forthling::Testing);
     f.install(&forthling::Debugger);
     f.install(&forthling::Tutorial);
     // BREAK does not stop the program, which no one is watching: it records
@@ -475,6 +485,31 @@ fn state(f: &Forth, output: &str, error: Option<Throw>) -> Value {
     })
 }
 
+fn tests_json(t: &forthling::TestResults) -> Value {
+    let failures: Vec<Value> = t
+        .failures
+        .iter()
+        .map(|x| {
+            json!({
+                "source": x.source,
+                "line": x.line,
+                "group": x.group,
+                "expected": x.expected,
+                "expected_depth": x.expected_depth,
+                "actual": x.actual,
+                "actual_depth": x.actual_depth,
+                "stack": x.stack,
+            })
+        })
+        .collect();
+    json!({
+        "passed": t.passed,
+        "failed": t.failed,
+        "failures": failures,
+        "failures_dropped": t.failed - t.failures.len(),
+    })
+}
+
 fn trace_json(e: &TraceEntry) -> Value {
     json!({ "word": e.word, "depth": e.depth, "stack": e.stack, "stack_depth": e.stack_depth })
 }
@@ -604,6 +639,32 @@ fn state_schema() -> Value {
                 },
             },
             "breaks_dropped": { "type": "integer", "description": "the BREAKs past the first 100" },
+            "tests": {
+                "type": "object",
+                "description": "forth_eval only, when T{ ... -> ... }T tests ran in this call (ALSO TESTING): how many passed and failed; a failure does not stop the code",
+                "properties": {
+                    "passed": { "type": "integer" },
+                    "failed": { "type": "integer" },
+                    "failures": {
+                        "type": "array",
+                        "description": "the first 32 failures",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "source": { "type": "string", "description": "input, evaluate or the path of a file" },
+                                "line": { "type": "integer", "description": "the line of T{, from 1" },
+                                "group": { "type": "string", "description": "the text of the last TESTING before the test" },
+                                "expected": { "type": "array", "items": { "type": "integer" }, "description": "the cells after ->, the top last; at most 32" },
+                                "expected_depth": { "type": "integer" },
+                                "actual": { "type": "array", "items": { "type": "integer" }, "description": "the cells the code before -> left, the top last; at most 32" },
+                                "actual_depth": { "type": "integer" },
+                                "stack": { "type": "array", "items": { "type": "integer" }, "description": "the stack below the test at that moment; at most 32" },
+                            },
+                        },
+                    },
+                    "failures_dropped": { "type": "integer", "description": "the failures past the first 32" },
+                },
+            },
         },
         "required": ["output", "stack", "fstack", "compiling", "error"],
     })
@@ -697,7 +758,7 @@ fn instructions(s: &Settings) -> String {
          as `users[0].name` from JSON text, and `JSON{{ S\" key\" JSON-KEY 1 JSON-NUMBER JSON}}` \
          writes JSON. `ALSO FUNCTIONAL` gives `MAP FOLD RUNNING-FOLD FILTER RANGE ANY? ALL? FIND COUNT-IF FLAT-MAP ITERATE REVERSE TAKE DROP-N ZIP SUM PRODUCT MIN-OF MAX-OF` on the data stack, and the same on a block of cells in memory (`MAP-CELLS FOLD-CELLS RUNNING-FOLD-CELLS FILTER-CELLS ANY?-CELLS` and more), \
          such as `1 6 RANGE [: DUP * ;] MAP 5 ' + FOLD .` (55). `ALSO DYNAMIC-STRINGS` gives dynamic strings: `$VARIABLE S  S\" hi\" S $!  S\" !\" S $+!  S $@ TYPE`, with `$@LEN $INS $DEL $SPLIT $ITER $TMP $EXEC` and arrays (`$[]VARIABLE $[]! $[]@ $[]+! $[]# $[]MAP`), all on the heap, so `$FREE` and `$[]FREE` give memory back. `ALSO OPERATING-SYSTEM` is there, but the machine is closed: `SYSTEM`, `GETENV`, the command line and the directories give -259 here (`BASENAME`, `DIRNAME` and `FILENAME-MATCH` work). `ALSO TUTORIAL` gives a Forth course of 20 lessons to walk a person \
-         through: `LESSONS`, `n LESSON`, `CHECK` (tests their answer), `HINT`, `NEXT`. `ALSO BENCHMARK` times your code: `BENCH ( xt -- microseconds )` runs a word once, `BENCH-BEST ( n xt -- microseconds )` gives the shortest of n runs.{sqlite}{regex}{http} \
+         through: `LESSONS`, `n LESSON`, `CHECK` (tests their answer), `HINT`, `NEXT`. `ALSO BENCHMARK` times your code: `BENCH ( xt -- microseconds )` runs a word once, `BENCH-BEST ( n xt -- microseconds )` gives the shortest of n runs. `ALSO TESTING` checks your code: `T{{ 3 SQUARE -> 9 }}T` passes when the cells before `->` equal those after it; a wrong result goes on, and the result has `tests` with `passed`, `failed` and per failure `line`, `expected` and `actual` (`TESTING text` names a group).{sqlite}{regex}{http} \
          Each call may take at most {} steps, {} ms and {} bytes of output; \
          the session's definitions and the like at most {} bytes in all. Files are in memory, \
          never on the disk, at most {} bytes in all: INCLUDE, REQUIRE, the FILE words \

@@ -95,6 +95,9 @@ it.
 forthling [options] [file ...]
   -m, --memory SIZE  memory for data space and heap, such as 4M (default 1M)
   -b, --blocks FILE  the block file (default blocks.fb in the current directory)
+      --test         run the files as tests (see [Tests](#tests)): print how many
+                     T{ -> }T tests passed and failed, and exit with 1 if one
+                     failed or an error stopped the run
       --sandbox      files only in memory (the files given here and the block
                      file are copied in; what Forth writes is gone at the end),
                      and the limits below: 10000000 steps, 5s and 1M of output
@@ -462,6 +465,58 @@ The programs of `cargo bench` (`benches/bench.rs`) are also Forth files that tim
 and `benches/definitions.fs` (5000 definitions and constants, and lookups among them). Each
 prints the name of the case and the time in ms. The start of a system stays with `cargo bench`,
 since a Forth program cannot time the start of its own system.
+
+### Tests
+
+The word list `TESTING` (`ALSO TESTING`) checks your own code with the syntax of the
+Forth-2012 test suite: the cells that the code between `T{` and `->` leaves must be the
+cells after `->`. A wrong result is printed with its place and counted, and the run goes
+on. The forthling program, the MCP server, the Python module and the playground install it;
+a Rust program does with `forth.install(&forthling::Testing)`. The words need no permission.
+
+```forth
+ALSO TESTING
+: SQUARE  DUP * ;
+
+TESTING squares
+T{ 3 SQUARE -> 9 }T
+T{ -4 SQUARE -> 16 }T
+T{ 5 SQUARE -> 24 }T
+T{ 2 SQUARE -> 4 5 }T
+TEST-SUMMARY
+```
+
+The last two tests fail, and print (`file.fs` is the file the lines are in):
+
+```
+FAIL file.fs:7 (squares): incorrect result: expected <1> 24, got <1> 25
+FAIL file.fs:8 (squares): wrong number of results: expected <2> 4 5, got <1> 4
+tests: 2 passed, 2 failed
+```
+
+| Word | Stack |
+|---|---|
+| `T{` | `( -- )`: start a test; the stack as it is now stays below the test |
+| `->` | `( -- )`: the cells since `T{` are the actual results |
+| `}T` | `( -- )`: the cells since `->` are the expected results; compare, and print and count a difference |
+| `TESTING` | `( "text" -- )`: the rest of the line names the tests that follow, in the failure lines |
+| `TEST-SUMMARY` | `( -- )`: print how many tests passed and failed |
+
+A failure line has the input (`input`, `evaluate` or the path of the file), the line of `T{`
+(from 1), the group, and the cells of both sides in the current `BASE`, each list as its
+depth and its cells (the top 32 of a long list). If there is something on the stack below
+the test, a second line shows it. An error inside a test is not caught: it ends the run as
+anywhere else, so the limits of a sandbox cannot be hidden. `->` or `}T` in the wrong place
+throws -22. Cells are compared as integers; there is no float comparison.
+
+`forthling --test file.fs ...` runs the files, prints `tests: N passed, M failed` at the end
+(the counts run over all the files) and exits with 1 if a test failed or an error stopped
+the run. A file still has to say `ALSO TESTING` itself. The MCP server gives the counts of
+each `forth_eval` call as `tests` in the result (see [mcp/README.md](mcp/README.md)); a
+Rust program takes them with `Forth::take_test_results()`, which also starts counting again.
+
+The Forth-2012 test suite that `cargo test` runs has its own `T{` in the main word list;
+it does not use this one.
 
 ### Sandbox
 

@@ -10,8 +10,8 @@
 //! reach them.
 
 use forthling::{
-    Benchmark, Debugger, Forth, Functional, Json, MemoryFs, OperatingSystem, Strings, Throw,
-    TraceEntry, Tutorial,
+    Benchmark, Debugger, Forth, Functional, Json, MemoryFs, OperatingSystem, Strings, Testing,
+    Throw, TraceEntry, Tutorial,
 };
 use std::cell::{Cell, RefCell};
 use std::fmt::Write as _;
@@ -62,6 +62,7 @@ fn session() -> Forth {
     f.install(&Debugger);
     f.install(&Tutorial);
     f.install(&Benchmark);
+    f.install(&Testing);
     f.set_clock_micros(now_micros);
     f
 }

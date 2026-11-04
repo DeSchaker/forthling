@@ -127,6 +127,10 @@ R> CLOSE-PIPE THROW .                                \ 0, the exit status
 
 `ALSO BENCHMARK` times your own code, with no permission needed (in the playground too, where a browser rounds the clock: time a word that runs for milliseconds): `BENCH ( xt -- microseconds )` runs a word once, `BENCH-BEST ( n xt -- microseconds )` gives the shortest of n runs. For example `: SQUARES 1000000 0 DO I DUP * DROP LOOP ;  5 ' SQUARES BENCH-BEST .`. An error in the word comes through. The files `benches/loop.fs`, `benches/fib.fs` and `benches/definitions.fs` time the interpreter itself.
 
+## Tests
+
+`ALSO TESTING` checks your own code with the Forth-2012 test syntax: `T{ 3 SQUARE -> 9 }T` passes when the cells before `->` equal the cells after it. A wrong result prints a line with the place, the expected and the actual cells (`FAIL input:7 (squares): incorrect result: expected <1> 24, got <1> 25`) and the run goes on; `TESTING text` names a group and `TEST-SUMMARY` prints the counts. In the MCP server, `forth_eval` gives the counts and the failures as `tests` in the structured result. `forthling --test file.fs` runs a file and exits with 1 if a test failed. No permission is needed. An error inside a test is not caught.
+
 ## Tutorial
 
 `ALSO TUTORIAL` gives a Forth course of 20 lessons, ten for beginners and ten beyond, which an agent can walk a person through: `LESSONS` lists them, `n LESSON` shows lesson n (text, code to try, a task), `CHECK` tests the answer the person defined and says what is still wrong, `HINT` gives a hint and `NEXT` the next lesson.

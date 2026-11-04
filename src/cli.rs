@@ -19,6 +19,9 @@ Runs the files in order, or else starts a REPL.
 options:
   -m, --memory SIZE  memory for data space and heap, such as 4M (default 1M)
   -b, --blocks FILE  the block file (default blocks.fb in the current directory)
+      --test         run the files as tests (see the TESTING words): print
+                     how many T{ -> }T tests passed and failed, and exit with
+                     1 if one failed or an error stopped the run
       --sandbox      files only in memory (the files given here and the block
                      file are copied in; what Forth writes is gone at the end),
                      and the limits below: 10000000 steps, 5s and 1M of output
@@ -50,6 +53,7 @@ struct Run {
     memory: usize,
     blocks: Option<String>, // None: the default block file
     sandbox: bool,          // files only in memory
+    test: bool,             // report the tests and exit 1 on a failure
     limits: Limits,
     files: Vec<String>,
 }
@@ -59,6 +63,7 @@ struct Run {
 struct Args {
     settings: Settings,
     sandbox: bool,
+    test: bool,
     max_steps: Option<String>,
     max_time: Option<String>,
     max_output: Option<String>,
@@ -137,6 +142,9 @@ fn options(extra: &[ExtraOption]) -> Result<Option<Run>, String> {
         println!("  {}", config_path().map_or("(none)".into(), |p| p.display().to_string()));
         return Ok(None);
     }
+    if args.test && args.files.is_empty() {
+        return Err("--test needs a file to run".into());
+    }
     let config = config_settings()?;
     let memory = match args.settings.memory.or(config.memory) {
         Some(size) => parse_size(&size)?,
@@ -156,7 +164,14 @@ fn options(extra: &[ExtraOption]) -> Result<Option<Run>, String> {
     if let Some(size) = &args.max_space {
         limits.space = limit(size, parse_bytes)?;
     }
-    Ok(Some(Run { memory, blocks, sandbox: args.sandbox, limits, files: args.files }))
+    Ok(Some(Run {
+        memory,
+        blocks,
+        sandbox: args.sandbox,
+        test: args.test,
+        limits,
+        files: args.files,
+    }))
 }
 
 /// A limit: `none`, or what `parse` makes of it.
@@ -198,6 +213,7 @@ fn parse_args(
             "-m" | "--memory" => parsed.settings.memory = Some(value("a size")?),
             "-b" | "--blocks" => parsed.settings.blocks = Some(value("a file name")?),
             "--sandbox" => parsed.sandbox = true,
+            "--test" => parsed.test = true,
             "--max-steps" => parsed.max_steps = Some(value("a number")?),
             "--max-time" => parsed.max_time = Some(value("a time")?),
             "--max-output" => parsed.max_output = Some(value("a size")?),
@@ -329,6 +345,13 @@ fn debugger(f: &mut Forth, pause: &Pause) -> Res<Resume> {
     }
 }
 
+/// Prints how the tests went; whether one failed.
+fn report_tests(forth: &mut Forth) -> bool {
+    let results = forth.take_test_results();
+    println!("tests: {} passed, {} failed", results.passed, results.failed);
+    results.failed > 0
+}
+
 /// Runs the files, or else the REPL; returns the exit code.
 fn run_forth(run: &Run, extensions: Extensions) -> i32 {
     let mut forth = Forth::with_memory(run.memory);
@@ -375,6 +398,9 @@ fn run_forth(run: &Run, extensions: Extensions) -> i32 {
                 Err(e) if e.code == QUIT => break,
                 Err(e) => {
                     eprintln!("{e}");
+                    if run.test {
+                        report_tests(&mut forth);
+                    }
                     return 1;
                 }
                 Ok(()) => {}
@@ -382,6 +408,9 @@ fn run_forth(run: &Run, extensions: Extensions) -> i32 {
             if forth.finished() {
                 break;
             }
+        }
+        if run.test && report_tests(&mut forth) {
+            return 1;
         }
         return 0;
     }
@@ -439,6 +468,7 @@ mod tests {
         );
         assert_eq!(args("--memory 2M -- -x.fs").unwrap().files, files(&["-x.fs"]));
         assert!(args("--help").unwrap().help);
+        assert!(args("--test a.fs").unwrap().test);
         assert!(args("-m").is_err() && args("-b").is_err() && args("-x").is_err());
         let parsed =
             args("--sandbox --max-steps 1000 --max-time=2s --max-output none x.fs").unwrap();

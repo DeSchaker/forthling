@@ -77,6 +77,9 @@ latest stable Rust, on Linux and Windows.
   `definitions.fs` uses 5000 lines, not 20000, to fit the default memory of 1 MiB.
 - `src/cli.rs`: the forthling program (options, config file, REPL), in the library so
   that a program with extensions calls `forthling::cli::main(&[&Extension])`.
+- `src/testing.rs`: the `TESTING` words (`T{ -> }T`) and `Forth::take_test_results`, which
+  the MCP server and `forthling --test` use. Not the same as `tests/forth2012-test-suite`,
+  which brings its own `T{` in the main word list.
 - `src/tests.rs`: the unit tests; `tests/suite.rs` runs the files of the test suite.
 - `COMPLIANCE.md`: the system documentation that the standard asks for (section 4.1).
 
