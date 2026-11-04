@@ -14,6 +14,11 @@ include = ["/src", "/tests/*.rs", "/tests/*.fth", "/examples", "/benches", "/REA
 
 [dependencies]
 
+[features]
+# The text of HELP (src/help.txt, about 50 KB in a release build); without it HELP still shows the comments of the program's own words.
+default = ["help"]
+help = []
+
 [[bench]]
 name = "bench"
 harness = false

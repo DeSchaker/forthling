@@ -258,3 +258,11 @@ fn a_refused_connection_can_be_caught() {
     let code = format!(": TRY  {} 2DROP . ;  : SAFE  ['] TRY CATCH . ;  SAFE", get(port, "/"));
     assert_eq!(run(&mut f, &code), "-263 ");
 }
+
+#[test]
+fn every_word_has_a_help_line() {
+    let mut f = Forth::new();
+    f.install(&Http::new());
+    let problems = f.help_problems();
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
+}

@@ -134,6 +134,12 @@ impl Server {
         Server { settings, forth, data, breaks, files }
     }
 
+    /// Words of the sandbox without a help line, and the reverse: for the tests of a host.
+    #[must_use]
+    pub fn help_problems(&self) -> Vec<String> {
+        self.forth.help_problems()
+    }
+
     /// Answers one message; None for a notification, which gets no answer.
     pub fn handle(&mut self, line: &str) -> Option<String> {
         let Ok(message) = serde_json::from_str::<Value>(line) else {
@@ -261,6 +267,7 @@ impl Server {
         };
         let allowed: &[&str] = match name {
             "forth_eval" => &["code", "data", "files", "trace"],
+            "forth_help" => &["word"],
             "forth_stack" | "forth_words" | "forth_reset" => &[],
             _ => return Err((INVALID_PARAMS, format!("unknown tool {name}"))),
         };
@@ -270,6 +277,12 @@ impl Server {
         match name {
             "forth_eval" => self.eval(args),
             "forth_stack" => Ok(state(&self.forth, "", None)),
+            "forth_help" => {
+                let Some(word) = args.get("word").and_then(Value::as_str) else {
+                    return Err((INVALID_PARAMS, "forth_help needs a string argument word".into()));
+                };
+                Ok(help(&self.forth, word))
+            }
             "forth_words" => {
                 let words = self.forth.program_words();
                 let text = if words.is_empty() {
@@ -363,6 +376,11 @@ impl Extension for Data {
     fn install(&self, f: &mut Forth) {
         // DATA ( -- c-addr u ): the data of forth_eval, ALLOCATEd, for the
         // program to FREE. Data has no line limit, as code has.
+        f.add_help(
+            "[FORTH]
+DATA ( -- c-addr u ) The data of forth_eval as an ALLOCATEd copy; FREE it. It has no line limit.
+",
+        );
         let data = Rc::clone(&self.0);
         let word = move |f: &mut Forth| {
             let data = data.borrow().clone();
@@ -670,6 +688,26 @@ fn state_schema() -> Value {
     })
 }
 
+/// The answer of `forth_help`: the text HELP prints, and the facts as data.
+fn help(forth: &Forth, word: &str) -> Value {
+    let h = forth.help(word);
+    json!({
+        "content": [{ "type": "text", "text": forth.help_text(word) }],
+        "structuredContent": {
+            "word": h.name,
+            "found": h.found,
+            "list": h.list,
+            "visible": h.visible,
+            "user": h.user,
+            "effect": h.effect,
+            "description": h.description,
+            "example": h.example,
+            "output": h.output,
+            "close": h.close,
+        },
+    })
+}
+
 fn tools() -> Value {
     let no_arguments = json!({ "type": "object", "properties": {}, "additionalProperties": false });
     json!([
@@ -712,6 +750,34 @@ fn tools() -> Value {
             "annotations": { "readOnlyHint": true, "openWorldHint": false },
         },
         {
+            "name": "forth_help",
+            "title": "Look up a word",
+            "description": "Gives the stack effect of a Forth word and what it does, with an example when there is one: the built-in words, and the words of this session that have a ( ) comment after their name. For a name that is not defined it gives the names that are close.",
+            "inputSchema": {
+                "type": "object",
+                "properties": { "word": { "type": "string", "description": "The name of the word, such as SWAP or JSON@" } },
+                "required": ["word"],
+                "additionalProperties": false,
+            },
+            "outputSchema": {
+                "type": "object",
+                "properties": {
+                    "word": { "type": "string" },
+                    "found": { "type": "boolean" },
+                    "list": { "type": ["string", "null"], "description": "The word list the word is in" },
+                    "visible": { "type": "boolean", "description": "Whether the search order finds it now; if not, ALSO <list> does" },
+                    "user": { "type": "boolean", "description": "Whether the session defined it" },
+                    "effect": { "type": ["string", "null"], "description": "The stack effect, such as ( x1 x2 -- x2 x1 )" },
+                    "description": { "type": ["string", "null"] },
+                    "example": { "type": ["string", "null"], "description": "Code that shows the word" },
+                    "output": { "type": ["string", "null"], "description": "What the example prints" },
+                    "close": { "type": "array", "items": { "type": "string" }, "description": "Names like it, when the word is not found" },
+                },
+                "required": ["word", "found", "visible", "user", "close"],
+            },
+            "annotations": { "readOnlyHint": true, "openWorldHint": false },
+        },
+        {
             "name": "forth_reset",
             "title": "Start over",
             "description": "Starts a new Forth session: every definition, variable and stack value is gone, and so are the data and the files.",
@@ -745,7 +811,7 @@ fn instructions(s: &Settings) -> String {
     };
     format!(
         "forthling runs Forth-2012 code in a sandbox. Use forth_eval to run code; definitions, \
-         variables and the stacks stay between calls, and forth_reset starts over. Each result \
+         variables and the stacks stay between calls, and forth_reset starts over. forth_help gives the stack effect of a word and what it does (in Forth, `HELP name`). Each result \
          shows the output and the data stack (the top last). Words are not case sensitive; `.` \
          prints and drops the top of the stack; `: NAME ... ;` defines a word; IF, DO, BEGIN and \
          the like work only inside a definition; `S\" text\"` gives ( c-addr u ) and TYPE prints \

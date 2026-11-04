@@ -1,0 +1,8 @@
+// The help text of the HTTP word list, in the form of src/help.txt of forthling.
+[FORTH]
+HTTP ( -- ) The word list of the HTTP- words for web requests. ALSO HTTP adds it to the search order.
+[HTTP]
+HTTP-GET ( url-addr url-u -- body-addr body-u status ) Ask for a page. The body is ALLOCATEd; a status such as 404 is no error.
+HTTP-POST ( url-addr url-u body-addr body-u type-addr type-u -- body-addr' body-u' status ) Send a body with a content type, such as S" application/json".
+HTTP-HEADER ( name-addr name-u value-addr value-u -- ) Add a header to the next request, and only that one.
+HTTP-RESPONSE-HEADER ( name-addr name-u -- value-addr value-u true | false ) A header of the latest response, whatever the case of the name.

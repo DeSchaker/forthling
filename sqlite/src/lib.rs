@@ -290,6 +290,7 @@ impl Extension for Sqlite {
     }
 
     fn install(&self, f: &mut Forth) {
+        f.add_help(include_str!("help.txt"));
         install_statements(f);
         install_results(f);
     }

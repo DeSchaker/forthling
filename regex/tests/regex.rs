@@ -112,3 +112,20 @@ fn the_work_is_charged() {
     let e = f.interpret("T 100000 S\" x\" RE-MATCH?").unwrap_err();
     assert_eq!(e.code, forthling::LIMIT_EXCEEDED, "{e}");
 }
+
+#[test]
+fn every_word_has_a_help_line_and_its_examples_work() {
+    let mut f = Forth::new();
+    f.install(&Regex);
+    let problems = f.help_problems();
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
+    let examples: Vec<_> = f.help_examples().into_iter().filter(|e| e.list == "REGEX").collect();
+    assert!(examples.len() >= 4);
+    for e in examples {
+        let mut f = Forth::new();
+        f.install(&Regex);
+        f.interpret(&e.code).unwrap();
+        let out = String::from_utf8_lossy(&f.take_output()).trim().to_string();
+        assert_eq!(out, e.output, "{}: {}", e.name, e.code);
+    }
+}

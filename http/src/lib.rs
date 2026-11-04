@@ -272,6 +272,7 @@ impl Extension for Http {
     }
 
     fn install(&self, f: &mut Forth) {
+        f.add_help(include_str!("help.txt"));
         f.state::<State>().http = self.clone();
         // HTTP-GET ( url-addr url-u -- body-addr body-u status ): asks for a
         // page. The body is ALLOCATEd; a status such as 404 is no error.

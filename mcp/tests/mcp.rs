@@ -59,7 +59,7 @@ fn initialize_and_list() {
         .iter()
         .map(|t| t["name"].as_str().unwrap())
         .collect();
-    assert_eq!(names, ["forth_eval", "forth_stack", "forth_words", "forth_reset"]);
+    assert_eq!(names, ["forth_eval", "forth_stack", "forth_words", "forth_help", "forth_reset"]);
 }
 
 #[test]
@@ -659,4 +659,41 @@ fn tests_are_reported_per_call() {
         &json!({ "code": "INCLUDE t.fs", "files": { "t.fs": "T{ 1 -> 2 }T\n" } }),
     );
     assert_eq!(r["structuredContent"]["tests"]["failures"][0]["source"], "t.fs");
+}
+
+#[test]
+fn forth_help_gives_the_effect_and_close_names() {
+    let mut s = server();
+    let r = call(&mut s, "forth_help", &json!({ "word": "swap" }));
+    let c = &r["structuredContent"];
+    assert_eq!(c["found"], json!(true));
+    assert_eq!(c["effect"], json!("( x1 x2 -- x2 x1 )"));
+    assert_eq!(c["output"], json!("1 2"));
+    assert!(text(&r).starts_with("SWAP ( x1 x2 -- x2 x1 )"));
+
+    let r = call(&mut s, "forth_help", &json!({ "word": "DATA" }));
+    assert_eq!(r["structuredContent"]["effect"], json!("( -- c-addr u )"));
+
+    let r = call(&mut s, "forth_help", &json!({ "word": "DUPP" }));
+    assert_eq!(r["structuredContent"]["found"], json!(false));
+    assert!(r["structuredContent"]["close"].as_array().unwrap().contains(&json!("DUP")));
+
+    eval(&mut s, ": SQ ( n -- n*n ) DUP * ;");
+    let r = call(&mut s, "forth_help", &json!({ "word": "SQ" }));
+    assert_eq!(r["structuredContent"]["user"], json!(true));
+    assert_eq!(r["structuredContent"]["effect"], json!("( n -- n*n )"));
+}
+
+#[test]
+fn every_word_of_the_sandbox_has_a_help_line() {
+    let s = server();
+    let problems = s.help_problems();
+    assert!(
+        problems.is_empty(),
+        "{}",
+        problems.join(
+            "
+"
+        )
+    );
 }

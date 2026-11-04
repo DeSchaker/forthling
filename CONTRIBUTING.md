@@ -115,6 +115,12 @@ latest stable Rust, on Linux and Windows.
   `define`, and whatever else grows outside Forth memory is counted in `space_used` and
   checked with `check_space`. See `src/sandbox.rs`. An extension uses the public
   `charge`, `check_time` and `deadline` for work outside Forth, as the SQLite words do.
+- Every word needs a line in the help text: `src/help.txt` for the core and its
+  extensions, a `help.txt` in the crate for the word lists of `sqlite/`, `regex/` and
+  `http/` (added with `f.add_help(include_str!("help.txt"))` in `install`). A line is
+  `NAME ( effect ) description ;; code => output`; the part from `;;` is an example that
+  the tests run. `tests/help.rs` fails for a word without a line. Write the effect in the
+  standard notation, `( x1 x2 -- x2 x1 )`, so a stack check can read it later.
 - Keep a change small and give it tests. If it changes how forthling behaves, update
   `COMPLIANCE.md` and the README where they describe that behaviour. `VERKLARING.md` is
   its Dutch translation; the maintainer keeps it in step, so you need not.

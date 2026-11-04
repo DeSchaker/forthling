@@ -1,0 +1,23 @@
+// The help text of the SQLITE word list, in the form of src/help.txt of forthling.
+[FORTH]
+SQLITE ( -- ) The word list of the DB- words for SQLite databases. ALSO SQLITE adds it to the search order.
+[SQLITE]
+DB-OPEN ( c-addr u -- db ior ) Open or create a database file; :memory: is a database in memory.
+DB-CLOSE ( db -- ior ) Close the database and finalize its statements.
+DB-EXEC ( c-addr u db -- ior ) Run SQL that gives no results, also several statements.
+DB-PREPARE ( c-addr u db -- stmt ior ) Prepare one statement, with parameters ?1, ?2 and so on.
+DB-BIND ( x n stmt -- ior ) Bind an integer to parameter n, counted from 1.
+DB-BIND-TEXT ( c-addr u n stmt -- ior ) Bind a text to parameter n.
+DB-BIND-FLOAT ( n stmt -- ior ) ( F: r -- ) Bind a float to parameter n.
+DB-BIND-NULL ( n stmt -- ior ) Bind NULL to parameter n.
+DB-STEP ( stmt -- flag ior ) Go to the next row; the flag is false when there is none.
+DB-RESET ( stmt -- ior ) Let the next DB-STEP run the statement again.
+DB-FINALIZE ( stmt -- ior ) Be done with the statement.
+DB-COLUMNS ( stmt -- n ) The number of columns of the current row; 0 without one.
+DB-COLUMN ( n stmt -- c-addr u ) Column n, counted from 0, as text in an ALLOCATEd string.
+DB-COLUMN-INT ( n stmt -- x ) Column n as an integer.
+DB-COLUMN-FLOAT ( n stmt -- ) ( F: -- r ) Column n as a float.
+DB-NULL? ( n stmt -- flag ) True if column n is NULL.
+DB-CHANGES ( db -- n ) The number of rows the latest statement changed.
+DB-LAST-ROWID ( db -- n ) The rowid of the latest INSERT.
+DB-ERROR ( -- c-addr u ) The message of the latest ior that was not zero, in an ALLOCATEd string.

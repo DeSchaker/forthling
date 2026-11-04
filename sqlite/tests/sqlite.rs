@@ -176,3 +176,11 @@ fn sql_keeps_to_the_limits() {
     let out = run(&mut f, &format!("S\" {fill}\" DB DB-EXEC . DB-ERROR TYPE"));
     assert!(out.starts_with("-260 ") && out.contains("full"), "{out}");
 }
+
+#[test]
+fn every_word_has_a_help_line() {
+    let mut f = Forth::new();
+    f.install(&Sqlite);
+    let problems = f.help_problems();
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
+}

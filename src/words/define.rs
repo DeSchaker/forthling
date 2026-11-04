@@ -12,8 +12,8 @@ pub(crate) fn install(f: &mut Forth) {
 fn install_colon(f: &mut Forth) {
     f.prim(":", |f| {
         let name = f.name()?;
-        f.start_def(&name)?;
-        Ok(())
+        let xt = f.start_def(&name)?;
+        f.note_effect(xt)
     });
     f.prim(":NONAME", |f| {
         let xt = f.start_def("")?;

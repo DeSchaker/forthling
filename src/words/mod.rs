@@ -41,6 +41,7 @@ pub(crate) fn install(f: &mut Forth) {
     facility::install(f);
     heap::install(f);
     inspect::install(f);
+    crate::help::install(f);
     locals::install(f);
     search::install(f);
     block::install(f);

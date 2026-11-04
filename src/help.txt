@@ -1,0 +1,713 @@
+// The help text of forthling (see src/help.rs). One line per word:
+//   NAME ( effect ) description ;; code => what the code prints
+// under a heading [WORDLIST]. CI checks that every word has a line and that every example prints
+// what it says. The words are grouped as in COMPLIANCE.md.
+[FORTH]
+// System variables
+BASE ( -- a-addr ) Address of the number base used by . and by the text interpreter. ;; 255 16 BASE ! . DECIMAL => FF
+STATE ( -- a-addr ) Address of the compile state: non-zero while a definition is being compiled. ;; STATE @ . => 0
+>IN ( -- a-addr ) Address of the offset in the input buffer where parsing continues.
+BLK ( -- a-addr ) Address of the number of the block being interpreted, 0 for the terminal or a file.
+SCR ( -- a-addr ) Address of the number of the block LIST shows last.
+// Stack
+DUP ( x -- x x ) Copy the top item. ;; 5 DUP . . => 5 5
+DROP ( x -- ) Remove the top item. ;; 1 2 DROP . => 1
+OVER ( x1 x2 -- x1 x2 x1 ) Copy the second item to the top. ;; 1 2 OVER . . . => 1 2 1
+ROT ( x1 x2 x3 -- x2 x3 x1 ) Rotate the third item to the top. ;; 1 2 3 ROT . . . => 1 3 2
+SWAP ( x1 x2 -- x2 x1 ) Exchange the top two items. ;; 1 2 SWAP . . => 1 2
+NIP ( x1 x2 -- x2 ) Remove the second item. ;; 1 2 NIP . => 2
+TUCK ( x1 x2 -- x2 x1 x2 ) Copy the top item below the second. ;; 1 2 TUCK . . . => 2 1 2
+-ROT ( x1 x2 x3 -- x3 x1 x2 ) Rotate the top item down to the third place. ;; 1 2 3 -ROT . . . => 2 1 3
+?DUP ( x -- 0 | x x ) Copy the top item only if it is not zero. ;; 0 ?DUP DEPTH . => 1
+PICK ( xu ... x0 u -- xu ... x0 xu ) Copy item u, counted from 0 at the top. ;; 7 8 9 2 PICK . => 7
+ROLL ( xu ... x0 u -- xu-1 ... x0 xu ) Move item u to the top. ;; 7 8 9 2 ROLL . . . => 7 9 8
+DEPTH ( -- n ) The number of items on the data stack. ;; 1 2 3 DEPTH . => 3
+THIRD ( x1 x2 x3 -- x1 x2 x3 x1 ) Copy the third item to the top (Gforth). ;; 1 2 3 THIRD . => 1
+FOURTH ( x1 x2 x3 x4 -- x1 x2 x3 x4 x1 ) Copy the fourth item to the top (Gforth). ;; 1 2 3 4 FOURTH . => 1
+UNDER+ ( n1 n2 n3 -- n1+n3 n2 ) Add the top item to the third (Gforth). ;; 1 2 10 UNDER+ . . => 2 11
+2DUP ( x1 x2 -- x1 x2 x1 x2 ) Copy the top pair. ;; 1 2 2DUP . . . . => 2 1 2 1
+2DROP ( x1 x2 -- ) Remove the top pair. ;; 1 2 3 2DROP . => 1
+2SWAP ( x1 x2 x3 x4 -- x3 x4 x1 x2 ) Exchange the top two pairs. ;; 1 2 3 4 2SWAP . . . . => 2 1 4 3
+2OVER ( x1 x2 x3 x4 -- x1 x2 x3 x4 x1 x2 ) Copy the second pair to the top. ;; 1 2 3 4 2OVER . . => 2 1
+2ROT ( x1 x2 x3 x4 x5 x6 -- x3 x4 x5 x6 x1 x2 ) Rotate the third pair to the top. ;; 1 2 3 4 5 6 2ROT . . => 2 1
+2NIP ( x1 x2 x3 x4 -- x3 x4 ) Remove the second pair (Gforth). ;; 1 2 3 4 2NIP . . => 4 3
+2TUCK ( x1 x2 x3 x4 -- x3 x4 x1 x2 x3 x4 ) Copy the top pair below the second pair (Gforth). ;; 1 2 3 4 2TUCK DEPTH . => 6
+>R ( x -- ) ( R: -- x ) Move the top item to the return stack. Use it only inside a definition. ;; : T 5 >R R> ; T . => 5
+R> ( -- x ) ( R: x -- ) Move the top of the return stack to the data stack. ;; : T 5 >R R> ; T . => 5
+R@ ( -- x ) ( R: x -- x ) Copy the top of the return stack. ;; : T 5 >R R@ R> + ; T . => 10
+RDROP ( R: x -- ) Drop the top of the return stack (Gforth).
+2RDROP ( R: x1 x2 -- ) Drop the top two items of the return stack (Gforth).
+RPICK ( u -- x ) ( R: ... -- ... ) Copy item u of the return stack, 0 being the top (Gforth).
+2>R ( x1 x2 -- ) ( R: -- x1 x2 ) Move the top pair to the return stack. ;; : T 1 2 2>R 2R> ; T . . => 2 1
+2R> ( -- x1 x2 ) ( R: x1 x2 -- ) Move a pair from the return stack to the data stack.
+2R@ ( -- x1 x2 ) ( R: x1 x2 -- x1 x2 ) Copy the top pair of the return stack.
+N>R ( x1 ... xn n -- ) ( R: -- x1 ... xn n ) Move n items and their count to the return stack.
+NR> ( -- x1 ... xn n ) ( R: x1 ... xn n -- ) Move what N>R stored back to the data stack.
+// Arithmetic
++ ( n1 n2 -- n3 ) Add. ;; 2 3 + . => 5
+- ( n1 n2 -- n3 ) Subtract n2 from n1. ;; 7 2 - . => 5
+* ( n1 n2 -- n3 ) Multiply. ;; 6 7 * . => 42
+/ ( n1 n2 -- n3 ) Divide, rounding towards negative infinity (floored). ;; -7 2 / . => -4
+MOD ( n1 n2 -- n3 ) The remainder of a floored division; it has the sign of n2. ;; -7 2 MOD . => 1
+/MOD ( n1 n2 -- n3 n4 ) Floored division: remainder n3, quotient n4. ;; 7 2 /MOD . . => 3 1
+*/ ( n1 n2 n3 -- n4 ) Multiply n1 by n2 in a double cell, then divide by n3 (floored). ;; 10 3 4 */ . => 7
+*/MOD ( n1 n2 n3 -- n4 n5 ) Like */ but gives the remainder n4 and the quotient n5. ;; 10 3 4 */MOD . . => 7 2
+1+ ( n1 -- n2 ) Add one. ;; 5 1+ . => 6
+1- ( n1 -- n2 ) Subtract one. ;; 5 1- . => 4
+2* ( x1 -- x2 ) Shift left one bit: multiply by two. ;; 21 2* . => 42
+2/ ( x1 -- x2 ) Shift right one bit, keeping the sign: divide by two, rounding down. ;; -7 2/ . => -4
+NEGATE ( n1 -- n2 ) Change the sign. ;; 5 NEGATE . => -5
+ABS ( n1 -- n2 ) The absolute value. ;; -5 ABS . => 5
+MIN ( n1 n2 -- n3 ) The smaller of two numbers. ;; 3 9 MIN . => 3
+MAX ( n1 n2 -- n3 ) The larger of two numbers. ;; 3 9 MAX . => 9
+UMIN ( u1 u2 -- u3 ) The smaller of two unsigned numbers (Gforth).
+UMAX ( u1 u2 -- u3 ) The larger of two unsigned numbers (Gforth).
+WITHIN ( n1|u1 n2|u2 n3|u3 -- flag ) True if n2 <= n1 < n3, with wrap-around. ;; 5 1 10 WITHIN . => -1
+U/MOD ( u1 u2 -- u3 u4 ) Unsigned division: remainder u3, quotient u4 (Gforth). ;; 7 2 U/MOD . . => 3 1
+UMOD ( u1 u2 -- u3 ) The remainder of an unsigned division (Gforth). ;; 7 2 UMOD . => 1
+S>D ( n -- d ) Make a double-cell number from a single. ;; -5 S>D D. => -5
+M* ( n1 n2 -- d ) Multiply two numbers into a double. ;; 100000000000 100000000000 M* D. => 10000000000000000000000
+UM* ( u1 u2 -- ud ) Multiply two unsigned numbers into an unsigned double.
+UM/MOD ( ud u1 -- u2 u3 ) Unsigned division of a double by a single: remainder u2, quotient u3.
+FM/MOD ( d n1 -- n2 n3 ) Floored division of a double by a single: remainder n2, quotient n3.
+SM/REM ( d n1 -- n2 n3 ) Symmetric division (towards zero) of a double by a single: remainder n2, quotient n3.
+M*/ ( d1 n1 +n2 -- d2 ) Multiply d1 by n1 into a triple, divide by n2 (Forth-2012 double-number words).
+M+ ( d1 n -- d2 ) Add a single to a double. ;; 5. 3 M+ D. => 8
+LSHIFT ( x1 u -- x2 ) Shift left u bits; a shift of a cell or more gives 0. ;; 1 4 LSHIFT . => 16
+RSHIFT ( x1 u -- x2 ) Shift right u bits without sign extension. ;; 256 4 RSHIFT . => 16
+ARSHIFT ( x1 u -- x2 ) Shift right u bits, copying the sign bit (Gforth). ;; -16 2 ARSHIFT . => -4
+ROL ( x1 u -- x2 ) Rotate left u bits (Gforth).
+ROR ( x1 u -- x2 ) Rotate right u bits (Gforth).
+CTZ ( x -- u ) The number of trailing zero bits; 64 for 0 (Gforth). ;; 8 CTZ . => 3
+LOG2 ( x -- u ) The base-2 logarithm, rounded down: the position of the highest set bit (Gforth). ;; 1024 LOG2 . => 10
+AND ( x1 x2 -- x3 ) Bitwise and. ;; 12 10 AND . => 8
+OR ( x1 x2 -- x3 ) Bitwise or. ;; 12 10 OR . => 14
+XOR ( x1 x2 -- x3 ) Bitwise exclusive or. ;; 12 10 XOR . => 6
+INVERT ( x1 -- x2 ) Flip every bit. ;; 0 INVERT . => -1
+// Comparison
+= ( x1 x2 -- flag ) True if the two items are equal. ;; 3 3 = . => -1
+<> ( x1 x2 -- flag ) True if the two items differ. ;; 3 4 <> . => -1
+< ( n1 n2 -- flag ) True if n1 is less than n2. ;; 1 2 < . => -1
+> ( n1 n2 -- flag ) True if n1 is greater than n2. ;; 1 2 > . => 0
+<= ( n1 n2 -- flag ) True if n1 is less than or equal to n2 (Gforth). ;; 2 2 <= . => -1
+>= ( n1 n2 -- flag ) True if n1 is greater than or equal to n2 (Gforth). ;; 1 2 >= . => 0
+U< ( u1 u2 -- flag ) Unsigned less than. ;; -1 1 U< . => 0
+U> ( u1 u2 -- flag ) Unsigned greater than. ;; -1 1 U> . => -1
+U<= ( u1 u2 -- flag ) Unsigned less than or equal (Gforth).
+U>= ( u1 u2 -- flag ) Unsigned greater than or equal (Gforth).
+0= ( x -- flag ) True if the item is zero. ;; 0 0= . => -1
+0<> ( x -- flag ) True if the item is not zero. ;; 5 0<> . => -1
+0< ( n -- flag ) True if the number is negative. ;; -1 0< . => -1
+0> ( n -- flag ) True if the number is positive. ;; 1 0> . => -1
+0<= ( n -- flag ) True if the number is zero or negative (Gforth).
+0>= ( n -- flag ) True if the number is zero or positive (Gforth).
+TRUE ( -- true ) The flag true: all bits set, -1. ;; TRUE . => -1
+FALSE ( -- false ) The flag false: 0. ;; FALSE . => 0
+BL ( -- char ) The character code of a space, 32. ;; BL . => 32
+// Double numbers
+D+ ( d1 d2 -- d3 ) Add two doubles. ;; 5. 6. D+ D. => 11
+D- ( d1 d2 -- d3 ) Subtract d2 from d1.
+DNEGATE ( d1 -- d2 ) Change the sign of a double.
+DABS ( d1 -- d2 ) The absolute value of a double.
+DMAX ( d1 d2 -- d3 ) The larger of two doubles.
+DMIN ( d1 d2 -- d3 ) The smaller of two doubles.
+D2* ( d1 -- d2 ) Multiply a double by two.
+D2/ ( d1 -- d2 ) Divide a double by two, rounding down.
+D< ( d1 d2 -- flag ) True if d1 is less than d2.
+D> ( d1 d2 -- flag ) True if d1 is greater than d2 (Gforth).
+D= ( d1 d2 -- flag ) True if the doubles are equal.
+D<> ( d1 d2 -- flag ) True if the doubles differ (Gforth).
+DU< ( ud1 ud2 -- flag ) Unsigned less than for doubles.
+D0< ( d -- flag ) True if the double is negative.
+D0= ( d -- flag ) True if the double is zero.
+D0<> ( d -- flag ) True if the double is not zero (Gforth).
+D>S ( d -- n ) Make a single from a double, dropping the high cell.
+2@ ( a-addr -- x1 x2 ) Fetch a pair; x2 is at the lower address. ;; CREATE P 5 , 6 , P 2@ . . => 5 6
+2! ( x1 x2 a-addr -- ) Store a pair; x2 goes to the lower address.
+2CONSTANT ( x1 x2 "name" -- ) Define a constant that gives a pair. ;; 1 2 2CONSTANT PAIR PAIR . . => 2 1
+2VARIABLE ( "name" -- ) Define a variable of two cells.
+2LITERAL ( x1 x2 -- ) Compile a pair as a literal. Use it inside a definition.
+2VALUE ( x1 x2 "name" -- ) Define a value that holds a pair; TO changes it. ;; 1 2 2VALUE P P . . => 2 1
+D. ( d -- ) Print a double and a space. ;; 123456789012345. D. => 123456789012345
+D.R ( d n -- ) Print a double right-aligned in a field of n characters.
+UD. ( ud -- ) Print an unsigned double and a space (Gforth).
+UD.R ( ud n -- ) Print an unsigned double right-aligned in a field of n characters (Gforth).
+// Memory
+@ ( a-addr -- x ) Fetch the cell at the address. ;; VARIABLE V 9 V ! V @ . => 9
+! ( x a-addr -- ) Store a cell at the address. ;; VARIABLE V 9 V ! V @ . => 9
++! ( n a-addr -- ) Add n to the cell at the address. ;; VARIABLE V 5 V ! 2 V +! V @ . => 7
+C@ ( c-addr -- char ) Fetch a byte.
+C! ( char c-addr -- ) Store a byte.
+W@ ( addr -- u ) Fetch a 16-bit unsigned value (Gforth).
+W! ( w addr -- ) Store the low 16 bits of a value (Gforth).
+L@ ( addr -- u ) Fetch a 32-bit unsigned value (Gforth).
+L! ( l addr -- ) Store the low 32 bits of a value (Gforth).
+, ( x -- ) Reserve a cell in data space and store x in it. ;; CREATE T 7 , T @ . => 7
+C, ( char -- ) Reserve a byte in data space and store it.
+W, ( w -- ) Reserve two bytes in data space and store a 16-bit value (Gforth).
+L, ( l -- ) Reserve four bytes in data space and store a 32-bit value (Gforth).
+HERE ( -- addr ) The next free address in data space.
+ALLOT ( n -- ) Reserve n bytes of data space; a negative n gives space back.
+UNUSED ( -- u ) The number of bytes of data space that are still free.
+PAD ( -- c-addr ) The address of a scratch area for text.
+ALIGN ( -- ) Align HERE to a cell boundary.
+ALIGNED ( addr -- a-addr ) Round an address up to a cell boundary.
+CELLS ( n1 -- n2 ) The number of bytes in n1 cells (8 each). ;; 3 CELLS . => 24
+CELL+ ( a-addr1 -- a-addr2 ) Add the size of a cell to an address. ;; 0 CELL+ . => 8
+CELL- ( a-addr1 -- a-addr2 ) Subtract the size of a cell from an address (Gforth).
+CHARS ( n1 -- n2 ) The number of bytes in n1 characters (1 each).
+CHAR+ ( c-addr1 -- c-addr2 ) Add the size of a character to an address.
+FILL ( c-addr u char -- ) Fill u bytes with the character. ;; PAD 3 65 FILL PAD 3 TYPE => AAA
+ERASE ( addr u -- ) Fill u bytes with zeros.
+BLANK ( c-addr u -- ) Fill u bytes with spaces.
+MOVE ( addr1 addr2 u -- ) Copy u bytes; the areas may overlap.
+CMOVE ( c-addr1 c-addr2 u -- ) Copy u bytes from the lowest address up.
+CMOVE> ( c-addr1 c-addr2 u -- ) Copy u bytes from the highest address down.
+BOUNDS ( addr u -- addr+u addr ) Turn a string into the limits of a DO loop (Gforth). ;; 100 3 BOUNDS . . => 100 103
+BUFFER: ( u "name" -- ) Define a word that gives the address of u bytes of data space.
+ALLOCATE ( u -- a-addr ior ) Allocate u bytes on the heap; ior is 0 on success. ;; 16 ALLOCATE THROW FREE THROW .S => <0>
+FREE ( a-addr -- ior ) Give a block from ALLOCATE back to the heap.
+RESIZE ( a-addr1 u -- a-addr2 ior ) Change the size of a block from ALLOCATE, keeping its contents.
+VARIABLE ( "name" -- ) Define a variable of one cell. ;; VARIABLE X 4 X ! X @ . => 4
+CONSTANT ( x "name" -- ) Define a constant. ;; 42 CONSTANT ANSWER ANSWER . => 42
+VALUE ( x "name" -- ) Define a value. The name gives it; TO changes it. ;; 5 VALUE N 6 TO N N . => 6
+UVALUE ( "name" -- ) Define a value that starts at 0 (Gforth).
+? ( a-addr -- ) Print the cell at the address. ;; VARIABLE V 3 V ! V ? => 3
+ON ( a-addr -- ) Store true in the cell (Gforth). ;; VARIABLE F F ON F @ . => -1
+OFF ( a-addr -- ) Store false in the cell (Gforth). ;; VARIABLE F F OFF F @ . => 0
+BEGIN-STRUCTURE ( "name" -- addr 0 ) Start a structure; the name gives its size once END-STRUCTURE has run.
+END-STRUCTURE ( addr n -- ) End a structure and record its size.
++FIELD ( n1 n2 "name" -- n3 ) Define a field of n2 bytes; the name adds its offset to an address.
+FIELD: ( n1 "name" -- n2 ) Define a field of one aligned cell.
+CFIELD: ( n1 "name" -- n2 ) Define a field of one byte.
+FFIELD: ( n1 "name" -- n2 ) Define a field of one float.
+DFFIELD: ( n1 "name" -- n2 ) Define a field of one double-precision float.
+SFFIELD: ( n1 "name" -- n2 ) Define a field of one single-precision float.
+// Output and numbers
+. ( n -- ) Print a number in the current base and a space. ;; 42 . => 42
+U. ( u -- ) Print an unsigned number and a space. ;; -1 U. => 18446744073709551615
+.R ( n1 n2 -- ) Print n1 right-aligned in a field of n2 characters, without a trailing space. ;; 42 6 .R => 42
+U.R ( u n -- ) Print an unsigned number right-aligned in a field of n characters.
+.S ( -- ) Show the data stack without changing it: <depth> and the items, the top last. ;; 1 2 3 .S => <3> 1 2 3
+EMIT ( char -- ) Print the character. ;; 65 EMIT => A
+TYPE ( c-addr u -- ) Print a string. ;; S" hi" TYPE => hi
+CR ( -- ) Print a newline.
+SPACE ( -- ) Print a space.
+SPACES ( n -- ) Print n spaces.
+PAGE ( -- ) Clear the screen with an ANSI escape sequence.
+AT-XY ( u1 u2 -- ) Move the cursor to column u1, row u2 with an ANSI escape sequence.
+HEX ( -- ) Set the number base to 16. ;; 255 HEX . DECIMAL => FF
+DECIMAL ( -- ) Set the number base to 10.
+DEC. ( n -- ) Print a number in decimal whatever the base is (Gforth). ;; 255 HEX DEC. DECIMAL => 255
+HEX. ( u -- ) Print an unsigned number in hexadecimal with a leading $ (Gforth). ;; 255 HEX. => $FF
+<# ( -- ) Start a pictured numeric output string. ;; 5 0 <# # # #> TYPE => 05
+# ( ud1 -- ud2 ) Add the next digit of ud1 to the pictured string.
+#S ( ud1 -- ud2 ) Add all remaining digits of ud1 to the pictured string.
+#> ( xd -- c-addr u ) End the pictured string and give it.
+HOLD ( char -- ) Add a character to the pictured string. ;; 5 0 <# #S 36 HOLD #> TYPE => $5
+HOLDS ( c-addr u -- ) Add a string to the pictured string.
+SIGN ( n -- ) Add a minus sign to the pictured string if n is negative.
+XHOLD ( xchar -- ) Add an extended character to the pictured string.
+>NUMBER ( ud1 c-addr1 u1 -- ud2 c-addr2 u2 ) Convert digits of the string to a number added to ud1; stops at the first character that is not a digit.
+REPRESENT ( r c-addr u -- n flag1 flag2 ) Write the digits of a float to the buffer; n is the exponent, flag1 the sign, flag2 true if valid.
+// Input and parsing
+KEY ( -- char ) Wait for one character from the terminal.
+KEY? ( -- flag ) True if a character is waiting at the terminal.
+ACCEPT ( c-addr +n1 -- +n2 ) Read a line from the terminal into the buffer, up to n1 characters; n2 is how many came.
+EKEY ( -- x ) Wait for a key event; in forthling the same as XKEY.
+EKEY? ( -- flag ) True if a key event is waiting.
+EKEY>CHAR ( x -- x false | char true ) Turn a key event into a character, if it is one.
+EKEY>XCHAR ( x -- x false | xchar true ) Turn a key event into an extended character, if it is one.
+EKEY>FKEY ( x1 -- x2 flag ) Turn a key event into a special key code (K-UP and the like), if it is one.
+EMIT? ( -- flag ) True if EMIT can print; always true here.
+XKEY ( -- xchar ) Wait for one extended character from the terminal.
+XKEY? ( -- flag ) True if an extended character is waiting.
+K-UP ( -- u ) Key code of the cursor-up key.
+K-DOWN ( -- u ) Key code of the cursor-down key.
+K-RIGHT ( -- u ) Key code of the cursor-right key.
+K-LEFT ( -- u ) Key code of the cursor-left key.
+K-HOME ( -- u ) Key code of the Home key.
+K-END ( -- u ) Key code of the End key.
+K-PRIOR ( -- u ) Key code of the Page Up key.
+K-NEXT ( -- u ) Key code of the Page Down key.
+K-INSERT ( -- u ) Key code of the Insert key.
+K-DELETE ( -- u ) Key code of the Delete key.
+K-F1 ( -- u ) Key code of function key F1.
+K-F2 ( -- u ) Key code of function key F2.
+K-F3 ( -- u ) Key code of function key F3.
+K-F4 ( -- u ) Key code of function key F4.
+K-F5 ( -- u ) Key code of function key F5.
+K-F6 ( -- u ) Key code of function key F6.
+K-F7 ( -- u ) Key code of function key F7.
+K-F8 ( -- u ) Key code of function key F8.
+K-F9 ( -- u ) Key code of function key F9.
+K-F10 ( -- u ) Key code of function key F10.
+K-F11 ( -- u ) Key code of function key F11.
+K-F12 ( -- u ) Key code of function key F12.
+K-SHIFT-MASK ( -- u ) The bit that marks a key event as shifted.
+K-CTRL-MASK ( -- u ) The bit that marks a key event as pressed with Ctrl.
+K-ALT-MASK ( -- u ) The bit that marks a key event as pressed with Alt.
+SOURCE ( -- c-addr u ) The input buffer that is being parsed.
+SOURCE-ID ( -- 0 | -1 | fileid ) 0 for the terminal, -1 for EVALUATE, else the file being read.
+PARSE ( char "ccc<char>" -- c-addr u ) Parse text up to the delimiter.
+PARSE-NAME ( "name" -- c-addr u ) Parse the next space-delimited name; u is 0 at the end of the line.
+WORD ( char "<chars>ccc<char>" -- c-addr ) Parse a word and give it as a counted string.
+REFILL ( -- flag ) Read the next line of the current input; false at the end.
+SAVE-INPUT ( -- xn ... x1 n ) Save the state of the input.
+RESTORE-INPUT ( xn ... x1 n -- flag ) Restore the saved input; true if it could not.
+EVALUATE ( i*x c-addr u -- j*x ) Interpret the string as Forth source. ;; S" 2 3 +" EVALUATE . => 5
+CHAR ( "name" -- char ) Parse a name and give its first character. ;; CHAR A . => 65
+[CHAR] ( "name" -- ) Compile the first character of the next name as a literal. ;; : A [CHAR] A ; A . => 65
+( ( "ccc<paren>" -- ) Start a comment that ends at the next ). In a file it may span lines.
+\ ( "ccc<eol>" -- ) Comment to the end of the line.
+\G ( "ccc<eol>" -- ) Documentation comment to the end of the line (Gforth).
+.( ( "ccc<paren>" -- ) Print the text up to the next ) at once, also while compiling. ;; .( hi) => hi
+." ( "ccc<quote>" -- ) Compile text that is printed when the definition runs. ;; : T ." hi" ; T => hi
+S" ( "ccc<quote>" -- c-addr u ) Give a string. Inside a definition it is compiled. ;; S" hello" TYPE => hello
+S\" ( "ccc<quote>" -- c-addr u ) Like S" with escapes such as \n, \" and \x41. ;; S\" a\x42" TYPE => aB
+C" ( "ccc<quote>" -- c-addr ) Give a counted string. Use it inside a definition.
+ABORT" ( i*x x1 "ccc<quote>" -- | i*x ) Inside a definition: if x1 is not zero, print the text and abort (-2).
+SLITERAL ( c-addr1 u -- c-addr2 u ) Compile a string as a literal. Use it inside a definition.
+// Strings
+COUNT ( c-addr1 -- c-addr2 u ) Turn a counted string into an address and length. ;; : T C" hi" COUNT NIP ; T . => 2
+/STRING ( c-addr1 u1 n -- c-addr2 u2 ) Skip n characters of a string. ;; S" hello" 2 /STRING TYPE => llo
+-TRAILING ( c-addr u1 -- c-addr u2 ) Remove trailing spaces from a string. ;; S" ab  " -TRAILING . DROP => 2
+COMPARE ( c-addr1 u1 c-addr2 u2 -- n ) Compare two strings: -1, 0 or 1. ;; S" a" S" b" COMPARE . => -1
+SEARCH ( c-addr1 u1 c-addr2 u2 -- c-addr3 u3 flag ) Find the second string inside the first. ;; S" hello" S" ll" SEARCH . TYPE => -1 llo
+SCAN ( c-addr1 u1 char -- c-addr2 u2 ) Skip to the first occurrence of the character (Gforth). ;; S" a,b" 44 SCAN TYPE => ,b
+SKIP ( c-addr1 u1 char -- c-addr2 u2 ) Skip over the leading occurrences of the character (Gforth). ;; S" aab" 97 SKIP TYPE => b
+SCAN-BACK ( c-addr u1 char -- c-addr u2 ) Cut the string back to just before the last occurrence of the character (Gforth).
+SAFE/STRING ( c-addr1 u1 n -- c-addr2 u2 ) Like /STRING but n is kept within 0 and u1 (Gforth).
+STR= ( c-addr1 u1 c-addr2 u2 -- flag ) True if two strings are equal (Gforth). ;; S" ab" S" ab" STR= . => -1
+STR< ( c-addr1 u1 c-addr2 u2 -- flag ) True if the first string sorts before the second (Gforth).
+STRING-PREFIX? ( c-addr1 u1 c-addr2 u2 -- flag ) True if the first string starts with the second (Gforth). ;; S" hello" S" he" STRING-PREFIX? . => -1
+STRING-SUFFIX? ( c-addr1 u1 c-addr2 u2 -- flag ) True if the first string ends with the second (Gforth). ;; S" hello" S" lo" STRING-SUFFIX? . => -1
+TOUPPER ( char1 -- char2 ) Turn an ASCII lower-case letter into upper case (Gforth). ;; 97 TOUPPER EMIT => A
+PLACE ( c-addr1 u c-addr2 -- ) Store a string as a counted string at the address (Gforth).
+INSERT ( c-addr1 u1 c-addr2 u2 -- ) Insert string 1 at the start of the buffer of u2 characters, moving the rest up (Gforth).
+DELETE ( c-addr u1 u2 -- ) Delete u2 characters at the start of the buffer, moving the rest down and blanking the end (Gforth).
+S+ ( c-addr1 u1 c-addr2 u2 -- c-addr3 u3 ) Join two strings into a new ALLOCATEd string; FREE it (Gforth). ;; S" ab" S" cd" S+ TYPE => abcd
+APPEND ( c-addr1 u1 c-addr2 u2 -- c-addr3 u3 ) Append string 2 to the ALLOCATEd string 1, resizing it (Gforth).
+REPLACES ( c-addr1 u1 c-addr2 u2 -- ) Define the text c-addr1 u1 as the substitution for the name c-addr2 u2.
+SUBSTITUTE ( c-addr1 u1 c-addr2 u2 -- c-addr2 u3 n ) Replace %name% in the string 1 by its text, into the buffer 2; n is how many were replaced.
+UNESCAPE ( c-addr1 u1 c-addr2 -- c-addr2 u2 ) Double every % in the string, so SUBSTITUTE leaves it as it is.
+XC-SIZE ( xchar -- u ) The number of bytes of an extended character in UTF-8.
+X-SIZE ( xc-addr u1 -- u2 ) The number of bytes of the first extended character of the string.
+XC@+ ( xc-addr1 -- xc-addr2 xchar ) Fetch an extended character and step past it.
+XC!+ ( xchar xc-addr1 -- xc-addr2 ) Store an extended character and step past it.
+XC!+? ( xchar xc-addr1 u1 -- xc-addr2 u2 flag ) Store an extended character if there is room.
+XC, ( xchar -- ) Reserve space for an extended character in data space and store it.
+XCHAR+ ( xc-addr1 -- xc-addr2 ) Step to the next extended character.
+XCHAR- ( xc-addr1 -- xc-addr2 ) Step back to the previous extended character.
+XEMIT ( xchar -- ) Print an extended character.
++X/STRING ( xc-addr1 u1 -- xc-addr2 u2 ) Skip one extended character of a string.
+X\STRING- ( xc-addr u1 -- xc-addr u2 ) Remove the last extended character of a string.
+-TRAILING-GARBAGE ( xc-addr u1 -- xc-addr u2 ) Remove an incomplete extended character at the end of a string.
+X-WIDTH ( xc-addr u -- n ) The width in columns of a string of extended characters.
+XC-WIDTH ( xchar -- n ) The width in columns of an extended character.
+// Defining words
+: ( "name" -- ) Start a colon definition. ;; : DOUBLE 2 * ; 4 DOUBLE . => 8
+; ( -- ) End a colon definition.
+:NONAME ( -- xt ) Start a definition without a name and give its execution token. ;; :NONAME 1+ ; 4 SWAP EXECUTE . => 5
+[: ( -- ) Start a quotation: a nameless definition inside another; ;] ends it and gives its xt. ;; [: 1+ ;] 5 SWAP EXECUTE . => 6
+;] ( -- xt ) End a quotation and give its execution token.
+IMMEDIATE ( -- ) Make the latest definition run at compile time.
+CREATE ( "name" -- ) Define a word that gives the address of its data space. ;; CREATE X 5 , X @ . => 5
+DOES> ( -- ) Give the word being defined, a CREATE word, the behaviour that follows. ;; : K CREATE , DOES> @ ; 7 K SEVEN SEVEN . => 7
+DEFER ( "name" -- ) Define a word whose action is set later with IS. ;; DEFER D : A 1 . ; ' A IS D D => 1
+IS ( xt "name" -- ) Set the action of a DEFER word.
+ACTION-OF ( "name" -- xt ) Give the xt that a DEFER word runs now.
+DEFER@ ( xt1 -- xt2 ) Give the action of the DEFER word xt1.
+DEFER! ( xt2 xt1 -- ) Set the action of the DEFER word xt1 to xt2.
+TO ( x "name" -- ) Set the value of a VALUE or a local.
+MARKER ( "name" -- ) Define a word that removes itself and everything defined after it when it runs.
+FORGET ( "name" -- ) Remove the word and everything defined after it.
+SYNONYM ( "new" "old" -- ) Define a second name that behaves exactly like the old word.
+ALIAS ( xt "name" -- ) Define a name that runs the execution token (Gforth).
+VOCABULARY ( "name" -- ) Define a word list; its name makes it the first in the search order (Gforth).
+ENDIF ( -- ) Same as THEN (Gforth).
+NOOP ( -- ) Do nothing (Gforth).
+PERFORM ( a-addr -- ) Fetch an xt from the address and execute it (Gforth).
+' ( "name" -- xt ) Give the execution token of a word. ;; ' + 2 3 ROT EXECUTE . => 5
+['] ( "name" -- ) Compile the execution token of a word as a literal. ;; : P ['] + ; P 2 3 ROT EXECUTE . => 5
+EXECUTE ( i*x xt -- j*x ) Run the word with this execution token.
+>BODY ( xt -- a-addr ) Give the data address of a CREATEd word.
+COMPILE, ( xt -- ) Add the behaviour of the xt to the definition being compiled.
+POSTPONE ( "name" -- ) Compile the compilation behaviour of the word; used in immediate words.
+[COMPILE] ( "name" -- ) Compile an immediate word instead of running it.
+LITERAL ( x -- ) Compile a number as a literal. Use it inside a definition. ;; : T [ 6 7 * ] LITERAL ; T . => 42
+[ ( -- ) Switch to interpreting inside a definition.
+] ( -- ) Switch to compiling.
+RECURSE ( -- ) Compile a call to the word being defined.
+EXIT ( -- ) ( R: nest-sys -- ) Leave the current definition.
+?EXIT ( flag -- ) Leave the current definition if the flag is true (Gforth).
+UVALUE ( "name" -- ) Define a value that starts at 0 (Gforth).
+FVALUE ( F: r "name" -- ) Define a value that holds a float; TO changes it.
+FVARIABLE ( "name" -- ) Define a variable that holds a float.
+FCONSTANT ( F: r "name" -- ) Define a constant that gives a float.
+(LOCAL) ( c-addr u -- ) Define a local variable at compile time; with u = 0 the list of locals ends.
+{: ( "names" -- ) Define locals: {: a b | c :} takes a and b from the stack, c starts at 0. ;; : T {: a b :} a b - ; 5 3 T . => 2
+LOCALS| ( "names" | -- ) Define locals from the stack, the last name taking the top item.
+// Control
+IF ( flag -- ) Run what follows up to ELSE or THEN if the flag is true. ;; : T 0> IF ." pos" THEN ; 1 T => pos
+ELSE ( -- ) The other branch of IF.
+THEN ( -- ) End IF.
+BEGIN ( -- ) Start a loop that ends with UNTIL, AGAIN or REPEAT.
+UNTIL ( flag -- ) Loop back to BEGIN until the flag is true. ;; : T 0 BEGIN 1+ DUP 3 = UNTIL ; T . => 3
+AGAIN ( -- ) Loop back to BEGIN without end; leave with EXIT.
+WHILE ( flag -- ) In BEGIN ... WHILE ... REPEAT: leave the loop if the flag is false.
+REPEAT ( -- ) End BEGIN ... WHILE ...: loop back to BEGIN.
+AHEAD ( -- ) Jump forward to the THEN that follows (control-flow building block).
+CS-PICK ( u -- ) Copy item u of the control-flow stack to the top.
+CS-ROLL ( u -- ) Move item u of the control-flow stack to the top.
+CASE ( -- ) Start a multi-way choice. ;; : T CASE 1 OF ." one" ENDOF 2 OF ." two" ENDOF ENDCASE ; 2 T => two
+OF ( x1 x2 -- | x1 ) Run what follows if x1 equals x2; otherwise keep x1.
+ENDOF ( -- ) End an OF branch.
+ENDCASE ( x -- ) End CASE and drop the selector.
+DO ( n1 n2 -- ) Start a counted loop from n2 up to, not including, n1. ;; : T 3 0 DO I . LOOP ; T => 0 1 2
+?DO ( n1 n2 -- ) Like DO but does not run at all if n1 equals n2.
+LOOP ( -- ) End a DO loop, adding 1 to the index.
++LOOP ( n -- ) End a DO loop, adding n to the index.
+LEAVE ( -- ) Leave the loop at once.
+?LEAVE ( flag -- ) Leave the loop if the flag is true (Gforth).
+UNLOOP ( -- ) ( R: loop-sys -- ) Drop the loop control before an EXIT.
+I ( -- n ) The index of the innermost loop.
+J ( -- n ) The index of the loop around the innermost one.
++DO ( n1 n2 -- ) Like ?DO, but runs only if n2 < n1 (Gforth). ;; : T 3 0 +DO I . LOOP ; T => 0 1 2
+U+DO ( u1 u2 -- ) Like +DO with unsigned numbers (Gforth).
+-DO ( n1 n2 -- ) Count down from n2 to, including, n1; runs only if n2 > n1. Ends with -LOOP (Gforth). ;; : T 0 3 -DO I . 1 -LOOP ; T => 3 2 1
+U-DO ( u1 u2 -- ) Like -DO with unsigned numbers (Gforth).
+-LOOP ( u -- ) End a -DO loop, subtracting u from the index (Gforth).
+FOR ( n -- ) Start a loop that runs n+1 times with the index counting from n down to 0; ends with NEXT (Gforth). ;; : T 2 FOR I . NEXT ; T => 2 1 0
+NEXT ( -- ) End a FOR loop (Gforth).
+(+DO) ( n1 n2 -- n1 n3 ) The part of +DO that makes ?DO skip the loop when it must not run.
+(U+DO) ( u1 u2 -- u1 u3 ) The part of U+DO that makes ?DO skip the loop when it must not run.
+(-DO) ( n1 n2 -- n1 n3 ) The part of -DO that makes ?DO skip the loop when it must not run.
+(U-DO) ( u1 u2 -- u1 u3 ) The part of U-DO that makes ?DO skip the loop when it must not run.
+(FOR) ( n -- -1 n ) The part of FOR that sets the loop limit and start.
+(-LOOP) ( u -- flag ) The part of -LOOP that steps the index down and tells whether the loop is done.
+CATCH ( i*x xt -- j*x 0 | i*x n ) Run the xt; give 0 if it finished, or the THROW code if it threw. ;; : T 99 THROW ; ' T CATCH . => 99
+THROW ( k*x n -- k*x | i*x n ) If n is not zero, throw it to the nearest CATCH.
+ABORT ( i*x -- ) ( R: j*x -- ) Empty the stacks and end the run with error -1.
+QUIT ( -- ) ( R: i*x -- ) Empty the return stack and go back to reading input.
+BYE ( -- ) Leave forthling.
+[IF] ( flag -- ) Compile the text up to [ELSE] or [THEN] only if the flag is true.
+[ELSE] ( -- ) The other branch of [IF].
+[THEN] ( -- ) End [IF].
+[ENDIF] ( -- ) Same as [THEN] (Gforth).
+[IFDEF] ( "name" -- ) Like [IF], true if the word is defined (Gforth).
+[IFUNDEF] ( "name" -- ) Like [IF], true if the word is not defined (Gforth).
+[DEFINED] ( "name" -- flag ) True if the word is defined. ;; [DEFINED] DUP . => -1
+[UNDEFINED] ( "name" -- flag ) True if the word is not defined. ;; [UNDEFINED] NOSUCH . => -1
+// Tools and inspection
+FIND ( c-addr -- c-addr 0 | xt 1 | xt -1 ) Look a counted string up: 1 for an immediate word, -1 for any other, 0 if not found.
+DUMP ( addr u -- ) Show u bytes from the address in hexadecimal and as characters.
+WORDS ( -- ) List the words of the first word list in the search order.
+VLIST ( -- ) Same as WORDS (Gforth).
+SEE ( "name" -- ) Show how a word is made.
+SEE-CODE ( "name" -- ) Same as SEE (Gforth).
+HELP ( "name" -- ) Show the stack effect of a word and what it does; for a name that is not defined, the names that are close.
+WHERE ( "name" -- ) Show the file and line where the program defined a word.
+LOCATE ( "name" -- ) Like WHERE, and show the line of the source too.
+LATEST ( -- nt ) The name token of the newest word.
+LATESTXT ( -- xt ) The execution token of the newest word.
+FIND-NAME ( c-addr u -- nt | 0 ) Look a name up in the search order (Gforth).
+NAME>LINK ( nt1 -- nt2 | 0 ) The word defined before this one in its word list (Gforth).
+XT>NAME ( xt -- nt ) The name token of an execution token; the two are the same number here.
+NAME>STRING ( nt -- c-addr u ) The name of a word.
+NAME>INTERPRET ( nt -- xt | 0 ) The execution token for interpreting the word.
+NAME>COMPILE ( nt -- xt1 xt2 ) The token and the word that compile the word: xt2 is COMPILE, or EXECUTE for an immediate word.
+BT ( -- ) Show the words that are running, the innermost first.
+~~ ( -- ) Print the place in the source and the data stack where this is compiled (Gforth).
+~~BT ( -- ) Like ~~ and show the running words too.
+ASSERT( ( -- ) Start an assertion: the code up to ) leaves a flag; false aborts with the place. It counts as ASSERT1(.
+ASSERT0( ( -- ) Start an assertion that is always compiled.
+ASSERT1( ( -- ) Start an assertion that is compiled when ASSERT-LEVEL is at least 1.
+ASSERT2( ( -- ) Start an assertion that is compiled when ASSERT-LEVEL is at least 2.
+ASSERT3( ( -- ) Start an assertion that is compiled when ASSERT-LEVEL is at least 3.
+) ( -- ) End an assertion that ASSERT( started.
+ASSERT-LEVEL ( -- a-addr ) Address of the level that decides which assertions are compiled (Gforth).
+INCLUDED? ( c-addr u -- flag ) True if the file was included before.
+.INCLUDED ( -- ) List the files included so far.
+// Files and the system
+INCLUDE ( "name" -- ) Interpret the file whose name follows.
+INCLUDED ( i*x c-addr u -- j*x ) Interpret the named file.
+INCLUDE-FILE ( i*x fileid -- j*x ) Interpret an open file.
+REQUIRE ( i*x "name" -- i*x ) Like INCLUDE, but not a file that was included before.
+REQUIRED ( i*x c-addr u -- i*x ) Like INCLUDED, but not a file that was included before.
+ENVIRONMENT? ( c-addr u -- false | i*x true ) Ask about a property of the system, such as /COUNTED-STRING or MAX-N.
+SLURP-FILE ( c-addr1 u1 -- c-addr2 u2 ) Read a whole file into an ALLOCATEd buffer (Gforth).
+SLURP-FID ( fileid -- c-addr u ) Read the rest of an open file into an ALLOCATEd buffer (Gforth).
+OPEN-FILE ( c-addr u fam -- fileid ior ) Open a file.
+CREATE-FILE ( c-addr u fam -- fileid ior ) Create a file, or empty one that exists, and open it.
+CLOSE-FILE ( fileid -- ior ) Close a file.
+DELETE-FILE ( c-addr u -- ior ) Delete a file.
+RENAME-FILE ( c-addr1 u1 c-addr2 u2 -- ior ) Rename a file.
+FILE-STATUS ( c-addr u -- x ior ) Tell whether a file exists; x is not defined.
+FILE-POSITION ( fileid -- ud ior ) The position in a file.
+FILE-SIZE ( fileid -- ud ior ) The size of a file.
+REPOSITION-FILE ( ud fileid -- ior ) Set the position in a file.
+RESIZE-FILE ( ud fileid -- ior ) Change the size of a file.
+FLUSH-FILE ( fileid -- ior ) Write what is buffered to the file.
+READ-FILE ( c-addr u1 fileid -- u2 ior ) Read up to u1 bytes; u2 is how many came.
+READ-LINE ( c-addr u1 fileid -- u2 flag ior ) Read a line of up to u1 characters; flag is false at the end of the file.
+WRITE-FILE ( c-addr u fileid -- ior ) Write u bytes to a file.
+WRITE-LINE ( c-addr u fileid -- ior ) Write a string and a newline to a file.
+R/O ( -- fam ) File access method: read only.
+W/O ( -- fam ) File access method: write only.
+R/W ( -- fam ) File access method: read and write.
+BIN ( fam1 -- fam2 ) Make the access method binary.
+MS ( u -- ) Wait u milliseconds.
+TIME&DATE ( -- sec min hour day month year ) The current time (UTC) and date.
+UTIME ( -- ud ) The time in microseconds.
+CPUTIME ( -- d1 d2 ) The user time and the system time in microseconds; here the time since the system began and 0.
+RND ( -- x ) A random number (Gforth).
+RANDOM ( n1 -- n2 ) A random number from 0 up to, not including, n1 (Gforth). ;; 1 RANDOM . => 0
+SEED! ( x -- ) Set the seed of the random numbers, so a run can be repeated.
+BLOCK ( u -- a-addr ) Give the address of block u, read into a buffer.
+BUFFER ( u -- a-addr ) Give a buffer for block u without reading it.
+UPDATE ( -- ) Mark the current block as changed.
+SAVE-BUFFERS ( -- ) Write the changed blocks to the block file.
+FLUSH ( -- ) Save the buffers and give them up.
+EMPTY-BUFFERS ( -- ) Give up the buffers without saving.
+LOAD ( i*x u -- j*x ) Interpret block u.
+THRU ( i*x u1 u2 -- j*x ) Interpret the blocks u1 up to and including u2.
+LIST ( u -- ) Show block u.
+// Word lists
+FORTH-WORDLIST ( -- wid ) The word list of the standard words.
+WORDLIST ( -- wid ) Make a new empty word list.
+GET-CURRENT ( -- wid ) The word list that new definitions go to.
+SET-CURRENT ( wid -- ) Choose the word list that new definitions go to.
+GET-ORDER ( -- wid1 ... widn n ) The search order, the first list on top.
+SET-ORDER ( wid1 ... widn n -- ) Set the search order; -1 gives the minimum order.
+DEFINITIONS ( -- ) Let new definitions go to the first word list of the search order.
+SEARCH-WORDLIST ( c-addr u wid -- 0 | xt 1 | xt -1 ) Look a name up in one word list.
+TRAVERSE-WORDLIST ( i*x xt wid -- j*x ) Call xt with the name token of each word of the list, newest first, until it gives false.
+FORTH ( -- ) Make the standard word list the first in the search order.
+ALSO ( -- ) Copy the first word list of the search order, so a list can be added in front. ;; ALSO GET-ORDER . 2DROP => 2
+ONLY ( -- ) Reduce the search order to the minimum.
+PREVIOUS ( -- ) Remove the first word list from the search order.
+ORDER ( -- ) Show the search order and the current word list.
+// Floating point
+>FLOAT ( c-addr u -- true | false ) ( F: -- r | ) Convert a string to a float.
+D>F ( d -- ) ( F: -- r ) Make a float from a double.
+F>D ( F: r -- ) ( -- d ) Make a double from a float, cutting off the fraction.
+S>F ( n -- ) ( F: -- r ) Make a float from a single.
+F>S ( F: r -- ) ( -- n ) Make a single from a float, cutting off the fraction (Gforth).
+F@ ( f-addr -- ) ( F: -- r ) Fetch a float.
+F! ( f-addr -- ) ( F: r -- ) Store a float.
+SF@ ( sf-addr -- ) ( F: -- r ) Fetch a single-precision float.
+SF! ( sf-addr -- ) ( F: r -- ) Store a single-precision float.
+DF@ ( df-addr -- ) ( F: -- r ) Fetch a double-precision float.
+DF! ( df-addr -- ) ( F: r -- ) Store a double-precision float.
+FDEPTH ( -- n ) The number of items on the float stack.
+FDROP ( F: r -- ) Remove the top float. ;; 1E0 FDROP FDEPTH . => 0
+FDUP ( F: r -- r r ) Copy the top float. ;; 1E0 FDUP FDEPTH . => 2
+FSWAP ( F: r1 r2 -- r2 r1 ) Exchange the top two floats.
+FOVER ( F: r1 r2 -- r1 r2 r1 ) Copy the second float to the top.
+FROT ( F: r1 r2 r3 -- r2 r3 r1 ) Rotate the third float to the top.
+F-ROT ( F: r1 r2 r3 -- r3 r1 r2 ) Rotate the top float down to the third place (Gforth).
+FNIP ( F: r1 r2 -- r2 ) Remove the second float (Gforth).
+FTUCK ( F: r1 r2 -- r2 r1 r2 ) Copy the top float below the second (Gforth).
+FLITERAL ( F: r -- ) Compile a float as a literal. Use it inside a definition.
+F+ ( F: r1 r2 -- r3 ) Add. ;; 1E0 2E0 F+ F. => 3.
+F- ( F: r1 r2 -- r3 ) Subtract r2 from r1.
+F* ( F: r1 r2 -- r3 ) Multiply. ;; 2E0 3E0 F* F. => 6.
+F/ ( F: r1 r2 -- r3 ) Divide r1 by r2.
+F** ( F: r1 r2 -- r3 ) Raise r1 to the power r2. ;; 2E0 10E0 F** F. => 1024.
+FMAX ( F: r1 r2 -- r3 ) The larger of two floats.
+FMIN ( F: r1 r2 -- r3 ) The smaller of two floats.
+FATAN2 ( F: r1 r2 -- r3 ) The angle in radians of the point (r2, r1).
+FNEGATE ( F: r1 -- r2 ) Change the sign.
+FABS ( F: r1 -- r2 ) The absolute value.
+F2* ( F: r1 -- r2 ) Multiply by two (Gforth).
+F2/ ( F: r1 -- r2 ) Divide by two (Gforth).
+FLOOR ( F: r1 -- r2 ) Round down to a whole number.
+FROUND ( F: r1 -- r2 ) Round to the nearest whole number.
+FTRUNC ( F: r1 -- r2 ) Round towards zero (Forth-2012 floating-point extension).
+FSQRT ( F: r1 -- r2 ) The square root. ;; 9E0 FSQRT F. => 3.
+FEXP ( F: r1 -- r2 ) e raised to the power r1.
+FEXPM1 ( F: r1 -- r2 ) e to the power r1, minus 1.
+FLN ( F: r1 -- r2 ) The natural logarithm.
+FLNP1 ( F: r1 -- r2 ) The natural logarithm of r1 plus 1.
+FLOG ( F: r1 -- r2 ) The base-10 logarithm.
+FALOG ( F: r1 -- r2 ) 10 raised to the power r1.
+FSIN ( F: r1 -- r2 ) The sine of an angle in radians.
+FCOS ( F: r1 -- r2 ) The cosine.
+FTAN ( F: r1 -- r2 ) The tangent.
+FASIN ( F: r1 -- r2 ) The arc sine.
+FACOS ( F: r1 -- r2 ) The arc cosine.
+FATAN ( F: r1 -- r2 ) The arc tangent.
+FSINH ( F: r1 -- r2 ) The hyperbolic sine.
+FCOSH ( F: r1 -- r2 ) The hyperbolic cosine.
+FTANH ( F: r1 -- r2 ) The hyperbolic tangent.
+FASINH ( F: r1 -- r2 ) The inverse hyperbolic sine.
+FACOSH ( F: r1 -- r2 ) The inverse hyperbolic cosine.
+FATANH ( F: r1 -- r2 ) The inverse hyperbolic tangent.
+FSINCOS ( F: r1 -- r2 r3 ) The sine and the cosine of an angle: r2 is the sine, r3 the cosine.
+F0< ( F: r -- ) ( -- flag ) True if the float is negative.
+F0= ( F: r -- ) ( -- flag ) True if the float is zero.
+F< ( F: r1 r2 -- ) ( -- flag ) True if r1 is less than r2.
+F= ( F: r1 r2 -- ) ( -- flag ) True if the floats are equal.
+F> ( F: r1 r2 -- ) ( -- flag ) True if r1 is greater than r2.
+F>= ( F: r1 r2 -- ) ( -- flag ) True if r1 is greater than or equal to r2 (Gforth).
+F0<= ( F: r -- ) ( -- flag ) True if the float is zero or negative (Gforth).
+F~ ( F: r1 r2 r3 -- ) ( -- flag ) Compare with a tolerance: r3 > 0 absolute, r3 = 0 exact, r3 < 0 relative.
+F. ( F: r -- ) Print a float and a space. ;; 1.5E0 F. => 1.5
+FS. ( F: r -- ) Print a float in scientific notation.
+FE. ( F: r -- ) Print a float in engineering notation, the exponent a multiple of 3.
+F.S ( -- ) Show the float stack without changing it.
+PRECISION ( -- u ) The number of significant digits that F. and the like print.
+SET-PRECISION ( u -- ) Set the number of significant digits that F. and the like print.
+PI ( F: -- r ) The number pi (Gforth). ;; PI F. => 3.14159265358979
+FLOATS ( n1 -- n2 ) The number of bytes in n1 floats (8 each).
+FLOAT+ ( f-addr1 -- f-addr2 ) Add the size of a float to an address.
+FALIGNED ( addr -- f-addr ) Round an address up to a float boundary.
+FALIGN ( -- ) Align HERE to a float boundary.
+SFLOATS ( n1 -- n2 ) The number of bytes in n1 single-precision floats (4 each).
+SFLOAT+ ( sf-addr1 -- sf-addr2 ) Add the size of a single-precision float to an address.
+SFALIGNED ( addr -- sf-addr ) Round an address up to a single-precision float boundary.
+SFALIGN ( -- ) Align HERE to a single-precision float boundary.
+DFLOATS ( n1 -- n2 ) The number of bytes in n1 double-precision floats (8 each).
+DFLOAT+ ( df-addr1 -- df-addr2 ) Add the size of a double-precision float to an address.
+DFALIGNED ( addr -- df-addr ) Round an address up to a double-precision float boundary.
+DFALIGN ( -- ) Align HERE to a double-precision float boundary.
+// Words that choose an extension's word list
+JSON ( -- ) Put the word list JSON in front of the search order: ALSO JSON does the same and keeps the others.
+FUNCTIONAL ( -- ) The word list of MAP, FOLD, FILTER and the like.
+DYNAMIC-STRINGS ( -- ) The word list of the $ words for strings that grow.
+OPERATING-SYSTEM ( -- ) The word list of SYSTEM, GETENV, the directory words and the like.
+BENCHMARK ( -- ) The word list of BENCH and BENCH-BEST.
+TESTING ( -- ) The word list of T{ -> }T.
+DEBUG ( -- ) The word list of TRACE-ON, TRACE-OFF and BREAK.
+TUTORIAL ( -- ) The word list of the lessons.
+[JSON]
+JSON-VALID? ( json -- flag ) True if the text is valid JSON; json is ( c-addr u ).
+JSON-TYPE ( json -- n ) The type: 0 null, 1 boolean, 2 number, 3 string, 4 array, 5 object, -1 no JSON.
+JSON-GET ( json c-addr u -- json' flag ) The value of a key of an object.
+JSON-NTH ( json n -- json' flag ) Element n, from 0, of an array or object.
+JSON-NAME ( json n -- c-addr u flag ) Key n of an object, in an ALLOCATEd string.
+JSON-LENGTH ( json -- n ) The number of elements of an array or object, else -1.
+JSON@ ( json c-addr u -- json' flag ) The value at a path, such as a.b[2] or ["a.b"]. ;; ALSO JSON S\" {\"a\":[1,2,3]}" S" a[1]" JSON@ DROP JSON>NUMBER . . PREVIOUS => -1 2
+JSON>NUMBER ( json -- n flag ) An integer that fits in a cell.
+JSON>FLOAT ( json -- flag ) ( F: -- r ) A number as a float.
+JSON>FLAG ( json -- flag ok ) A boolean as a flag.
+JSON>STRING ( json -- c-addr u flag ) A string without its escapes, ALLOCATEd.
+JSON{ ( -- ) Start writing a JSON object.
+JSON} ( -- ) End the object.
+JSON[ ( -- ) Start writing a JSON array.
+JSON] ( -- ) End the array.
+JSON-KEY ( c-addr u -- ) Write the key of the next value of an object.
+JSON-STRING ( c-addr u -- ) Write a string value.
+JSON-NUMBER ( n -- ) Write a number value.
+JSON-FLOAT ( F: r -- ) Write a float value.
+JSON-FLAG ( flag -- ) Write true or false.
+JSON-NULL ( -- ) Write null.
+JSON-RAW ( json -- ) Write text that already is JSON.
+<JSON ( -- ) Send the JSON that follows to a string instead of the output.
+JSON> ( -- c-addr u ) End <JSON and give the text, ALLOCATEd.
+[FUNCTIONAL]
+MAP ( x1 .. xn n xt -- y1 .. yn ) Call xt ( x -- y ) on every item. ;; ALSO FUNCTIONAL 1 2 3 3 [: 2 * ;] MAP .S PREVIOUS => <3> 2 4 6
+FOLD ( x1 .. xn n xt -- r ) Combine the items with xt ( acc x -- acc' ); x1 is the first acc, so n is at least 1. ;; ALSO FUNCTIONAL 1 2 3 4 4 ' + FOLD . PREVIOUS => 10
+RUNNING-FOLD ( x1 .. xn n xt -- r1 .. rn ) Like FOLD, and keep every partial result. ;; ALSO FUNCTIONAL 1 2 3 3 ' + RUNNING-FOLD .S PREVIOUS => <3> 1 3 6
+FILTER ( x1 .. xn n xt -- y1 .. ym m ) Keep the items for which xt ( x -- flag ) is true. ;; ALSO FUNCTIONAL 1 10 RANGE [: 2 MOD 0= ;] FILTER .S PREVIOUS => <5> 2 4 6 8 4
+RANGE ( a b -- a .. b-1 n ) The numbers from a up to, not including, b, and their count. ;; ALSO FUNCTIONAL 1 4 RANGE .S PREVIOUS => <4> 1 2 3 3
+ANY? ( x1 .. xn n xt -- flag ) True if xt ( x -- flag ) is true for some item; it stops at the answer. ;; ALSO FUNCTIONAL 1 2 3 3 [: 2 = ;] ANY? . PREVIOUS => -1
+ALL? ( x1 .. xn n xt -- flag ) True if xt ( x -- flag ) is true for every item; true for n = 0. ;; ALSO FUNCTIONAL 1 2 3 3 [: 0> ;] ALL? . PREVIOUS => -1
+FIND ( x1 .. xn n xt -- x true | false ) The first item for which xt ( x -- flag ) is true. ;; ALSO FUNCTIONAL 1 2 3 3 [: 1 > ;] FIND . . PREVIOUS => -1 2
+COUNT-IF ( x1 .. xn n xt -- m ) How many items pass xt ( x -- flag ). ;; ALSO FUNCTIONAL 1 2 3 3 [: 1 > ;] COUNT-IF . PREVIOUS => 2
+FLAT-MAP ( x1 .. xn n xt -- y1 .. ym m ) Call xt ( x -- y1 .. yk k ) on every item and join the results.
+ITERATE ( x n xt -- x1 .. xn ) Make n items: x1 is x, every next one is xt of the one before. ;; ALSO FUNCTIONAL 1 4 [: 2 * ;] ITERATE .S PREVIOUS => <4> 1 2 4 8
+REVERSE ( x1 .. xn n -- xn .. x1 ) Reverse the items. ;; ALSO FUNCTIONAL 1 2 3 3 REVERSE .S PREVIOUS => <3> 3 2 1
+TAKE ( x1 .. xm m n -- .. k ) Keep the first n items; k is the new count. ;; ALSO FUNCTIONAL 1 2 3 3 2 TAKE .S PREVIOUS => <3> 1 2 2
+DROP-N ( x1 .. xm m n -- .. k ) Drop the first n items; k is the new count. ;; ALSO FUNCTIONAL 1 2 3 3 1 DROP-N .S PREVIOUS => <3> 2 3 2
+ZIP ( a1 .. an b1 .. bn n -- a1 b1 .. an bn 2n ) Interleave two lists of n items. ;; ALSO FUNCTIONAL 1 2 3 4 2 ZIP .S PREVIOUS => <5> 1 3 2 4 4
+SUM ( x1 .. xn n -- r ) Add the items; 0 for n = 0. ;; ALSO FUNCTIONAL 1 2 3 3 SUM . PREVIOUS => 6
+PRODUCT ( x1 .. xn n -- r ) Multiply the items; 1 for n = 0. ;; ALSO FUNCTIONAL 2 3 4 3 PRODUCT . PREVIOUS => 24
+MIN-OF ( x1 .. xn n -- r ) The smallest item; n is at least 1. ;; ALSO FUNCTIONAL 3 1 2 3 MIN-OF . PREVIOUS => 1
+MAX-OF ( x1 .. xn n -- r ) The largest item; n is at least 1. ;; ALSO FUNCTIONAL 3 1 2 3 MAX-OF . PREVIOUS => 3
+MAP-CELLS ( addr n xt -- ) Call xt ( x -- y ) on n cells in place.
+FOLD-CELLS ( addr n xt -- r ) Combine n cells with xt ( acc x -- acc' ); the first cell is the first acc, so n is at least 1.
+RUNNING-FOLD-CELLS ( addr n xt -- ) Like FOLD-CELLS; cell i becomes the partial result over cells 0 to i.
+FILTER-CELLS ( addr n xt -- m ) Move the cells that pass xt ( x -- flag ) to the front; m is how many.
+ANY?-CELLS ( addr n xt -- flag ) True if xt ( x -- flag ) is true for some cell; the block stays as it is.
+ALL?-CELLS ( addr n xt -- flag ) True if xt ( x -- flag ) is true for every cell.
+FIND-CELLS ( addr n xt -- x true | false ) The first cell for which xt ( x -- flag ) is true.
+COUNT-IF-CELLS ( addr n xt -- m ) How many cells pass xt ( x -- flag ); the block does not change.
+REVERSE-CELLS ( addr n -- ) Reverse n cells in place.
+SUM-CELLS ( addr n -- r ) Add n cells; 0 for n = 0.
+PRODUCT-CELLS ( addr n -- r ) Multiply n cells; 1 for n = 0.
+[DYNAMIC-STRINGS]
+$VARIABLE ( "name" -- ) Define a variable that holds an empty string.
+$! ( c-addr u a -- ) Store a copy of the text in the string at a.
+$@ ( a -- c-addr u ) Fetch the text of the string at a; an empty string is 0 0.
+$+! ( c-addr u a -- ) Append text to the string; the text may be part of the string itself.
+$@LEN ( a -- u ) The length of the string.
+$!LEN ( u a -- ) Set the length; new characters are zero.
+$+!LEN ( u a -- c-addr ) Make room for u more characters and give their address.
+$INS ( c-addr u a pos -- ) Insert text at offset pos (kept within the string).
+(INS) ( c-addr u a pos -- ) The part of $INS that opens the gap; use $INS instead.
+$DEL ( a pos u -- ) Delete u characters at pos (kept within the string).
+$SPLIT ( c-addr u char -- c-addr u1 c-addr2 u2 ) Split a text at the first char; nothing is allocated. Without char, u1 is u and u2 is 0.
+$ITER ( .. a char xt -- .. ) Call xt ( .. c-addr u -- .. ) for each part of the string between the chars.
+$INIT ( a -- ) Set the string to empty without freeing it.
+$FREE ( a -- ) Free the string and set it to empty.
+$TMP ( xt -- c-addr u ) Run xt and give what it printed; valid until the next $TMP.
+$EXEC ( xt a -- ) Run xt and append what it printed to the string.
+$SLURP ( fid a -- ) Read the rest of a file into the string.
+$SLURP-FILE ( c-addr u a -- ) Read a whole file into the string.
+$[]VARIABLE ( "name" -- ) Define an empty array of strings.
+$[] ( n a -- a' ) The cell of string n; the array grows to hold it.
+$[]! ( c-addr u n a -- ) Store a copy of the text as element n.
+$[]@ ( n a -- c-addr u ) Fetch element n; past the end it gives 0 0 and the array does not grow.
+$[]# ( a -- n ) The number of elements.
+$[]+! ( c-addr u a -- ) Add the text as a new last element.
+$[]MAP ( a xt -- ) Call xt ( c-addr u -- ) for each element.
+$[]SLURP ( fid a -- ) Make the lines of a file the elements; old elements are freed.
+$[]SLURP-FILE ( c-addr u a -- ) Make the lines of a named file the elements.
+$[]FREE ( a -- ) Free the elements and the array.
+[OPERATING-SYSTEM]
+SYSTEM ( c-addr u -- ) Run a command in the shell of the system and wait; its exit status is in $?.
+SH ( "rest-of-line" -- ) Run the rest of the line as a shell command.
+$? ( -- n ) The exit status of the last SYSTEM, SH or CLOSE-PIPE.
+OPEN-PIPE ( c-addr u fam -- fileid ior ) Run a command: R/O reads its output, W/O writes to its input.
+CLOSE-PIPE ( fileid -- status ior ) Close a pipe and wait for the command.
+GETENV ( c-addr u -- c-addr' u' ) The value of an environment variable; u' is 0 if it is not set.
+ARGC ( -- a-addr ) Address of the number of arguments, the program name included.
+ARGV ( -- a-addr ) Address of a vector of zero-terminated argument strings, as in C.
+ARG ( u -- c-addr u' ) Argument u; 0 ARG is the program; 0 0 past the last.
+NEXT-ARG ( -- c-addr u ) Take the first argument after the program away and give it; 0 0 if none.
+SHIFT-ARGS ( -- ) Take the first argument after the program away.
+OPEN-DIR ( c-addr u -- dirid ior ) Open a directory.
+READ-DIR ( c-addr u1 dirid -- u2 flag ior ) Read the next name (not . and ..) into the buffer; flag is false at the end.
+CLOSE-DIR ( dirid -- ior ) Close a directory.
+GET-DIR ( c-addr u -- c-addr u' ) The current directory, in the buffer.
+SET-DIR ( c-addr u -- ior ) Change the current directory.
+MKDIR-PARENTS ( c-addr u mode -- ior ) Make a directory and the ones above it; one that exists is no error.
+BASENAME ( c-addr u -- c-addr' u' ) The file name of a path. ;; ALSO OPERATING-SYSTEM S" /a/b.txt" BASENAME TYPE PREVIOUS => b.txt
+DIRNAME ( c-addr u -- c-addr' u' ) The directory of a path, with its last /; empty if none.
+FILENAME-MATCH ( c-addr u c-addr2 u2 -- flag ) True if the name matches the pattern (* and ?).
+STDIN ( -- fileid ) The standard input as a file.
+STDOUT ( -- fileid ) The standard output as a file.
+STDERR ( -- fileid ) The standard error as a file.
+OUTFILE-EXECUTE ( xt fileid -- ) Run xt with TYPE writing to the file.
+INFILE-EXECUTE ( xt fileid -- ) Run xt with KEY and ACCEPT reading from the file.
+[BENCHMARK]
+BENCH ( xt -- microseconds ) Run xt ( -- ) once and give the time it took.
+BENCH-BEST ( n xt -- microseconds ) Run xt ( -- ) n times (at least 1) and give the shortest time.
+[TESTING]
+T{ ( -- ) Start a test; the stack as it is now stays below the test.
+-> ( -- ) The cells since T{ are the actual results.
+}T ( -- ) The cells since -> are the expected results; compare, and print and count a difference.
+TESTING ( "text" -- ) Name the tests that follow, in the failure lines.
+TEST-SUMMARY ( -- ) Print how many tests passed and failed.
+[DEBUG]
+TRACE-ON ( -- ) Print every word that runs, with the stack before and after it.
+TRACE-OFF ( -- ) Stop the trace.
+BREAK ( -- ) Stop the program here for the debugger; without a debugger it does nothing.
+[TUTORIAL]
+LESSONS ( -- ) List the lessons and which ones you have done.
+LESSON ( n -- ) Start lesson n.
+CHECK ( -- ) Check the answer of the lesson.
+HINT ( -- ) Give a hint for the lesson.
+NEXT ( -- ) Go on to the next lesson.

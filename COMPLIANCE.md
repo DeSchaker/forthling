@@ -602,6 +602,11 @@ that leaves room, the choice is below.
   program defined a word (source and line), not the uses of it; `SEE-CODE` is `SEE`. `~~`
   prints `source:line:column:` and `.S`. `ASSERT(` is compiled when `ASSERT-LEVEL` is high
   enough and throws -2 on a false flag; a disabled one skips the text up to the next `)`.
+- Help: `HELP ( "name" -- )` prints the stack effect of a word and what it does, from the
+  text in `src/help.txt`, or the `( )` comment that follows `: NAME` for a word of the
+  program (it is skipped like any comment, so a definition behaves the same). A name that is
+  not defined gets close names. The hint of an undefined-word error names close words and
+  `HELP`. The cargo feature `help` (on by default) holds the text.
 - Time and random numbers: `UTIME` gives the microseconds since 1970 (the clock of
   `TIME&DATE`; a host that sets a clock in seconds with `set_clock` gives whole seconds, one
   that sets it with `set_clock_micros`, as the playground does, gives its resolution). `CPUTIME` gives the time

@@ -16,6 +16,7 @@ mod files;
 mod float;
 mod functional;
 mod heap;
+mod help;
 mod host;
 mod interpreter;
 mod json;
@@ -43,6 +44,7 @@ mod tests;
 pub use bench::Benchmark;
 pub use debug::{DebugHook, Pause, Reason, Resume};
 pub use functional::Functional;
+pub use help::{Help, HelpExample};
 pub use host::Extension;
 pub use json::Json;
 pub use memory::{DEFAULT_MEMORY, MAX_MEMORY, MIN_MEMORY, to_cell};
@@ -136,6 +138,7 @@ pub struct Forth {
     vfs: Box<dyn FileSystem>, // where the files are (vfs.rs)
     included: Vec<String>, // files INCLUDED so far, in order, for REQUIRED
     extensions: HashMap<String, Cell>, // installed extensions: version by upper-case name
+    help: Vec<&'static str>, // the help texts (help.rs)
     host_state: HashMap<std::any::TypeId, Box<dyn std::any::Any>>, // see Forth::state
     out: Vec<u8>,
     bye: bool,
@@ -225,6 +228,7 @@ impl Forth {
             vfs: Box::new(NativeFs),
             included: Vec::new(),
             extensions: HashMap::new(),
+            help: Vec::new(),
             host_state: HashMap::new(),
             out: Vec::new(),
             bye: false,
@@ -245,6 +249,8 @@ impl Forth {
         f.set(BASE_ADDR, 10);
         f.started = f.now_micros();
         words::install(&mut f);
+        #[cfg(feature = "help")]
+        f.add_help(include_str!("help.txt"));
         f.interpret(include_str!("prelude.fs")).expect("prelude must compile");
         f.fence = f.dict.len();
         f.system_space = f.space_used();

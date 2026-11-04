@@ -623,6 +623,12 @@ laat, staat de keuze hieronder.
   `SEE`. `~~` print `bron:regel:kolom:` en `.S`. `ASSERT(` wordt gecompileerd als
   `ASSERT-LEVEL` hoog genoeg is en gooit -2 bij een onwaar vlag; een uitgeschakelde slaat de
   tekst tot de volgende `)` over.
+- Help: `HELP ( "naam" -- )` print het stapeleffect van een woord en wat het doet, uit de
+  tekst in `src/help.txt`, of het `( )`-commentaar dat op `: NAAM` volgt voor een woord van het
+  programma (het wordt overgeslagen als elk commentaar, dus een definitie werkt hetzelfde). Een
+  naam die niet bestaat krijgt woorden die erop lijken. De hint van een fout bij een onbekend
+  woord noemt woorden die erop lijken en `HELP`. De cargo-feature `help` (standaard aan)
+  bevat de tekst.
 - Tijd en willekeurige getallen: `UTIME` geeft de microseconden sinds 1970 (de klok van
   `TIME&DATE`; een host die een klok in seconden instelt met `set_clock` geeft hele seconden,
   een host die hem instelt met `set_clock_micros`, zoals de speeltuin, geeft de resolutie

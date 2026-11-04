@@ -713,6 +713,28 @@ demo.fs:2:8: <1> 3
 10 SQ defined at demo.fs:1
 ```
 
+### Help
+
+`HELP name` shows the stack effect of a word, a line on what it does and, for most
+words, an example. Every word of the system and of the extensions has an entry; a test
+fails when one has not, and runs the examples, so the text cannot drift from the words.
+For a name that is not defined it lists names that are close, and the hint of an
+undefined-word error points to `HELP`.
+
+```
+: SQ ( n -- n*n ) DUP * ;
+HELP SQ          \ SQ ( n -- n*n )
+HELP SWAP        \ SWAP ( x1 x2 -- x2 x1 ), what it does, and an example
+HELP DUPP        \ DUPP is not defined. Close: DUMP DUP
+```
+
+A word you define shows the `( )` comment after its name. The MCP server has the tool
+`forth_help` (the same, as JSON), and a Rust host adds the text of its own words with
+`Forth::add_help`; `Forth::help_problems` and `Forth::help_examples` are for its tests.
+The text is in `src/help.txt`, about 50 KB in the binary (52,224 bytes more in a release
+build). The cargo feature `help` is on by default; `default-features = false` leaves
+the text out, and `HELP` still shows the comments of your own words.
+
 ### Tutorial
 
 New to Forth? The tutorial teaches it inside forthling, in 20 short lessons: ten for
@@ -752,7 +774,7 @@ without Rust as the bundle `forthling.mcpb` from the
 [latest release](https://github.com/DeSchaker/forthling/releases/latest), which Claude
 Desktop opens; with Claude Code: `claude mcp add forthling -- forthling-mcp`. It is in the
 [MCP Registry](https://registry.modelcontextprotocol.io) as `io.github.DeSchaker/forthling`. Its
-tools are `forth_eval`, `forth_stack`, `forth_words` and `forth_reset`; each result has
+tools are `forth_eval`, `forth_stack`, `forth_words`, `forth_help` and `forth_reset`; each result has
 the output and the stacks as text and as JSON. See [mcp/README.md](mcp/README.md), also
 for what enforces the sandbox when a user asks the AI to get around it.
 [`llms.txt`](llms.txt) (also at https://deschaker.github.io/forthling/llms.txt) sums up

@@ -1,0 +1,9 @@
+// The help text of the REGEX word list, in the form of src/help.txt of forthling.
+[FORTH]
+REGEX ( -- ) The word list of the RE- words for regular expressions. ALSO REGEX adds it to the search order.
+[REGEX]
+RE-MATCH? ( c-addr u re-addr re-u -- flag ) True if the pattern matches anywhere in the text; anchor it with ^ and $ to match all of it. ;; ALSO REGEX S" hello" S" l+" RE-MATCH? . PREVIOUS => -1
+RE-FIND ( c-addr u re-addr re-u -- start len true | false ) The first match, as an offset in the text and a length. ;; ALSO REGEX S" hello" S" l+" RE-FIND . . . PREVIOUS => -1 2 2
+RE-GROUP ( c-addr u re-addr re-u n -- start len true | false ) Group n of the first match, 0 being all of it; false when there is no match or the group took no part.
+RE-COUNT ( c-addr u re-addr re-u -- n ) The number of matches that do not overlap. ;; ALSO REGEX S" a1b22c333" S" [0-9]+" RE-COUNT . PREVIOUS => 3
+RE-REPLACE ( c-addr u re-addr re-u rep-addr rep-u -- c-addr' u' ) Replace every match; $1 is group 1, ${name} a named group, $$ a dollar. The new text is ALLOCATEd. ;; ALSO REGEX : T S" a1b2" S" [0-9]" S" #" RE-REPLACE TYPE ; T PREVIOUS => a#b#

@@ -41,6 +41,7 @@ it beforehand; a test keeps the limits in both the same.
 | `forth_eval` | `code`, `data`, `files`, `trace` | runs Forth code; returns the output, the data and float stacks, and the error if there was one |
 | `forth_stack` | | the stacks, without running anything |
 | `forth_words` | | the words defined in this session, the latest first |
+| `forth_help` | `word` | the stack effect of a word, what it does, an example, and the word list it is in; for a name that is not defined, close names. Words of the session show the `( )` comment after their name |
 | `forth_reset` | | a new session: every definition, stack value, the data and the files are gone |
 
 A line of code, and so a string in `S"`, is at most 1024 characters. Larger input, such

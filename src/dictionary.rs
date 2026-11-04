@@ -40,6 +40,7 @@ pub(crate) struct Word {
     pub(crate) name_addr: Option<usize>,         // its name on the heap, once NAME>STRING asked
     pub(crate) size: usize, // what it takes outside Forth memory (Limits::space)
     pub(crate) origin: Option<(Rc<str>, usize)>, // where the program defined it: source and line, for WHERE
+    pub(crate) effect: Option<Rc<str>>, // the stack-effect comment after its name, for HELP
 }
 
 /// The words an empty search order still finds.
@@ -69,6 +70,7 @@ impl Forth {
             name_addr: None,
             size,
             origin,
+            effect: None,
         });
         self.dict.len() - 1
     }
@@ -203,6 +205,12 @@ impl Forth {
                 (false, _) => format!("ALSO {list}"),
             };
             e.hint = Some(format!("it is in the word list {list}; {fix} finds it"));
+        } else {
+            let close = self.close_names(&upper);
+            if let Some(first) = close.first() {
+                let shown = close.iter().take(3).map(String::as_str).collect::<Vec<_>>().join(" ");
+                e.hint = Some(format!("did you mean {shown}? HELP {first} shows what it does"));
+            }
         }
         e
     }

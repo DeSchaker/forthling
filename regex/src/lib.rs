@@ -104,6 +104,7 @@ impl Extension for Regex {
     }
 
     fn install(&self, f: &mut Forth) {
+        f.add_help(include_str!("help.txt"));
         // RE-MATCH? ( c-addr u re-addr re-u -- flag ): is there a match
         // anywhere in the text? Anchor the pattern with ^ and $ to match
         // all of it.

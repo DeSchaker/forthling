@@ -630,10 +630,10 @@ fn evaluate_is_a_nested_source() {
 
 #[test]
 fn include_reports_error_location() {
-    let path = temp_file("bad.fs", "1 2\n: OK ;\n3 FOO\n");
+    let path = temp_file("bad.fs", "1 2\n: OK ;\n3 QXZ\n");
     let e = err(&format!("INCLUDE {path}"));
     assert_eq!(e.code, -13);
-    assert!(e.to_string().ends_with(":3: error -13: undefined word: FOO"), "{e}");
+    assert!(e.to_string().ends_with(":3: error -13: undefined word: QXZ"), "{e}");
     assert_eq!(err("INCLUDE /no/such/file.fs").code, -38);
 }
 
@@ -733,9 +733,9 @@ fn metaprogramming() {
 #[test]
 fn errors_are_throw_codes_and_reset_state() {
     let mut f = Forth::new();
-    let e = f.interpret("1 2 FOO").unwrap_err();
+    let e = f.interpret("1 2 QXZ").unwrap_err();
     assert_eq!(e.code, -13);
-    assert_eq!(e.to_string(), "error -13: undefined word: FOO");
+    assert_eq!(e.to_string(), "error -13: undefined word: QXZ");
     assert_eq!(f.stack, [] as [i64; 0]);
     assert_eq!(f.interpret("DROP").unwrap_err().code, -4);
     assert_eq!(f.interpret(": BAD IF ;").unwrap_err().code, -22);
@@ -824,7 +824,7 @@ fn an_undefined_word_hints_at_its_word_list() {
     // also for ', and in lower case
     assert_eq!(f.interpret("' json@").unwrap_err().hint(), Some(text));
     // no hint for a word that is nowhere, or in a word list without a name
-    assert_eq!(hint("NOSUCHWORD"), None);
+    assert_eq!(hint("QXZVBN"), None);
     assert_eq!(hint("WORDLIST SET-CURRENT : Z ; FORTH-WORDLIST SET-CURRENT Z"), None);
     // with an empty search order, ALSO cannot help
     let only = "it is in the word list FORTH; ONLY FORTH finds it";
