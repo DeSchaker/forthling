@@ -4,11 +4,11 @@ version = 4
 
 [[package]]
 name = "forthling"
-version = "0.2.1"
+version = "0.2.2"
 
 [[package]]
 name = "forthling-regex"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "forthling",
  "regex-lite",
