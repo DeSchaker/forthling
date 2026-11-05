@@ -129,7 +129,7 @@ R> CLOSE-PIPE THROW .                                \ 0, the exit status
 
 ## Tests
 
-`ALSO TESTING` checks your own code with the Forth-2012 test syntax: `T{ 3 SQUARE -> 9 }T` passes when the cells before `->` equal the cells after it. A wrong result prints a line with the place, the expected and the actual cells (`FAIL input:7 (squares): incorrect result: expected <1> 24, got <1> 25`) and the run goes on; `TESTING text` names a group and `TEST-SUMMARY` prints the counts. In the MCP server, `forth_eval` gives the counts and the failures as `tests` in the structured result. `forthling --test file.fs` runs a file and exits with 1 if a test failed. No permission is needed. An error inside a test is not caught.
+`ALSO TESTING` checks your own code with the Forth-2012 test syntax: `T{ 3 SQUARE -> 9 }T` passes when the cells before `->` equal the cells after it. A wrong result prints a line with the place, the expected and the actual cells (`FAIL input:7 (squares): incorrect result: expected <1> 24, got <1> 25`) and the run goes on; `TESTING text` names a group and `TEST-SUMMARY` prints the counts. Floats on the float stack are compared too: identical by default, or after `SET-NEAR` within `REL-NEAR` and `ABS-NEAR` (set them with `F!`; `SET-EXACT` goes back). In the MCP server, `forth_eval` gives the counts and the failures as `tests` in the structured result. `forthling --test file.fs` runs a file and exits with 1 if a test failed. No permission is needed. An error inside a test is not caught.
 
 ## Tutorial
 

@@ -129,3 +129,54 @@ fn long_lists_are_cut_to_the_top_cells() {
     let r = f.take_test_results();
     assert_eq!((r.failures[0].actual.len(), r.failures[0].actual_depth), (32, 40));
 }
+
+#[test]
+fn floats_are_compared_exactly_by_default() {
+    let mut f = forth();
+    let out = run(&mut f, "T{ 1E 2E F+ -> 3E }T  T{ 1 2E -> 1 2E }T  T{ -> }T");
+    assert_eq!(out, "");
+    let out = run(&mut f, "T{ 0.1E 0.2E F+ -> 0.3E }T\n");
+    assert!(
+        out.starts_with(
+            "FAIL input:1: incorrect result
+  floats: expected"
+        ),
+        "{out}"
+    );
+    assert!(out.contains("\n  floats: expected <1> 3E-1, got <1> 3.0000000000000004E-1"), "{out}");
+    let r = f.take_test_results();
+    assert_eq!((r.passed, r.failed), (3, 1));
+    let x = &r.failures[0];
+    assert_eq!((x.expected_floats.clone(), x.expected_floats_depth), (vec![0.3], 1));
+    assert_eq!(x.actual_floats_depth, 1);
+    assert!(x.expected.is_empty() && x.actual.is_empty());
+}
+
+#[test]
+fn set_near_uses_the_tolerances() {
+    let mut f = forth();
+    run(&mut f, "SET-NEAR  T{ 2E FSQRT FDUP F* -> 2E }T  T{ 1E 1.0000001E -> 1E 1E }T");
+    let r = f.take_test_results();
+    assert_eq!((r.passed, r.failed), (1, 1));
+    run(&mut f, "1E-6 REL-NEAR F!  T{ 1E 1.0000001E -> 1E 1E }T");
+    run(&mut f, "0E REL-NEAR F!  0.001E ABS-NEAR F!  T{ 10E 10.0005E -> 10E 10E }T");
+    run(&mut f, "T{ 10E 10.5E -> 10E 10E }T");
+    let r = f.take_test_results();
+    assert_eq!((r.passed, r.failed), (2, 1));
+    // SET-EXACT turns it off again.
+    run(&mut f, "SET-EXACT  T{ 2E FSQRT FDUP F* -> 2E }T");
+    assert_eq!(f.take_test_results().failed, 1);
+}
+
+#[test]
+fn the_number_of_floats_counts() {
+    let mut f = forth();
+    let out = run(&mut f, "T{ 1E 2E -> 1E }T\n");
+    assert!(out.contains("wrong number of results"), "{out}");
+    assert!(out.contains("floats: expected <1> 1E0, got <2> 1E0 2E0"), "{out}");
+    let r = f.take_test_results();
+    assert_eq!(r.failures[0].actual_floats, vec![1.0, 2.0]);
+    // The float stack below the test is left alone.
+    run(&mut f, "9E  T{ 1E -> 1E }T");
+    assert_eq!(f.fstack(), &[9.0]);
+}

@@ -501,13 +501,40 @@ tests: 2 passed, 2 failed
 | `}T` | `( -- )`: the cells since `->` are the expected results; compare, and print and count a difference |
 | `TESTING` | `( "text" -- )`: the rest of the line names the tests that follow, in the failure lines |
 | `TEST-SUMMARY` | `( -- )`: print how many tests passed and failed |
+| `SET-EXACT` | `( -- )`: compare floats as identical (the default) |
+| `SET-NEAR` | `( -- )`: compare floats within `REL-NEAR` or `ABS-NEAR` |
+| `REL-NEAR`, `ABS-NEAR` | `( -- a-addr )`: float variables with the tolerances; `1E-12` and `0E` at the start |
 
 A failure line has the input (`input`, `evaluate` or the path of the file), the line of `T{`
 (from 1), the group, and the cells of both sides in the current `BASE`, each list as its
 depth and its cells (the top 32 of a long list). If there is something on the stack below
 the test, a second line shows it. An error inside a test is not caught: it ends the run as
 anywhere else, so the limits of a sandbox cannot be hidden. `->` or `}T` in the wrong place
-throws -22. Cells are compared as integers; there is no float comparison.
+throws -22. Cells are compared as integers; floats have their own rule, below.
+
+**Floats.** The floats on the float stack count too: those that the code leaves between `T{`
+and `->` must be those after `->`, in the same number. This is the rule of `ttester.fs` of
+the Forth-2012 test suite, and a test may mix cells and floats (the two stacks are compared
+apart). A float is identical by default, so `0.1E 0.2E F+` is not `0.3E`. After `SET-NEAR`
+two floats are equal when they are identical, or within `REL-NEAR` (relatively, as `F~` with
+a negative tolerance) or within `ABS-NEAR` (absolutely); set them with `F!`, and go back with
+`SET-EXACT`. The failure line then has a second line for the floats, in scientific notation:
+
+```forth
+ALSO TESTING
+SET-NEAR
+T{ 0.1E 0.2E F+ -> 0.3E }T
+1E-6 REL-NEAR F!
+T{ 1E 1.1E -> 1E 1E }T
+```
+
+```
+FAIL file.fs:5: incorrect result
+  floats: expected <2> 1E0 1E0, got <2> 1E0 1.1E0
+```
+
+The first test passes (the default `REL-NEAR` is `1E-12`). The float stack below the test is
+left alone. A test of floats only has no cells to show, so the first line has none.
 
 `forthling --test file.fs ...` runs the files, prints `tests: N passed, M failed` at the end
 (the counts run over all the files) and exits with 1 if a test failed or an error stopped

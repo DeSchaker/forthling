@@ -643,7 +643,16 @@ fn tests_are_reported_per_call() {
         json!({
             "source": "input", "line": 3, "group": "sums",
             "expected": [3], "expected_depth": 1, "actual": [2], "actual_depth": 1, "stack": [],
+            "expected_floats": [], "expected_floats_depth": 0,
+            "actual_floats": [], "actual_floats_depth": 0,
         })
+    );
+    // Floats come next to the cells.
+    let rf = eval(&mut s, "T{ 1 2E -> 1 2.5E }T");
+    let x = &rf["structuredContent"]["tests"]["failures"][0];
+    assert_eq!(
+        (&x["expected_floats"], &x["actual_floats"], &x["expected"], &x["actual"]),
+        (&json!([2.5]), &json!([2.0]), &json!([1]), &json!([1]))
     );
     assert!(text(&r).starts_with("tests: 1 passed, 1 failed\n"));
     assert!(r["structuredContent"]["output"].as_str().unwrap().starts_with("FAIL input:3 (sums)"));

@@ -701,6 +701,10 @@ T{ ( -- ) Start a test; the stack as it is now stays below the test.
 }T ( -- ) The cells since -> are the expected results; compare, and print and count a difference.
 TESTING ( "text" -- ) Name the tests that follow, in the failure lines.
 TEST-SUMMARY ( -- ) Print how many tests passed and failed.
+SET-EXACT ( -- ) Compare the floats of a test as identical; this is the default. ;; ALSO TESTING T{ 1E 2E F+ -> 3E }T TEST-SUMMARY PREVIOUS => tests: 1 passed, 0 failed
+SET-NEAR ( -- ) Compare the floats of a test within REL-NEAR (relatively) or ABS-NEAR (absolutely). ;; ALSO TESTING SET-NEAR T{ 0.1E 0.2E F+ -> 0.3E }T TEST-SUMMARY SET-EXACT PREVIOUS => tests: 1 passed, 0 failed
+REL-NEAR ( -- a-addr ) The float variable with the relative tolerance of SET-NEAR; 1E-12 at the start. ;; ALSO TESTING REL-NEAR F@ F. PREVIOUS => 0.000000000001
+ABS-NEAR ( -- a-addr ) The float variable with the absolute tolerance of SET-NEAR; 0E at the start. ;; ALSO TESTING ABS-NEAR F@ F. PREVIOUS => 0.
 [DEBUG]
 TRACE-ON ( -- ) Print every word that runs, with the stack before and after it.
 TRACE-OFF ( -- ) Stop the trace.

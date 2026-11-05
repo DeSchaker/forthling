@@ -9,7 +9,7 @@ mod define;
 mod double;
 mod facility;
 mod file;
-mod float;
+pub(crate) mod float;
 mod heap;
 mod inspect;
 mod locals;

@@ -207,18 +207,23 @@ fn install_arithmetic(f: &mut Forth) {
     f.prim("F~", |f| {
         let (r2, r3) = f.fpop2()?;
         let r1 = f.fpop()?;
-        let near = if r3.is_nan() {
-            false
-        } else if r3 > 0.0 {
-            (r1 - r2).abs() < r3
-        } else if r3 < 0.0 {
-            (r1 - r2).abs() < -r3 * (r1.abs() + r2.abs())
-        } else {
-            r1.to_bits() == r2.to_bits()
-        };
-        f.push(flag(near));
+        f.push(flag(float_near(r1, r2, r3)));
         Ok(())
     });
+}
+
+/// The test of `F~`: r3 > 0 is an absolute tolerance, r3 < 0 a relative one,
+/// and r3 = 0 asks for identical bits. A NaN as the tolerance is never met.
+pub(crate) fn float_near(r1: f64, r2: f64, r3: f64) -> bool {
+    if r3.is_nan() {
+        false
+    } else if r3 > 0.0 {
+        (r1 - r2).abs() < r3
+    } else if r3 < 0.0 {
+        (r1 - r2).abs() < -r3 * (r1.abs() + r2.abs())
+    } else {
+        r1.to_bits() == r2.to_bits()
+    }
 }
 
 #[allow(

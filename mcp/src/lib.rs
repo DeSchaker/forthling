@@ -517,6 +517,10 @@ fn tests_json(t: &forthling::TestResults) -> Value {
                 "actual": x.actual,
                 "actual_depth": x.actual_depth,
                 "stack": x.stack,
+                "expected_floats": x.expected_floats,
+                "expected_floats_depth": x.expected_floats_depth,
+                "actual_floats": x.actual_floats,
+                "actual_floats_depth": x.actual_floats_depth,
             })
         })
         .collect();
@@ -677,6 +681,10 @@ fn state_schema() -> Value {
                                 "actual": { "type": "array", "items": { "type": "integer" }, "description": "the cells the code before -> left, the top last; at most 32" },
                                 "actual_depth": { "type": "integer" },
                                 "stack": { "type": "array", "items": { "type": "integer" }, "description": "the stack below the test at that moment; at most 32" },
+                                "expected_floats": { "type": "array", "items": { "type": "number" }, "description": "the floats after ->, the top last; at most 32" },
+                                "expected_floats_depth": { "type": "integer" },
+                                "actual_floats": { "type": "array", "items": { "type": "number" }, "description": "the floats the code before -> left, the top last; at most 32" },
+                                "actual_floats_depth": { "type": "integer" },
                             },
                         },
                     },
@@ -824,7 +832,7 @@ fn instructions(s: &Settings) -> String {
          as `users[0].name` from JSON text, and `JSON{{ S\" key\" JSON-KEY 1 JSON-NUMBER JSON}}` \
          writes JSON. `ALSO FUNCTIONAL` gives `MAP FOLD RUNNING-FOLD FILTER RANGE ANY? ALL? FIND COUNT-IF FLAT-MAP ITERATE REVERSE TAKE DROP-N ZIP SUM PRODUCT MIN-OF MAX-OF` on the data stack, and the same on a block of cells in memory (`MAP-CELLS FOLD-CELLS RUNNING-FOLD-CELLS FILTER-CELLS ANY?-CELLS` and more), \
          such as `1 6 RANGE [: DUP * ;] MAP 5 ' + FOLD .` (55). `ALSO DYNAMIC-STRINGS` gives dynamic strings: `$VARIABLE S  S\" hi\" S $!  S\" !\" S $+!  S $@ TYPE`, with `$@LEN $INS $DEL $SPLIT $ITER $TMP $EXEC` and arrays (`$[]VARIABLE $[]! $[]@ $[]+! $[]# $[]MAP`), all on the heap, so `$FREE` and `$[]FREE` give memory back. `ALSO OPERATING-SYSTEM` is there, but the machine is closed: `SYSTEM`, `GETENV`, the command line and the directories give -259 here (`BASENAME`, `DIRNAME` and `FILENAME-MATCH` work). `ALSO TUTORIAL` gives a Forth course of 20 lessons to walk a person \
-         through: `LESSONS`, `n LESSON`, `CHECK` (tests their answer), `HINT`, `NEXT`. `ALSO BENCHMARK` times your code: `BENCH ( xt -- microseconds )` runs a word once, `BENCH-BEST ( n xt -- microseconds )` gives the shortest of n runs. `ALSO TESTING` checks your code: `T{{ 3 SQUARE -> 9 }}T` passes when the cells before `->` equal those after it; a wrong result goes on, and the result has `tests` with `passed`, `failed` and per failure `line`, `expected` and `actual` (`TESTING text` names a group).{sqlite}{regex}{http} \
+         through: `LESSONS`, `n LESSON`, `CHECK` (tests their answer), `HINT`, `NEXT`. `ALSO BENCHMARK` times your code: `BENCH ( xt -- microseconds )` runs a word once, `BENCH-BEST ( n xt -- microseconds )` gives the shortest of n runs. `ALSO TESTING` checks your code: `T{{ 3 SQUARE -> 9 }}T` passes when the cells before `->` equal those after it; a wrong result goes on, and the result has `tests` with `passed`, `failed` and per failure `line`, `expected` and `actual` (`TESTING text` names a group). Floats on the float stack are compared too, identical by default; `SET-NEAR` compares within `REL-NEAR` and `ABS-NEAR` (set with `F!`), `SET-EXACT` goes back.{sqlite}{regex}{http} \
          Each call may take at most {} steps, {} ms and {} bytes of output; \
          the session's definitions and the like at most {} bytes in all. Files are in memory, \
          never on the disk, at most {} bytes in all: INCLUDE, REQUIRE, the FILE words \
