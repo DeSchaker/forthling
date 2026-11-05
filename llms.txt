@@ -112,6 +112,15 @@ S $@ TYPE    \ Hello, world
 - `$TMP ( xt -- c-addr u )` and `$EXEC ( xt a -- )` catch what `xt` prints; `$SLURP ( fid a -- )` and `$SLURP-FILE ( c-addr u a -- )` read a file.
 - Arrays: `$[]VARIABLE`, `$[]! ( c-addr u n a -- )`, `$[]@ ( n a -- c-addr u )`, `$[]+! ( c-addr u a -- )`, `$[]# ( a -- n )`, `$[]MAP ( a xt -- )`, `$[]SLURP`, `$[]SLURP-FILE` and `$[]FREE`.
 
+## Text words
+
+`ALSO STRINGS` gives whole-string words on `( c-addr u )`: `TRIM` and `-LEADING` (drop white space, nothing is copied), `UPPER` and `LOWER` (ASCII letters, in place: give them a buffer, not a literal), `STRING-PREFIX?`, `STRING-SUFFIX?` and `CONTAINS?` (`( c-addr u c-addr2 u2 -- flag )`) and `JOIN ( array c-addr u -- c-addr' u' )`, which joins a `$[]` array with a separator into an `ALLOCATE`d string to `FREE`.
+
+```forth
+ALSO STRINGS
+S"   Hello  " TRIM TYPE     Hello
+```
+
 ## Operating system
 
 `ALSO OPERATING-SYSTEM` gives the Gforth words for the machine: `SYSTEM ( c-addr u -- )` and `SH` run a command and set `$?`, `OPEN-PIPE` and `CLOSE-PIPE` read the output of a command or write to its input, `GETENV` reads an environment variable, `ARGC ARGV ARG NEXT-ARG` give the command line, `OPEN-DIR READ-DIR CLOSE-DIR GET-DIR SET-DIR MKDIR-PARENTS` work on directories, `BASENAME DIRNAME FILENAME-MATCH` on file names, and `STDIN STDOUT STDERR` are file ids. The forthling program has them; the files it still has to include are its arguments, so a script takes the next one with `NEXT-ARG`. They are closed by default: they need `Permission::System`, which the sandbox, the MCP server and the playground deny (-259, or that ior).

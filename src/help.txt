@@ -576,6 +576,7 @@ DFALIGN ( -- ) Align HERE to a double-precision float boundary.
 JSON ( -- ) Put the word list JSON in front of the search order: ALSO JSON does the same and keeps the others.
 FUNCTIONAL ( -- ) The word list of MAP, FOLD, FILTER and the like.
 DYNAMIC-STRINGS ( -- ) The word list of the $ words for strings that grow.
+STRINGS ( -- ) The word list of TRIM, UPPER, JOIN and the other whole-string words.
 OPERATING-SYSTEM ( -- ) The word list of SYSTEM, GETENV, the directory words and the like.
 BENCHMARK ( -- ) The word list of BENCH and BENCH-BEST.
 TESTING ( -- ) The word list of T{ -> }T.
@@ -666,6 +667,15 @@ $[]MAP ( a xt -- ) Call xt ( c-addr u -- ) for each element.
 $[]SLURP ( fid a -- ) Make the lines of a file the elements; old elements are freed.
 $[]SLURP-FILE ( c-addr u a -- ) Make the lines of a named file the elements.
 $[]FREE ( a -- ) Free the elements and the array.
+[STRINGS]
+TRIM ( c-addr u -- c-addr' u' ) Drop white space (characters up to the blank) at both ends; nothing is copied. ;; ALSO STRINGS S"   hi  " TRIM DUP . TYPE PREVIOUS => 2 hi
+-LEADING ( c-addr u -- c-addr' u' ) Drop white space at the start, as -TRAILING does at the end. ;; ALSO STRINGS S"  hi " -LEADING . DROP PREVIOUS => 3
+UPPER ( c-addr u -- c-addr u ) Change the ASCII letters to upper case in place; other bytes stay. ;; ALSO STRINGS CREATE B 3 ALLOT S" ab1" DROP B 3 MOVE B 3 UPPER TYPE PREVIOUS => AB1
+LOWER ( c-addr u -- c-addr u ) Change the ASCII letters to lower case in place; other bytes stay. ;; ALSO STRINGS CREATE B 3 ALLOT S" AB1" DROP B 3 MOVE B 3 LOWER TYPE PREVIOUS => ab1
+STRING-PREFIX? ( c-addr u c-addr2 u2 -- flag ) True if the first text starts with the second (Gforth). ;; ALSO STRINGS S" forth" S" for" STRING-PREFIX? . PREVIOUS => -1
+STRING-SUFFIX? ( c-addr u c-addr2 u2 -- flag ) True if the first text ends with the second. ;; ALSO STRINGS S" forth" S" th" STRING-SUFFIX? . PREVIOUS => -1
+CONTAINS? ( c-addr u c-addr2 u2 -- flag ) True if the second text occurs in the first; an empty one always does. ;; ALSO STRINGS S" forth" S" ort" CONTAINS? . PREVIOUS => -1
+JOIN ( array c-addr u -- c-addr' u' ) The elements of a $[] array with the text between them, in an ALLOCATEd string; FREE it. ;; ALSO DYNAMIC-STRINGS ALSO STRINGS $[]VARIABLE A S" a" A $[]+! S" b" A $[]+! A S" , " JOIN 2DUP TYPE DROP FREE THROW A $[]FREE PREVIOUS PREVIOUS => a, b
 [OPERATING-SYSTEM]
 SYSTEM ( c-addr u -- ) Run a command in the shell of the system and wait; its exit status is in $?.
 SH ( "rest-of-line" -- ) Run the rest of the line as a shell command.

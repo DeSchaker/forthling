@@ -147,3 +147,66 @@ fn install_ignores_the_limits_of_the_program() {
     f.set_limits(Limits::default());
     run(&mut f, "ALSO DYNAMIC-STRINGS $VARIABLE S");
 }
+
+fn text() -> Forth {
+    let mut f = forth();
+    run(&mut f, "ALSO STRINGS");
+    f
+}
+
+#[test]
+fn trim_and_leading() {
+    let mut f = text();
+    assert_eq!(run(&mut f, r#"S"    hi there  " TRIM . DROP"#), "8 ");
+    assert_eq!(run(&mut f, r#"S" ab" TRIM TYPE"#), "ab");
+    assert_eq!(run(&mut f, r#"S"    " TRIM . DROP"#), "0 ");
+    assert_eq!(run(&mut f, r#"S" " TRIM . DROP"#), "0 ");
+    assert_eq!(run(&mut f, r#"S"   a b " -LEADING TYPE"#), "a b ");
+    assert_eq!(run(&mut f, r#"S"  x  " OVER >R TRIM DROP R> - ."#), "1 ");
+}
+
+#[test]
+fn upper_and_lower_in_place() {
+    let mut f = text();
+    run(&mut f, r#"CREATE B 8 ALLOT S" Forth-2012!" DROP B 8 MOVE"#);
+    assert_eq!(run(&mut f, "B 8 UPPER TYPE"), "FORTH-20");
+    assert_eq!(run(&mut f, "B 8 LOWER TYPE"), "forth-20");
+    assert_eq!(run(&mut f, "B 0 UPPER . DROP"), "0 ");
+    // a negative length counts as zero, as elsewhere
+    assert_eq!(run(&mut f, "B -1 UPPER . DROP"), "0 ");
+}
+
+#[test]
+fn prefix_suffix_contains() {
+    let mut f = text();
+    assert_eq!(run(&mut f, r#"S" forth" S" for" STRING-PREFIX? ."#), "-1 ");
+    assert_eq!(run(&mut f, r#"S" forth" S" orth" STRING-PREFIX? ."#), "0 ");
+    assert_eq!(run(&mut f, r#"S" for" S" forth" STRING-PREFIX? ."#), "0 ");
+    assert_eq!(run(&mut f, r#"S" forth" S" " STRING-PREFIX? ."#), "-1 ");
+    assert_eq!(run(&mut f, r#"S" forth" S" th" STRING-SUFFIX? ."#), "-1 ");
+    assert_eq!(run(&mut f, r#"S" forth" S" for" STRING-SUFFIX? ."#), "0 ");
+    assert_eq!(run(&mut f, r#"S" th" S" forth" STRING-SUFFIX? ."#), "0 ");
+    assert_eq!(run(&mut f, r#"S" forth" S" ort" CONTAINS? ."#), "-1 ");
+    assert_eq!(run(&mut f, r#"S" forth" S" fo" CONTAINS? ."#), "-1 ");
+    assert_eq!(run(&mut f, r#"S" forth" S" xyz" CONTAINS? ."#), "0 ");
+    assert_eq!(run(&mut f, r#"S" forth" S" " CONTAINS? ."#), "-1 ");
+    assert_eq!(run(&mut f, r#"S" " S" a" CONTAINS? ."#), "0 ");
+}
+
+#[test]
+fn join_an_array() {
+    let mut f = text();
+    run(&mut f, "$[]VARIABLE A");
+    // an empty array gives an empty string
+    assert_eq!(run(&mut f, r#"A S" , " JOIN SWAP FREE THROW ."#), "0 ");
+    run(&mut f, r#"S" one" A $[]+! S" two" A $[]+! S" " A $[]+! S" four" A $[]+!"#);
+    assert_eq!(run(&mut f, r#"A S" , " JOIN 2DUP TYPE DROP FREE THROW"#), "one, two, , four");
+    assert_eq!(run(&mut f, r#"A S" " JOIN 2DUP TYPE DROP FREE THROW"#), "onetwofour");
+    run(&mut f, "A $[]FREE");
+    // one element has no separator; an element never stored (a gap) is empty
+    run(&mut f, r#"S" x" 2 A $[]!"#);
+    assert_eq!(run(&mut f, r#"A S" -" JOIN 2DUP TYPE DROP FREE THROW"#), "--x");
+    run(&mut f, "A $[]FREE");
+    // the result is a heap block, so it counts and is freed
+    assert_eq!(run(&mut f, r#"S" a" A $[]+! A S" ," JOIN NIP ."#), "1 ");
+}

@@ -391,6 +391,34 @@ A ' PART $[]MAP                               \ <one><two>
 
 A string that `$ITER` or `$[]MAP` is going through must not be changed by `xt`.
 
+### Text words
+
+The word list `STRINGS` (`ALSO STRINGS`) has the everyday words for a text on `( c-addr u )`. It comes
+with the dynamic strings (same extension, same hosts), and keeps a standard program's dictionary
+clean. Only `JOIN` allocates. `UPPER` and `LOWER` change the text in place, so give them a buffer
+you own, not a literal; they work on ASCII letters and leave other bytes (UTF-8 included) alone.
+White space here is every character up to the blank.
+
+```forth
+ALSO DYNAMIC-STRINGS ALSO STRINGS
+S"   Hello, world  " TRIM TYPE                 Hello, world
+S" forthling" S" forth" STRING-PREFIX? .       -1
+$[]VARIABLE A
+S" a" A $[]+!   S" b" A $[]+!   S" c" A $[]+!
+A S" , " JOIN 2DUP TYPE DROP FREE THROW        a, b, c
+```
+
+| Word | Stack |
+|---|---|
+| `TRIM` `-LEADING` | `( c-addr u -- c-addr' u' )`: drop white space at both ends, or at the start (`-TRAILING` is standard); nothing is copied |
+| `UPPER` `LOWER` | `( c-addr u -- c-addr u )`: change ASCII letters in place |
+| `STRING-PREFIX?` `STRING-SUFFIX?` | `( c-addr u c-addr2 u2 -- flag )`: the first text starts, or ends, with the second |
+| `CONTAINS?` | `( c-addr u c-addr2 u2 -- flag )`: the second text occurs in the first; an empty one always does |
+| `JOIN` | `( array c-addr u -- c-addr' u' )`: the elements of a `$[]` array with the text between them, in an `ALLOCATE`d string; `FREE` it |
+
+For one split at a character or a walk over all parts, use `$SPLIT` and `$ITER`; for templates with
+named values, `SUBSTITUTE`.
+
 ### Operating system
 
 The word list `OPERATING-SYSTEM` (`ALSO OPERATING-SYSTEM`) has the operating-system words of
