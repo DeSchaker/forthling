@@ -16,7 +16,13 @@ the open parts are in [issue #59](https://github.com/DeSchaker/forthling/issues/
 
 ## Parts
 
-Nothing here yet. The programs that already exist, and run in the tests, are in
+**Book 1, Puzzles**
+
+- [A maze: make it and solve it](book001_part001_maze.md): depth-first backtracking and
+  breadth-first search with vectors and a small random number generator
+  ([`book001_example001_maze.fs`](../examples/book001_example001_maze.fs)).
+
+**Programs without a chapter yet**, which also run in the tests, are in
 [`examples/`](../examples/):
 
 - [`book000_example001_demo.fs`](../examples/book000_example001_demo.fs): a few classic Forth examples.
