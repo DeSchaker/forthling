@@ -8,6 +8,7 @@ fn main() {
         &forthling::Tutorial,
         &forthling::Functional,
         &forthling::Strings,
+        &forthling::Fixed,
         &forthling::OperatingSystem,
         &forthling::Benchmark,
         &forthling::Testing,

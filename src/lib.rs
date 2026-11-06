@@ -13,6 +13,7 @@ mod compiler;
 mod debug;
 mod dictionary;
 mod files;
+mod fixed;
 mod float;
 mod functional;
 mod heap;
@@ -43,6 +44,7 @@ mod tests;
 
 pub use bench::Benchmark;
 pub use debug::{DebugHook, Pause, Reason, Resume};
+pub use fixed::Fixed;
 pub use functional::Functional;
 pub use help::{Help, HelpExample};
 pub use host::Extension;

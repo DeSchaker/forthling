@@ -577,6 +577,7 @@ JSON ( -- ) Put the word list JSON in front of the search order: ALSO JSON does 
 FUNCTIONAL ( -- ) The word list of MAP, FOLD, FILTER and the like.
 DYNAMIC-STRINGS ( -- ) The word list of the $ words for strings that grow.
 STRINGS ( -- ) The word list of TRIM, UPPER, JOIN and the other whole-string words.
+FIXED ( -- ) The word list of the fixed-point words; while it is in the search order, 1.5fx is a number. At the start it counts in 9 decimals, so 0.10fx 0.20fx FX+ is exactly 0.30fx; a literal the scale cannot hold exactly is an error (-24).
 OPERATING-SYSTEM ( -- ) The word list of SYSTEM, GETENV, the directory words and the like.
 BENCHMARK ( -- ) The word list of BENCH and BENCH-BEST.
 TESTING ( -- ) The word list of T{ -> }T.
@@ -676,6 +677,28 @@ STRING-PREFIX? ( c-addr u c-addr2 u2 -- flag ) True if the first text starts wit
 STRING-SUFFIX? ( c-addr u c-addr2 u2 -- flag ) True if the first text ends with the second. ;; ALSO STRINGS S" forth" S" th" STRING-SUFFIX? . PREVIOUS => -1
 CONTAINS? ( c-addr u c-addr2 u2 -- flag ) True if the second text occurs in the first; an empty one always does. ;; ALSO STRINGS S" forth" S" ort" CONTAINS? . PREVIOUS => -1
 JOIN ( array c-addr u -- c-addr' u' ) The elements of a $[] array with the text between them, in an ALLOCATEd string; FREE it. ;; ALSO DYNAMIC-STRINGS ALSO STRINGS $[]VARIABLE A S" a" A $[]+! S" b" A $[]+! A S" , " JOIN 2DUP TYPE DROP FREE THROW A $[]FREE PREVIOUS PREVIOUS => a, b
+[FIXED]
+FX-BITS ( n -- ) Count in binary: n fraction bits, 0 to 32 (32 is Q32.32). Most decimal literals such as 0.1fx are not exact in binary: see FX-ROUND-LITERALS. Set it before you define words. ;; ALSO FIXED 16 FX-BITS 1.5fx . PREVIOUS => 98304
+FX-DECIMALS ( n -- ) Count in decimals: n decimals, 0 to 18, so that 0.10fx 0.20fx FX+ is exactly 0.30fx. The default is 9. Set it before you define words. ;; ALSO FIXED 2 FX-DECIMALS 0.10fx 0.20fx FX+ FX. PREVIOUS => 0.30
+FX-ROUND-LITERALS ( flag -- ) With true, a literal the scale cannot hold exactly (0.1fx in binary, 1.005fx at 2 decimals) is rounded as FX-NEAREST and the others say; with false, the default, it is an error (-24). ;; ALSO FIXED 16 FX-BITS TRUE FX-ROUND-LITERALS 0.1fx . FALSE FX-ROUND-LITERALS PREVIOUS => 6554
+FX-SCALE ( -- n ) The cell that stands for 1.0: 2 to the FX-BITS, or 10 to the FX-DECIMALS. ;; ALSO FIXED 2 FX-DECIMALS FX-SCALE . PREVIOUS => 100
+FX-FLOOR ( -- ) Round FX*, FX/, FX>S and FXSQRT down, toward minus infinity. ;; ALSO FIXED 2 FX-DECIMALS FX-FLOOR 0.05fx -0.50fx FX* FX. PREVIOUS => -0.03
+FX-TRUNC ( -- ) Round toward zero. ;; ALSO FIXED 2 FX-DECIMALS FX-TRUNC 0.05fx -0.50fx FX* FX. PREVIOUS => -0.02
+FX-NEAREST ( -- ) Round to the nearest number, a half away from zero. This is the default. ;; ALSO FIXED 2 FX-DECIMALS FX-NEAREST 0.05fx 0.50fx FX* FX. PREVIOUS => 0.03
+FX+ ( fx1 fx2 -- fx3 ) Add. A result that does not fit a cell throws -11; + would wrap. ;; ALSO FIXED 2 FX-DECIMALS 1.25fx 2.50fx FX+ FX. PREVIOUS => 3.75
+FX- ( fx1 fx2 -- fx3 ) Subtract; -11 when the result does not fit. ;; ALSO FIXED 2 FX-DECIMALS 5fx 1.25fx FX- FX. PREVIOUS => 3.75
+FX* ( fx1 fx2 -- fx3 ) Multiply through 128 bits and round; -11 when the result does not fit. ;; ALSO FIXED 2 FX-DECIMALS 19.99fx 3 S>FX FX* FX. PREVIOUS => 59.97
+FX/ ( fx1 fx2 -- fx3 ) Divide through 128 bits and round; -10 for zero, -11 when the result does not fit. ;; ALSO FIXED 2 FX-DECIMALS 10fx 3fx FX/ FX. PREVIOUS => 3.33
+FXNEGATE ( fx1 -- fx2 ) Change the sign. ;; ALSO FIXED 2 FX-DECIMALS 1.5fx FXNEGATE FX. PREVIOUS => -1.50
+FXABS ( fx1 -- fx2 ) The absolute value. ;; ALSO FIXED 2 FX-DECIMALS -1.5fx FXABS FX. PREVIOUS => 1.50
+FXSQRT ( fx1 -- fx2 ) The square root, rounded as FX* does; -24 for a negative number. ;; ALSO FIXED 2 FX-DECIMALS 2fx FXSQRT FX. PREVIOUS => 1.41
+S>FX ( n -- fx ) A whole number as a fixed-point number; -11 when it does not fit. ;; ALSO FIXED 2 FX-DECIMALS 7 S>FX FX. PREVIOUS => 7.00
+FX>S ( fx -- n ) The whole number, rounded as FX* does. ;; ALSO FIXED 2 FX-DECIMALS 2.5fx FX>S . PREVIOUS => 3
+F>FX ( F: r -- ) ( -- fx ) A float as a fixed-point number, rounded; -11 when it does not fit. ;; ALSO FIXED 2 FX-DECIMALS 0.1E F>FX FX. PREVIOUS => 0.10
+FX>F ( fx -- ) ( F: -- r ) A fixed-point number as a float. ;; ALSO FIXED 2 FX-DECIMALS 1.25fx FX>F F. PREVIOUS => 1.25
+>FX ( c-addr u -- fx true | 0 false ) Read text such as -12.34 as a fixed-point number; false when it is no number or does not fit. ;; ALSO FIXED 2 FX-DECIMALS S" 12.34" >FX . . PREVIOUS => -1 1234
+FX>STRING ( fx -- c-addr u ) The text with all places, in the pictured-output buffer: use it before the next pictured output. ;; ALSO FIXED 2 FX-DECIMALS -0.05fx FX>STRING TYPE PREVIOUS => -0.05
+FX. ( fx -- ) Print with all places and a space: the decimals, or for FX-BITS enough digits to tell neighbours apart. ;; ALSO FIXED 2 FX-DECIMALS 3.5fx FX. PREVIOUS => 3.50
 [OPERATING-SYSTEM]
 SYSTEM ( c-addr u -- ) Run a command in the shell of the system and wait; its exit status is in $?.
 SH ( "rest-of-line" -- ) Run the rest of the line as a shell command.

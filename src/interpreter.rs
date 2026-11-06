@@ -155,6 +155,14 @@ impl Forth {
             } else {
                 self.execute(xt)
             }
+        } else if let Some(n) = self.fixed_literal(w) {
+            let n = n?;
+            if self.compiling() {
+                self.code.push(Instr::Lit(n));
+            } else {
+                self.push(n);
+            }
+            Ok(())
         } else if let Some((n, double)) = self.number(w) {
             // A double cell is its low cell followed by its high cell.
             let cells = if double { vec![n as u64, (n >> 64) as u64] } else { vec![n as u64] };

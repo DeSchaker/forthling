@@ -187,6 +187,7 @@ impl PyForth {
         forth.install(&forthling::Json);
         forth.install(&forthling::Functional);
         forth.install(&forthling::Strings);
+        forth.install(&forthling::Fixed);
         forth.install(&forthling::OperatingSystem);
         forth.install(&forthling::Benchmark);
         forth.install(&forthling::Testing);

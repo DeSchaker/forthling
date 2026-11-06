@@ -206,6 +206,13 @@ class AddWordTest(unittest.TestCase):
         f = forthling.Forth()
         self.assertEqual(f.interpret('ALSO REGEX S" order 66" S" [0-9]+" RE-FIND . . .'), "-1 2 6 ")
 
+    def test_fixed_point_is_exact(self):
+        # 0.1 + 0.2 is 0.30000000000000004 in floats, and exactly 0.30 in decimals.
+        f = forthling.Forth()
+        self.assertEqual(f.interpret("ALSO FIXED 2 FX-DECIMALS 0.10fx 0.20fx FX+ FX."), "0.30 ")
+        with self.assertRaises(forthling.ForthError):
+            f.interpret("0.001fx")
+
     def test_http_needs_hosts(self):
         # Nothing is allowed by default, in the sandbox or out of it.
         f = forthling.Forth()

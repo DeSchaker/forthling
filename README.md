@@ -419,6 +419,58 @@ A S" , " JOIN 2DUP TYPE DROP FREE THROW        a, b, c
 For one split at a character or a walk over all parts, use `$SPLIT` and `$ITER`; for templates with
 named values, `SUBSTITUTE`.
 
+### Fixed-point numbers
+
+The word list `FIXED` (`ALSO FIXED`) has numbers with a fraction that live in one cell, with integer
+arithmetic only. It is for exact sums (money, percentages: `0.1E 0.2E F+ 0.3E F=` is false, and Python
+gives `0.1 + 0.2` = `0.30000000000000004`) and for fractals, where speed and the same result everywhere
+count. It comes with every host (extension `FORTHLING-FIXED`).
+
+A number is written `1.5fx`, `-0.25fx` or `3fx`, while `FIXED` is in the search order. Without any setting
+it counts in 9 decimals (about ±9.2 billion), so `0.10fx 0.20fx FX+` is exactly `0.30fx`. A literal that the
+scale cannot hold exactly is an error (−24), never a quiet rounding: `0.0000000001fx` has too many decimals,
+and so has `0.1fx` in binary.
+
+You can choose the scale, once, before you define words:
+
+- `n FX-DECIMALS` counts in decimals (0 to 18). The start is 9.
+- `n FX-BITS` counts in binary (0 to 32 fraction bits). 32 is Q32.32, from about −2 billion to +2 billion in
+  steps of 2⁻³². Binary is fast and fits fractals, but most decimal fractions (`0.1`) cannot be exact in it.
+- `TRUE FX-ROUND-LITERALS` lets a literal that does not fit exactly be rounded (`FALSE` forbids it again).
+  Fractals need it in binary: `32 FX-BITS TRUE FX-ROUND-LITERALS`.
+
+```forth
+ALSO FIXED
+0.10fx 0.20fx FX+ 0.30fx = .   -1
+19.99fx 3 S>FX FX* FX.         59.970000000
+2 FX-DECIMALS
+10fx 3fx FX/ FX.               3.33
+32 FX-BITS TRUE FX-ROUND-LITERALS
+2fx FXSQRT FX.                 1.4142135624
+```
+
+`FX+` and `FX-` are always exact. `FX*` and `FX/` calculate in 128 bits and then round back to the scale, as
+you choose (`FX-NEAREST`, the default, half away from zero; `FX-FLOOR`; `FX-TRUNC`): `19.99fx × 0.15fx` at
+2 decimals is 2.9985 and becomes 3.00. A result that does not fit a cell throws −11, so a sum never wraps
+around quietly. Comparing, `MIN`, `MAX`, `0<` and the like work on the cells as they are; so does `*` with a
+whole number.
+
+| Word | Stack |
+|---|---|
+| `FX-DECIMALS` `FX-BITS` | `( n -- )`: the scale; `FX-SCALE ( -- n )` is the cell for 1.0 |
+| `FX-ROUND-LITERALS` | `( flag -- )`: may a literal be rounded (default false) |
+| `FX-NEAREST` `FX-FLOOR` `FX-TRUNC` | `( -- )`: the rounding |
+| `FX+` `FX-` `FX*` `FX/` | `( fx1 fx2 -- fx3 )`; −11 when the result does not fit, −10 for `FX/` by zero |
+| `FXNEGATE` `FXABS` `FXSQRT` | `( fx -- fx' )`; `FXSQRT` of a negative number is −24 |
+| `S>FX` `FX>S` | `( n -- fx )` and `( fx -- n )`, the whole number rounded as set |
+| `F>FX` `FX>F` | between the float stack and a fixed-point number |
+| `>FX` | `( c-addr u -- fx true \| 0 false )`: read text such as `12.34` (it must fit exactly) |
+| `FX.` `FX>STRING` | print with all places, or give `( c-addr u )` in the pictured-output buffer |
+
+`FX.` prints all the places: the decimals, or for a binary scale enough digits (10 at Q32.32) to tell
+neighbouring numbers apart. A word that is compiled keeps the cells it was compiled with, so set the scale
+before you define words.
+
 ### Operating system
 
 The word list `OPERATING-SYSTEM` (`ALSO OPERATING-SYSTEM`) has the operating-system words of

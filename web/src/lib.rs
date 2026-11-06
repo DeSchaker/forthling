@@ -57,6 +57,7 @@ fn session() -> Forth {
     f.install(&Json);
     f.install(&Functional);
     f.install(&Strings);
+    f.install(&forthling::Fixed);
     f.install(&OperatingSystem);
     f.install(&forthling_regex::Regex);
     f.install(&Debugger);
