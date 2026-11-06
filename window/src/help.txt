@@ -1,0 +1,5 @@
+// The help text of the WINDOW word list, in the form of src/help.txt of forthling.
+[FORTH]
+WINDOW ( -- ) The word list of SHOW-WINDOW, the native window for the canvas. ALSO WINDOW adds it to the search order.
+[WINDOW]
+SHOW-WINDOW ( -- ) Open a window with the canvas, enlarged by a whole factor when it is small, and wait until the window is closed or Esc is pressed. The window can be resized. Needs the permission System; -24 when there is no canvas.

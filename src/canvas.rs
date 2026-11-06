@@ -33,11 +33,20 @@ impl Forth {
     /// there is no canvas or nothing was drawn since the last call. The playground calls
     /// this after each run.
     pub fn take_canvas(&mut self) -> Option<(usize, usize, Vec<u8>)> {
-        let st = self.state::<CanvasState>();
-        if !st.changed {
+        if !self.state::<CanvasState>().changed {
             return None;
         }
-        st.changed = false;
+        self.state::<CanvasState>().changed = false;
+        self.canvas_rgba()
+    }
+
+    /// The canvas as `(width, height, RGBA bytes)` whether or not it changed, or `None` when
+    /// there is no canvas yet. The native window of `forthling-window` reads it this way.
+    pub fn canvas_rgba(&mut self) -> Option<(usize, usize, Vec<u8>)> {
+        let st = self.state::<CanvasState>();
+        if st.pixels.is_empty() {
+            return None;
+        }
         let mut rgba = Vec::with_capacity(st.pixels.len() * 4);
         for &p in &st.pixels {
             let [_, r, g, b] = p.to_be_bytes();

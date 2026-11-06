@@ -23,3 +23,4 @@ __pycache__/
 
 # Local comparison with the Gforth word index
 /gforth-compare/
+/window/target/

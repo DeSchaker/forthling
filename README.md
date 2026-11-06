@@ -498,7 +498,10 @@ not compressed (stored deflate blocks), so it is larger than a viewer's own expo
 it. `examples/mandelbrot.fs` draws the Mandelbrot set and a Julia set with the fixed-point words of the
 previous section (`32 FX-BITS`), and writes `mandelbrot.ppm` and `julia.png`:
 `cargo run --release -- examples/mandelbrot.fs`. Add `SHOW` to see a picture in a terminal that shows
-24-bit colour. A native window is tracked in the issues.
+24-bit colour. For a native window, `window/` adds the word `SHOW-WINDOW` in the word list `WINDOW`
+(`ALSO WINDOW`): it opens a window with the picture and waits until the window is closed or Esc is
+pressed. It needs the permission `System`, and `forthling-window` is the program with it; see
+[window/README.md](window/README.md).
 
 In the [playground](https://deschaker.github.io/forthling/) the picture shows below the transcript as soon as a
 run has drawn on the canvas, with a button to save it as a PNG; the Mandelbrot example there is a smaller

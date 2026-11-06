@@ -1,0 +1,38 @@
+[package]
+name = "forthling-window"
+version = "0.2.2"
+edition = "2024"
+rust-version = "1.85"
+description = "Window words for forthling, a Forth interpreter in Rust"
+license = "MIT"
+repository = "https://github.com/DeSchaker/forthling"
+readme = "README.md"
+keywords = ["forth", "window", "interpreter"]
+categories = ["graphics"]
+
+# A workspace of its own, so the core keeps its own Cargo.lock without minifb.
+[workspace]
+
+[[bin]]
+name = "forthling-window"
+path = "src/main.rs"
+
+[dependencies]
+forthling = { path = "..", version = "0.2.2" }
+minifb = "0.28"
+
+[profile.release]
+# The profile of the core does not apply when it is a dependency, so this crate sets its own.
+lto = true
+codegen-units = 1
+
+[lints.rust]
+# CONTRIBUTING.md: this crate has no `unsafe` code, and the compiler keeps it so.
+unsafe_code = "forbid"
+
+[lints.clippy]
+# All of pedantic, so that new code cannot bring the warnings back; CI runs clippy
+# with `-D warnings`. Priority -1 lets the lints below this line override the group.
+pedantic = { level = "warn", priority = -1 }
+# `use crate::*;` is a convention of this project: a module sees what its parent sees.
+wildcard_imports = "allow"

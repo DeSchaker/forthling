@@ -184,5 +184,6 @@ R> CLOSE-PIPE THROW .                                \ 0, the exit status
 - [SQLite words](https://github.com/DeSchaker/forthling/blob/main/sqlite/README.md)
 - [Regular expression words](https://github.com/DeSchaker/forthling/blob/main/regex/README.md)
 - [HTTP words](https://github.com/DeSchaker/forthling/blob/main/http/README.md)
+- [Native window for the canvas](https://github.com/DeSchaker/forthling/blob/main/window/README.md)
 - [Playground](https://deschaker.github.io/forthling/): Forth in the browser
 - [Forth-2012 standard](https://forth-standard.org/standard/words)

@@ -51,6 +51,9 @@ latest stable Rust, on Linux and Windows.
   `pip install ./python` and `python -m unittest discover -s python/tests`.
 - `sqlite/`: the SQLite words, likewise a crate of its own (rusqlite), with the program
   `forthling-sqlite`; check and test it with `--manifest-path sqlite/Cargo.toml`.
+- `window/`: the native window for the canvas (`SHOW-WINDOW`), likewise a crate of its own
+  (minifb), with the program `forthling-window`; check and test it with
+  `--manifest-path window/Cargo.toml`. Not in the MCP server, the web module or the Python module.
 - `regex/`: the regular expression words, likewise a crate of its own (regex-lite), with
   the program `forthling-regex`; check and test it with `--manifest-path regex/Cargo.toml`.
   The MCP server, the web module and the Python module install it.
@@ -87,8 +90,8 @@ latest stable Rust, on Linux and Windows.
 
 - Keep the core small. The core never gets a dependency or `unsafe` code. So the rule is:
   - Something that needs a dependency, or `unsafe` code, gets a crate of its own, as
-    `python/`, `sqlite/`, `regex/`, `http/` and `mcp/` do.
-  - The compiler enforces the rule: the core, `mcp/`, `sqlite/`, `regex/`, `http/` and
+    `python/`, `sqlite/`, `regex/`, `http/`, `window/` and `mcp/` do.
+  - The compiler enforces the rule: the core, `mcp/`, `sqlite/`, `regex/`, `http/`, `window/` and
     `python/` have `unsafe_code = "forbid"` in `[lints.rust]`. `web/` does not, since the
     exports of a WebAssembly module are `#[unsafe(no_mangle)]`.
   - Something that needs neither goes in the core, as the sandbox, the JSON words and the
