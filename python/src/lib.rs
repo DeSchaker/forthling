@@ -187,6 +187,7 @@ impl PyForth {
         forth.install(&forthling::Json);
         forth.install(&forthling::Functional);
         forth.install(&forthling::Strings);
+        forth.install(&forthling::Collections);
         forth.install(&forthling::Fixed);
         forth.install(&forthling::Canvas);
         forth.install(&forthling::OperatingSystem);

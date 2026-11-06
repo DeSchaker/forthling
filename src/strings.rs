@@ -20,6 +20,7 @@ impl Extension for Strings {
     fn install(&self, f: &mut Forth) {
         let wid = f.wordlist("DYNAMIC-STRINGS");
         f.add_word(wid, "$TMP", tmp).expect("DYNAMIC-STRINGS is a word list");
+        f.add_word(wid, "$[]SORT", sort_array).expect("DYNAMIC-STRINGS is a word list");
         // Compile strings.fs into the word list, and leave the search order
         // and the compilation word list as they were.
         let (order, current) = (f.order.clone(), f.current_wid);
@@ -133,6 +134,32 @@ fn join(f: &mut Forth) -> Res {
     f.mem[a..a + out.len()].copy_from_slice(&out);
     f.push(to_cell(a));
     f.push(to_cell(out.len()));
+    Ok(())
+}
+
+/// `$[]SORT ( a -- )`: puts the elements of a `$[]` array in order, by the bytes of the
+/// text (so "B" comes before "a"). The sort is stable; the strings themselves do not move.
+fn sort_array(f: &mut Forth) -> Res {
+    let array = f.pop()?;
+    let cell = |f: &Forth, a: Cell| -> Res<Cell> {
+        let i = f.check(a, 8)?;
+        Ok(Cell::from_le_bytes(f.mem[i..i + 8].try_into().expect("8 bytes")))
+    };
+    let block = cell(f, array)?;
+    let count = if block == 0 { 0 } else { to_index(cell(f, block)?) / 8 };
+    let mut items = Vec::with_capacity(count);
+    for k in 0..count {
+        let at = block + 8 + to_cell(k * 8);
+        let s = cell(f, at)?;
+        let text = if s == 0 { Vec::new() } else { f.bytes(s + 8, cell(f, s)?)? };
+        f.charge(text.len() + 8)?;
+        items.push((text, s));
+    }
+    items.sort_by(|a, b| a.0.cmp(&b.0));
+    for (k, (_, s)) in items.into_iter().enumerate() {
+        let at = f.check(block + 8 + to_cell(k * 8), 8)?;
+        f.mem[at..at + 8].copy_from_slice(&s.to_le_bytes());
+    }
     Ok(())
 }
 

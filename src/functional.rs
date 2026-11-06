@@ -13,7 +13,7 @@ use crate::*;
 pub struct Functional;
 
 /// The token a word applies to each item.
-enum Callee {
+pub(crate) enum Callee {
     /// A primitive: called directly, with one step charged per call.
     Prim(Prim),
     /// Anything else: run by the inner interpreter.
@@ -38,9 +38,21 @@ impl Callee {
     /// Pushes `args`, calls the token and takes its one result. The token
     /// must leave the stack as `base` cells plus that result.
     fn apply(&self, f: &mut Forth, who: &str, base: usize, args: &[Cell]) -> Res<Cell> {
+        let effect = if args.len() == 1 { "x -- y" } else { "acc x -- acc'" };
+        self.apply_with(f, who, effect, base, args)
+    }
+
+    /// Like `apply`, with the stack effect to name in the error.
+    pub(crate) fn apply_with(
+        &self,
+        f: &mut Forth,
+        who: &str,
+        effect: &str,
+        base: usize,
+        args: &[Cell],
+    ) -> Res<Cell> {
         self.run(f, args)?;
         if f.stack.len() != base + 1 {
-            let effect = if args.len() == 1 { "x -- y" } else { "acc x -- acc'" };
             return Err(Throw::with(
                 INVALID_ARGUMENT,
                 format!("{who}: the token must have the stack effect ( {effect} ) with one result"),
@@ -132,7 +144,7 @@ impl Forth {
     }
 
     /// Pops `addr n xt` of a block of `n` cells and checks the address range.
-    fn pop_block(&mut self, who: &str) -> Res<(Callee, usize, usize)> {
+    pub(crate) fn pop_block(&mut self, who: &str) -> Res<(Callee, usize, usize)> {
         let xt = self.pop()?;
         let (a, n) = self.pop_cells(who)?;
         let callee = Callee::new(self, xt, who)?;

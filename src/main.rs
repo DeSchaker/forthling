@@ -8,6 +8,7 @@ fn main() {
         &forthling::Tutorial,
         &forthling::Functional,
         &forthling::Strings,
+        &forthling::Collections,
         &forthling::Fixed,
         &forthling::Canvas,
         &forthling::OperatingSystem,

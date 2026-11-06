@@ -59,6 +59,7 @@ fn session() -> Forth {
     f.install(&Json);
     f.install(&Functional);
     f.install(&Strings);
+    f.install(&forthling::Collections);
     f.install(&forthling::Fixed);
     f.install(&forthling::Canvas);
     f.install(&OperatingSystem);

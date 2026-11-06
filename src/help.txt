@@ -577,6 +577,7 @@ JSON ( -- ) Put the word list JSON in front of the search order: ALSO JSON does 
 FUNCTIONAL ( -- ) The word list of MAP, FOLD, FILTER and the like.
 DYNAMIC-STRINGS ( -- ) The word list of the $ words for strings that grow.
 STRINGS ( -- ) The word list of TRIM, UPPER, JOIN and the other whole-string words.
+COLLECTIONS ( -- ) The word list of the vector and dictionary words and SORT-CELLS.
 FIXED ( -- ) The word list of the fixed-point words; while it is in the search order, 1.5fx is a number. At the start it counts in 9 decimals, so 0.10fx 0.20fx FX+ is exactly 0.30fx; a literal the scale cannot hold exactly is an error (-24).
 OPERATING-SYSTEM ( -- ) The word list of SYSTEM, GETENV, the directory words and the like.
 BENCHMARK ( -- ) The word list of BENCH and BENCH-BEST.
@@ -669,6 +670,7 @@ $[]MAP ( a xt -- ) Call xt ( c-addr u -- ) for each element.
 $[]SLURP ( fid a -- ) Make the lines of a file the elements; old elements are freed.
 $[]SLURP-FILE ( c-addr u a -- ) Make the lines of a named file the elements.
 $[]FREE ( a -- ) Free the elements and the array.
+$[]SORT ( a -- ) Put the elements in order, by the bytes of the text (so "B" comes before "a"); equal texts keep their order. ;; ALSO DYNAMIC-STRINGS $[]VARIABLE A S" pear" A $[]+! S" fig" A $[]+! A $[]SORT 0 A $[]@ TYPE A $[]FREE PREVIOUS => fig
 [STRINGS]
 TRIM ( c-addr u -- c-addr' u' ) Drop white space (characters up to the blank) at both ends; nothing is copied. ;; ALSO STRINGS S"   hi  " TRIM DUP . TYPE PREVIOUS => 2 hi
 -LEADING ( c-addr u -- c-addr' u' ) Drop white space at the start, as -TRAILING does at the end. ;; ALSO STRINGS S"  hi " -LEADING . DROP PREVIOUS => 3
@@ -678,6 +680,34 @@ STRING-PREFIX? ( c-addr u c-addr2 u2 -- flag ) True if the first text starts wit
 STRING-SUFFIX? ( c-addr u c-addr2 u2 -- flag ) True if the first text ends with the second. ;; ALSO STRINGS S" forth" S" th" STRING-SUFFIX? . PREVIOUS => -1
 CONTAINS? ( c-addr u c-addr2 u2 -- flag ) True if the second text occurs in the first; an empty one always does. ;; ALSO STRINGS S" forth" S" ort" CONTAINS? . PREVIOUS => -1
 JOIN ( array c-addr u -- c-addr' u' ) The elements of a $[] array with the text between them, in an ALLOCATEd string; FREE it. ;; ALSO DYNAMIC-STRINGS ALSO STRINGS $[]VARIABLE A S" a" A $[]+! S" b" A $[]+! A S" , " JOIN 2DUP TYPE DROP FREE THROW A $[]FREE PREVIOUS PREVIOUS => a, b
+[COLLECTIONS]
+(VEC) ( v -- h ) The header of a vector, made when it is not there yet; part of the vector words, use them instead.
+(VEC-GROW) ( h -- ) Make room for one more element in a vector; part of VEC+!, use that instead.
+(VEC-AT) ( i v -- addr ) The address of element i of a vector, -24 when there is none; part of VEC@ and VEC!, use those instead.
+(HASH) ( c-addr u -- x ) The hash of a key (FNV-1a); part of the dictionary words, use them instead.
+(DICT) ( d -- h ) The header of a dictionary, made when it is not there yet; part of the dictionary words, use them instead.
+(KEY=) ( c-addr u e -- flag ) True when the entry of a dictionary has this key; part of DICT@, use that instead.
+(PROBE) ( c-addr u h -- ipos e ) Find a key in the index of a dictionary; part of the dictionary words, use them instead.
+(IX-ADD) ( ni mask x k -- ) Put entry k in the index of a dictionary; part of (REHASH), use DICT! instead.
+(REHASH) ( h nc -- ) Move a dictionary to new blocks for nc entries, without the deleted ones; part of DICT!, use that instead.
+VEC-VARIABLE ( "name" -- ) Define an empty vector: a list of cells that grows. It uses no memory until the first VEC+!. ;; ALSO COLLECTIONS VEC-VARIABLE V V VEC# . PREVIOUS => 0
+VEC+! ( x v -- ) Add x as the new last element. ;; ALSO COLLECTIONS VEC-VARIABLE V 7 V VEC+! 8 V VEC+! V VEC# . V VEC-FREE PREVIOUS => 2
+VEC# ( v -- n ) The number of elements. ;; ALSO COLLECTIONS VEC-VARIABLE V 7 V VEC+! V VEC# . V VEC-FREE PREVIOUS => 1
+VEC@ ( i v -- x ) Element i, counted from 0; -24 when there is no such element. ;; ALSO COLLECTIONS VEC-VARIABLE V 7 V VEC+! 8 V VEC+! 1 V VEC@ . V VEC-FREE PREVIOUS => 8
+VEC! ( x i v -- ) Replace element i; -24 when there is no such element. ;; ALSO COLLECTIONS VEC-VARIABLE V 7 V VEC+! 9 0 V VEC! 0 V VEC@ . V VEC-FREE PREVIOUS => 9
+VEC-POP ( v -- x ) Remove the last element and give it; -24 when the vector is empty. ;; ALSO COLLECTIONS VEC-VARIABLE V 7 V VEC+! 8 V VEC+! V VEC-POP . V VEC# . V VEC-FREE PREVIOUS => 8 1
+VEC-CLEAR ( v -- ) Remove all elements; the memory is kept for the next ones. ;; ALSO COLLECTIONS VEC-VARIABLE V 7 V VEC+! V VEC-CLEAR V VEC# . V VEC-FREE PREVIOUS => 0
+VEC-DATA ( v -- addr n ) The elements as a block of n cells, for the -CELLS words such as SUM-CELLS; the address is good until the next VEC+!. ;; ALSO COLLECTIONS ALSO FUNCTIONAL VEC-VARIABLE V 3 V VEC+! 4 V VEC+! V VEC-DATA SUM-CELLS . V VEC-FREE PREVIOUS PREVIOUS => 7
+VEC-SORT ( v xt -- ) Sort the elements in place; xt is ( a b -- flag ), true when a goes before b. ;; ALSO COLLECTIONS VEC-VARIABLE V 3 V VEC+! 1 V VEC+! 2 V VEC+! V ' < VEC-SORT 0 V VEC@ . V VEC-FREE PREVIOUS => 1
+VEC-FREE ( v -- ) Give the memory back; the vector is empty again and can be used again. ;; ALSO COLLECTIONS VEC-VARIABLE V 7 V VEC+! V VEC-FREE V VEC# . PREVIOUS => 0
+DICT-VARIABLE ( "name" -- ) Define an empty dictionary: it maps text keys to cells and keeps the keys in the order they were added. It uses no memory until the first DICT!. ;; ALSO COLLECTIONS DICT-VARIABLE D D DICT# . PREVIOUS => 0
+DICT! ( x c-addr u d -- ) Store x under the key; the key is copied. An old value of that key is replaced. ;; ALSO COLLECTIONS DICT-VARIABLE D 5 S" five" D DICT! D DICT# . D DICT-FREE PREVIOUS => 1
+DICT@ ( c-addr u d -- x true | false ) Fetch the value of the key; false when there is no such key. ;; ALSO COLLECTIONS DICT-VARIABLE D 5 S" five" D DICT! S" five" D DICT@ . . S" six" D DICT@ . D DICT-FREE PREVIOUS => -1 5 0
+DICT-DELETE ( c-addr u d -- flag ) Remove the key; true when it was there. ;; ALSO COLLECTIONS DICT-VARIABLE D 5 S" five" D DICT! S" five" D DICT-DELETE . S" five" D DICT-DELETE . D DICT-FREE PREVIOUS => -1 0
+DICT# ( d -- n ) The number of keys. ;; ALSO COLLECTIONS DICT-VARIABLE D 1 S" a" D DICT! 2 S" b" D DICT! D DICT# . D DICT-FREE PREVIOUS => 2
+DICT-EACH ( d xt -- ) Call xt ( c-addr u x -- ) for each key, in the order the keys were added. xt must not add or delete keys. ;; ALSO COLLECTIONS DICT-VARIABLE D 1 S" a" D DICT! 2 S" b" D DICT! : SHOW ( c-addr u x -- ) . TYPE SPACE ; D ' SHOW DICT-EACH D DICT-FREE PREVIOUS => 1 a 2 b
+DICT-FREE ( d -- ) Free the keys and all the memory of the dictionary; it is empty again and can be used again. ;; ALSO COLLECTIONS DICT-VARIABLE D 1 S" a" D DICT! D DICT-FREE D DICT# . PREVIOUS => 0
+SORT-CELLS ( addr n xt -- ) Sort n cells in place; xt is ( a b -- flag ), true when a goes before b. The sort is stable. When xt throws, the cells stay as they were. ;; ALSO COLLECTIONS CREATE A 3 , 1 , 2 , A 3 ' < SORT-CELLS A @ . A 2 CELLS + @ . PREVIOUS => 1 3
 [FIXED]
 FX-BITS ( n -- ) Count in binary: n fraction bits, 0 to 32 (32 is Q32.32). Most decimal literals such as 0.1fx are not exact in binary: see FX-ROUND-LITERALS. Set it before you define words. ;; ALSO FIXED 16 FX-BITS 1.5fx . PREVIOUS => 98304
 FX-DECIMALS ( n -- ) Count in decimals: n decimals, 0 to 18, so that 0.10fx 0.20fx FX+ is exactly 0.30fx. The default is 9. Set it before you define words. ;; ALSO FIXED 2 FX-DECIMALS 0.10fx 0.20fx FX+ FX. PREVIOUS => 0.30

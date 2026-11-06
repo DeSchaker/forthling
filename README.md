@@ -388,6 +388,7 @@ A ' PART $[]MAP                               \ <one><two>
 | `$[]MAP` | `( a xt -- )`, `xt` is `( c-addr u -- )` for each element |
 | `$[]SLURP` `$[]SLURP-FILE` | `( fid a -- )`, `( c-addr u a -- )`: the lines of a file (`CR LF` too) become the elements; old elements are freed |
 | `$[]FREE` | `( a -- )`: free the elements and the array |
+| `$[]SORT` | `( a -- )`: put the elements in order, by the bytes of the text; stable |
 
 A string that `$ITER` or `$[]MAP` is going through must not be changed by `xt`.
 
@@ -418,6 +419,54 @@ A S" , " JOIN 2DUP TYPE DROP FREE THROW        a, b, c
 
 For one split at a character or a walk over all parts, use `$SPLIT` and `$ITER`; for templates with
 named values, `SUBSTITUTE`.
+
+### Collections
+
+The word list `COLLECTIONS` (`ALSO COLLECTIONS`) has vectors, dictionaries and a sort. A vector is a list of
+cells that grows; a dictionary maps text keys to cells and keeps the keys in the order they were added, so a
+program prints the same output every time. Both live in `ALLOCATE`d blocks, like the dynamic strings, so they
+use the heap and count towards the memory limit, and `VEC-FREE` and `DICT-FREE` give the memory back. The
+forthling program, the MCP server, the Python module and the playground install it; a Rust program does with
+`forth.install(&forthling::Collections)` (extension `FORTHLING-COLLECTIONS`). The names start with `VEC` and
+`DICT`, so they do not clash with `MAP` and `FIND` of `FUNCTIONAL`.
+
+```forth
+ALSO COLLECTIONS ALSO JSON
+DICT-VARIABLE D
+3 S" apples" D DICT!   5 S" pears" D DICT!   2 S" figs" D DICT!
+S" pears" D DICT@ . .                           \ -1 5
+: ENTRY ( c-addr u n -- )  >R JSON-KEY R> JSON-NUMBER ;
+JSON{ D ' ENTRY DICT-EACH JSON}                 \ {"apples":3,"pears":5,"figs":2}
+VEC-VARIABLE V
+: FILL  10 0 DO I 7 * 11 MOD V VEC+! LOOP ;
+FILL  V ' < VEC-SORT
+: SHOW  V VEC# 0 DO I V VEC@ . LOOP ;
+SHOW                                            \ 0 1 2 3 5 6 7 8 9 10
+```
+
+| Word | Stack |
+|---|---|
+| `VEC-VARIABLE` | `( "name" -- )`, an empty vector; it uses no memory until the first `VEC+!` |
+| `VEC+!` | `( x v -- )`: add `x` as the new last element |
+| `VEC#` | `( v -- n )` |
+| `VEC@` `VEC!` | `( i v -- x )`, `( x i v -- )`: element `i`, counted from 0; -24 when there is none |
+| `VEC-POP` | `( v -- x )`: remove and give the last element; -24 when the vector is empty |
+| `VEC-CLEAR` | `( v -- )`: remove all elements, keep the memory |
+| `VEC-DATA` | `( v -- addr n )`: the elements as a block of `n` cells, for `SUM-CELLS`, `MAP-CELLS` and the other `-CELLS` words; the address is good until the next `VEC+!` |
+| `VEC-SORT` | `( v xt -- )`: `SORT-CELLS` on the elements |
+| `VEC-FREE` | `( v -- )`: free the memory; the vector can be used again |
+| `DICT-VARIABLE` | `( "name" -- )`, an empty dictionary |
+| `DICT!` | `( x c-addr u d -- )`: store `x` under the key; the key is copied; an old value of the key is replaced |
+| `DICT@` | `( c-addr u d -- x true \| false )` |
+| `DICT-DELETE` | `( c-addr u d -- flag )`: true when the key was there |
+| `DICT#` | `( d -- n )`, the number of keys |
+| `DICT-EACH` | `( d xt -- )`, `xt` is `( c-addr u x -- )`, once for each key in the order they were added; `xt` must not add or delete keys |
+| `DICT-FREE` | `( d -- )`: free the keys and the tables; the dictionary can be used again |
+| `SORT-CELLS` | `( addr n xt -- )`: sort `n` cells in place; `xt` is `( a b -- flag )`, true when `a` goes before `b`. The sort is stable. When `xt` throws, the cells stay as they were |
+
+Keys are compared byte for byte, so the case counts, and the empty key is a key. Keys are text only; to
+use numbers as keys, write them as text first. `$[]SORT ( a -- )` in `DYNAMIC-STRINGS` puts a `$[]` array in
+order by the bytes of its strings (the sort is stable).
 
 ### Fixed-point numbers
 

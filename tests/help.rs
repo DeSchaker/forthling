@@ -9,6 +9,7 @@ fn all() -> Forth {
     f.install(&Json);
     f.install(&Functional);
     f.install(&Strings);
+    f.install(&Collections);
     f.install(&Fixed);
     f.install(&Canvas);
     f.install(&OperatingSystem);

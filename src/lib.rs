@@ -10,6 +10,7 @@ mod bench;
 mod blocks;
 mod canvas;
 pub mod cli;
+mod collections;
 mod compiler;
 mod debug;
 mod dictionary;
@@ -45,6 +46,7 @@ mod tests;
 
 pub use bench::Benchmark;
 pub use canvas::Canvas;
+pub use collections::Collections;
 pub use debug::{DebugHook, Pause, Reason, Resume};
 pub use fixed::Fixed;
 pub use functional::Functional;

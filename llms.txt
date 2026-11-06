@@ -110,7 +110,7 @@ S $@ TYPE    \ Hello, world
 - `$VARIABLE`, `$! ( c-addr u a -- )`, `$@ ( a -- c-addr u )`, `$+! ( c-addr u a -- )`, `$@LEN ( a -- u )`, `$!LEN ( u a -- )`, `$+!LEN ( u a -- c-addr )`, `$INS ( c-addr u a pos -- )`, `$DEL ( a pos u -- )`, `$INIT` and `$FREE ( a -- )`.
 - `$SPLIT ( c-addr u char -- c-addr u1 c-addr2 u2 )` and `$ITER ( .. a char xt -- .. )`, where `xt` is `( c-addr u -- )` for each part.
 - `$TMP ( xt -- c-addr u )` and `$EXEC ( xt a -- )` catch what `xt` prints; `$SLURP ( fid a -- )` and `$SLURP-FILE ( c-addr u a -- )` read a file.
-- Arrays: `$[]VARIABLE`, `$[]! ( c-addr u n a -- )`, `$[]@ ( n a -- c-addr u )`, `$[]+! ( c-addr u a -- )`, `$[]# ( a -- n )`, `$[]MAP ( a xt -- )`, `$[]SLURP`, `$[]SLURP-FILE` and `$[]FREE`.
+- Arrays: `$[]VARIABLE`, `$[]! ( c-addr u n a -- )`, `$[]@ ( n a -- c-addr u )`, `$[]+! ( c-addr u a -- )`, `$[]# ( a -- n )`, `$[]MAP ( a xt -- )`, `$[]SLURP`, `$[]SLURP-FILE`, `$[]SORT ( a -- )` and `$[]FREE`.
 
 ## Text words
 
@@ -120,6 +120,23 @@ S $@ TYPE    \ Hello, world
 ALSO STRINGS
 S"   Hello  " TRIM TYPE     Hello
 ```
+
+## Collections
+
+`ALSO COLLECTIONS` gives vectors (lists of cells that grow), dictionaries (text keys to cells, kept in the order the keys were added) and a sort. They live in `ALLOCATE`d blocks, so they use the heap and count towards the memory limit; `VEC-FREE` and `DICT-FREE` give the memory back.
+
+```forth
+ALSO COLLECTIONS ALSO JSON
+DICT-VARIABLE D
+3 S" apples" D DICT!   5 S" pears" D DICT!
+S" pears" D DICT@ . .     \ -1 5
+: ENTRY ( c-addr u n -- )  >R JSON-KEY R> JSON-NUMBER ;
+JSON{ D ' ENTRY DICT-EACH JSON}     \ {"apples":3,"pears":5}
+```
+
+- Vectors: `VEC-VARIABLE`, `VEC+! ( x v -- )`, `VEC@ ( i v -- x )`, `VEC! ( x i v -- )`, `VEC# ( v -- n )`, `VEC-POP ( v -- x )`, `VEC-CLEAR`, `VEC-FREE`. An index that is not there gives -24. `VEC-DATA ( v -- addr n )` is a block of cells for `SUM-CELLS`, `MAP-CELLS` and the other `-CELLS` words (good until the next `VEC+!`).
+- Dictionaries: `DICT-VARIABLE`, `DICT! ( x c-addr u d -- )`, `DICT@ ( c-addr u d -- x true | false )`, `DICT-DELETE ( c-addr u d -- flag )`, `DICT# ( d -- n )`, `DICT-EACH ( d xt -- )` with `xt` `( c-addr u x -- )` (it must not add or delete keys) and `DICT-FREE`. The key is copied and compared byte for byte.
+- Sorting: `SORT-CELLS ( addr n xt -- )` and `VEC-SORT ( v xt -- )` sort in place and are stable; `xt` is `( a b -- flag )`, true when `a` goes before `b` (`' <` sorts up). `$[]SORT ( a -- )` (in `DYNAMIC-STRINGS`) sorts a `$[]` array of strings by their bytes.
 
 ## Fixed-point numbers
 
