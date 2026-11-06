@@ -9,6 +9,7 @@
 
 use crate::vfs::Access;
 use crate::*;
+use std::fmt::Write as _;
 
 /// The extension: `forth.install(&Canvas)`; ENVIRONMENT? knows it as FORTHLING-CANVAS.
 pub struct Canvas;
@@ -223,6 +224,58 @@ fn png(st: &CanvasState) -> Vec<u8> {
     out
 }
 
+/// The picture for a terminal: one `▀` per two pixels on top of each other, the upper
+/// one as the colour of the character and the lower one as its background (24-bit
+/// colour), or without colour a shade `" ░▒▓█"` per two pixels. A picture wider than
+/// `columns` is made smaller by an integer factor, taking the average of each block of
+/// pixels; a smaller one is not enlarged.
+fn half_blocks(st: &CanvasState, columns: usize, colour: bool) -> String {
+    let step = st.width.div_ceil(columns.max(1)).max(1);
+    let (cols, rows) = (st.width.div_ceil(step), st.height.div_ceil(step));
+    // The average of the block of pixels that scaled pixel (x, y) stands for, as [r, g, b].
+    let average = |x: usize, y: usize| -> [u32; 3] {
+        let (mut sum, mut count) = ([0u32; 3], 0u32);
+        for py in y * step..((y + 1) * step).min(st.height) {
+            for px in x * step..((x + 1) * step).min(st.width) {
+                let [_, r, g, b] = st.pixels[py * st.width + px].to_be_bytes();
+                for (s, c) in sum.iter_mut().zip([r, g, b]) {
+                    *s += u32::from(c);
+                }
+                count += 1;
+            }
+        }
+        sum.map(|s| s / count.max(1))
+    };
+    let mut out = String::new();
+    for y in (0..rows).step_by(2) {
+        for x in 0..cols {
+            let upper = average(x, y);
+            let lower = if y + 1 < rows { average(x, y + 1) } else { [0; 3] };
+            if colour {
+                let ([ur, ug, ub], [lr, lg, lb]) = (upper, lower);
+                let _ = write!(out, "\x1b[38;2;{ur};{ug};{ub}m\x1b[48;2;{lr};{lg};{lb}m▀");
+            } else {
+                // Brightness 0 to 255 of the two pixels together.
+                let bright: u32 = upper.iter().chain(&lower).sum::<u32>() / 6;
+                out.push([' ', '░', '▒', '▓', '█'][(bright * 5 / 256) as usize]);
+            }
+        }
+        out.push_str(if colour { "\x1b[0m\n" } else { "\n" });
+    }
+    out
+}
+
+/// `SHOW ( -- )`: print the canvas in the terminal with half-blocks, as wide as the
+/// environment variable `COLUMNS` says (80 when it is not set), in colour unless `NO_COLOR` is
+/// set.
+fn show(f: &mut Forth) -> Res {
+    let columns = std::env::var("COLUMNS").ok().and_then(|c| c.trim().parse().ok()).unwrap_or(80);
+    let colour = std::env::var_os("NO_COLOR").is_none_or(|v| v.is_empty());
+    let text = half_blocks(canvas(f, "SHOW")?, columns, colour);
+    f.emit_bytes(text.as_bytes());
+    Ok(())
+}
+
 /// `SAVE-PPM ( c-addr u -- ior )` and `SAVE-PNG`: ior is 0, or -259 without
 /// `Permission::Files`, or the code of the file word that failed.
 fn save(f: &mut Forth, word: &str, encode: fn(&CanvasState) -> Vec<u8>) -> Res {
@@ -320,7 +373,54 @@ impl Extension for Canvas {
             f.push(Cell::from(c));
             Ok(())
         });
+        add_word("SHOW", show);
         add_word("SAVE-PPM", |f| save(f, "SAVE-PPM", ppm));
         add_word("SAVE-PNG", |f| save(f, "SAVE-PNG", png));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const WHITE: u32 = 0xFF_FFFF;
+
+    fn canvas_of(width: usize, height: usize, pixels: Vec<u32>) -> CanvasState {
+        CanvasState { width, height, pixels, ..CanvasState::default() }
+    }
+
+    #[test]
+    fn two_pixels_are_one_character_in_colour() {
+        let st = canvas_of(2, 2, vec![0xFF_0000, 0x00_FF00, 0x00_00FF, WHITE]);
+        assert_eq!(
+            half_blocks(&st, 80, true),
+            "\x1b[38;2;255;0;0m\x1b[48;2;0;0;255m▀\x1b[38;2;0;255;0m\x1b[48;2;255;255;255m▀\x1b[0m\n"
+        );
+    }
+
+    #[test]
+    fn an_odd_last_row_has_a_black_lower_half() {
+        let st = canvas_of(1, 3, vec![1, 2, WHITE]);
+        let text = half_blocks(&st, 80, true);
+        let rows: Vec<&str> = text.lines().collect();
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[1], "\x1b[38;2;255;255;255m\x1b[48;2;0;0;0m▀\x1b[0m");
+    }
+
+    #[test]
+    fn a_wide_picture_is_averaged_down_and_a_small_one_is_not_enlarged() {
+        // 4 x 2 pixels in 2 columns: blocks of 2 x 2; black and white average to grey.
+        let st = canvas_of(4, 2, vec![0, WHITE, WHITE, WHITE, 0, WHITE, WHITE, WHITE]);
+        assert_eq!(
+            half_blocks(&st, 2, true),
+            "\x1b[38;2;127;127;127m\x1b[48;2;0;0;0m▀\x1b[38;2;255;255;255m\x1b[48;2;0;0;0m▀\x1b[0m\n"
+        );
+        assert_eq!(half_blocks(&canvas_of(2, 2, vec![0; 4]), 100, false).lines().count(), 1);
+    }
+
+    #[test]
+    fn without_colour_a_shade_stands_for_two_pixels() {
+        let st = canvas_of(4, 2, vec![0, WHITE, 0x80_8080, WHITE, 0, WHITE, 0x80_8080, WHITE]);
+        assert_eq!(half_blocks(&st, 80, false), " █▒█\n");
     }
 }

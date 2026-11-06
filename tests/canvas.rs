@@ -197,3 +197,13 @@ fn a_host_takes_the_picture_once_after_drawing() {
     run(&mut f, "0 0 255 RGB CLEAR");
     assert!(f.take_canvas().is_some());
 }
+
+#[test]
+fn show_prints_the_canvas_in_the_terminal() {
+    let (mut f, _) = forth();
+    assert_eq!(code(&mut f, "SHOW"), -24, "no canvas yet");
+    // Colour or shades, depending on NO_COLOR; either way two rows of pixels are one line.
+    let text = run(&mut f, "3 4 CANVAS 1 CLEAR SHOW");
+    assert_eq!(text.lines().count(), 2);
+    assert!(text.ends_with('\n'));
+}

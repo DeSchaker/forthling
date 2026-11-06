@@ -489,6 +489,7 @@ pixel outside it, a bad size or drawing before there is a canvas is −24.
 | `PIXEL` `PIXEL@` | `( x y colour -- )` and `( x y -- colour )` |
 | `LINE` | `( x1 y1 x2 y2 colour -- )`, both end points included |
 | `PALETTE!` `PALETTE@` | `( colour i -- )` and `( i -- colour )`: 256 entries; the index is taken modulo 256, so an iteration count goes straight in. Entry 0 is black, the rest go round the colour wheel |
+| `SHOW` | `( -- )`: print the picture in the terminal, two pixels in each character (`▀` with 24-bit colour; shades with `NO_COLOR` set), as wide as `COLUMNS` says (80 if not set); a wider canvas is averaged down |
 | `SAVE-PPM` `SAVE-PNG` | `( c-addr u -- ior )`: write the picture; 0 when it worked |
 
 The files go through the file system of the host (see Files), so they need the permission for files:
@@ -496,7 +497,8 @@ The files go through the file system of the host (see Files), so they need the p
 not compressed (stored deflate blocks), so it is larger than a viewer's own export, but every viewer reads
 it. `examples/mandelbrot.fs` draws the Mandelbrot set and a Julia set with the fixed-point words of the
 previous section (`32 FX-BITS`), and writes `mandelbrot.ppm` and `julia.png`:
-`cargo run --release -- examples/mandelbrot.fs`.
+`cargo run --release -- examples/mandelbrot.fs`. Add `SHOW` to see a picture in a terminal that shows
+24-bit colour. A native window is tracked in the issues.
 
 In the [playground](https://deschaker.github.io/forthling/) the picture shows below the transcript as soon as a
 run has drawn on the canvas, with a button to save it as a PNG; the Mandelbrot example there is a smaller

@@ -739,6 +739,7 @@ PIXEL@ ( x y -- colour ) The colour of a pixel; -24 outside the canvas. ;; ALSO 
 LINE ( x1 y1 x2 y2 colour -- ) Draw a line, both end points included; the parts outside the canvas are cut off. ;; ALSO IMAGE 5 5 CANVAS 0 0 4 4 1 LINE 2 2 PIXEL@ . 4 0 PIXEL@ . PREVIOUS => 1 0
 PALETTE! ( colour i -- ) Set entry i, 0 to 255, of the palette. ;; ALSO IMAGE 77 5 PALETTE! 5 PALETTE@ . PREVIOUS => 77
 PALETTE@ ( i -- colour ) The colour of palette entry i; i is taken modulo 256, so an iteration count can go straight in. Entry 0 is black, the others go round the colour wheel. ;; ALSO IMAGE 0 PALETTE@ . 256 PALETTE@ . PREVIOUS => 0 0
+SHOW ( -- ) Print the canvas in the terminal: two pixels in each character, in 24-bit colour (shades when NO_COLOR is set), as wide as the variable COLUMNS says (80 if not set); a wider canvas is averaged down. Needs a terminal that shows 24-bit colour.
 SAVE-PPM ( c-addr u -- ior ) Write the canvas as a PPM (P6) file through the file system of the host; 0 when it worked, -259 when files are not permitted.
 SAVE-PNG ( c-addr u -- ior ) Write the canvas as a PNG file (not compressed, so larger than a PPM would suggest, but every viewer reads it); the ior as for SAVE-PPM.
 [TESTING]
