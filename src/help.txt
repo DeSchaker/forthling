@@ -580,6 +580,7 @@ STRINGS ( -- ) The word list of TRIM, UPPER, JOIN and the other whole-string wor
 FIXED ( -- ) The word list of the fixed-point words; while it is in the search order, 1.5fx is a number. At the start it counts in 9 decimals, so 0.10fx 0.20fx FX+ is exactly 0.30fx; a literal the scale cannot hold exactly is an error (-24).
 OPERATING-SYSTEM ( -- ) The word list of SYSTEM, GETENV, the directory words and the like.
 BENCHMARK ( -- ) The word list of BENCH and BENCH-BEST.
+IMAGE ( -- ) The word list of CANVAS, PIXEL, LINE, the palette and SAVE-PPM: pictures without a window.
 TESTING ( -- ) The word list of T{ -> }T.
 DEBUG ( -- ) The word list of TRACE-ON, TRACE-OFF and BREAK.
 TUTORIAL ( -- ) The word list of the lessons.
@@ -728,6 +729,18 @@ INFILE-EXECUTE ( xt fileid -- ) Run xt with KEY and ACCEPT reading from the file
 [BENCHMARK]
 BENCH ( xt -- microseconds ) Run xt ( -- ) once and give the time it took.
 BENCH-BEST ( n xt -- microseconds ) Run xt ( -- ) n times (at least 1) and give the shortest time.
+[IMAGE]
+CANVAS ( w h -- ) Make a canvas of w by h pixels, all black; 4096 by 4096 at most (-24 beyond that). ;; ALSO IMAGE 4 3 CANVAS CANVAS-SIZE . . PREVIOUS => 3 4
+CANVAS-SIZE ( -- w h ) The width and the height of the canvas, 0 0 before there is one. ;; ALSO IMAGE 4 3 CANVAS CANVAS-SIZE . . PREVIOUS => 3 4
+RGB ( r g b -- colour ) A colour from red, green and blue, each 0 to 255 (more or less is cut to that); a colour is the number 0xRRGGBB. ;; ALSO IMAGE 255 128 0 RGB HEX . DECIMAL PREVIOUS => FF8000
+CLEAR ( colour -- ) Fill the whole canvas with a colour. ;; ALSO IMAGE 2 2 CANVAS 7 CLEAR 1 1 PIXEL@ . PREVIOUS => 7
+PIXEL ( x y colour -- ) Set a pixel; (0, 0) is the top left. A pixel outside the canvas is ignored. ;; ALSO IMAGE 4 4 CANVAS 2 1 9 PIXEL 2 1 PIXEL@ . PREVIOUS => 9
+PIXEL@ ( x y -- colour ) The colour of a pixel; -24 outside the canvas. ;; ALSO IMAGE 4 4 CANVAS 2 1 9 PIXEL 2 1 PIXEL@ . PREVIOUS => 9
+LINE ( x1 y1 x2 y2 colour -- ) Draw a line, both end points included; the parts outside the canvas are cut off. ;; ALSO IMAGE 5 5 CANVAS 0 0 4 4 1 LINE 2 2 PIXEL@ . 4 0 PIXEL@ . PREVIOUS => 1 0
+PALETTE! ( colour i -- ) Set entry i, 0 to 255, of the palette. ;; ALSO IMAGE 77 5 PALETTE! 5 PALETTE@ . PREVIOUS => 77
+PALETTE@ ( i -- colour ) The colour of palette entry i; i is taken modulo 256, so an iteration count can go straight in. Entry 0 is black, the others go round the colour wheel. ;; ALSO IMAGE 0 PALETTE@ . 256 PALETTE@ . PREVIOUS => 0 0
+SAVE-PPM ( c-addr u -- ior ) Write the canvas as a PPM (P6) file through the file system of the host; 0 when it worked, -259 when files are not permitted.
+SAVE-PNG ( c-addr u -- ior ) Write the canvas as a PNG file (not compressed, so larger than a PPM would suggest, but every viewer reads it); the ior as for SAVE-PPM.
 [TESTING]
 T{ ( -- ) Start a test; the stack as it is now stays below the test.
 -> ( -- ) The cells since T{ are the actual results.

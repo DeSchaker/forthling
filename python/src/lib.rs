@@ -188,6 +188,7 @@ impl PyForth {
         forth.install(&forthling::Functional);
         forth.install(&forthling::Strings);
         forth.install(&forthling::Fixed);
+        forth.install(&forthling::Canvas);
         forth.install(&forthling::OperatingSystem);
         forth.install(&forthling::Benchmark);
         forth.install(&forthling::Testing);

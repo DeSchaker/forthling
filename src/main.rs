@@ -9,6 +9,7 @@ fn main() {
         &forthling::Functional,
         &forthling::Strings,
         &forthling::Fixed,
+        &forthling::Canvas,
         &forthling::OperatingSystem,
         &forthling::Benchmark,
         &forthling::Testing,

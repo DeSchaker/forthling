@@ -58,6 +58,7 @@ fn session() -> Forth {
     f.install(&Functional);
     f.install(&Strings);
     f.install(&forthling::Fixed);
+    f.install(&forthling::Canvas);
     f.install(&OperatingSystem);
     f.install(&forthling_regex::Regex);
     f.install(&Debugger);

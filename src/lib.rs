@@ -8,6 +8,7 @@
 
 mod bench;
 mod blocks;
+mod canvas;
 pub mod cli;
 mod compiler;
 mod debug;
@@ -43,6 +44,7 @@ mod xchar;
 mod tests;
 
 pub use bench::Benchmark;
+pub use canvas::Canvas;
 pub use debug::{DebugHook, Pause, Reason, Resume};
 pub use fixed::Fixed;
 pub use functional::Functional;

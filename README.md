@@ -471,6 +471,33 @@ whole number.
 neighbouring numbers apart. A word that is compiled keeps the cells it was compiled with, so set the scale
 before you define words.
 
+### Images
+
+The word list `IMAGE` (`ALSO IMAGE`) is a canvas with no window and no dependencies: draw pixels and
+lines, then write the picture to a file. So the program, MCP, the Python module and CI can all make
+pictures. It comes with every host (extension `FORTHLING-CANVAS`).
+
+`w h CANVAS` makes the canvas, all black, at most 4096 by 4096 pixels. A colour is one cell,
+`0xRRGGBB`; `r g b RGB` makes it. (0, 0) is the top left. Drawing outside the canvas is ignored; reading a
+pixel outside it, a bad size or drawing before there is a canvas is −24.
+
+| Word | Stack |
+|---|---|
+| `CANVAS` `CANVAS-SIZE` | `( w h -- )` and `( -- w h )` |
+| `RGB` | `( r g b -- colour )`, each 0 to 255 |
+| `CLEAR` | `( colour -- )` fill the canvas |
+| `PIXEL` `PIXEL@` | `( x y colour -- )` and `( x y -- colour )` |
+| `LINE` | `( x1 y1 x2 y2 colour -- )`, both end points included |
+| `PALETTE!` `PALETTE@` | `( colour i -- )` and `( i -- colour )`: 256 entries; the index is taken modulo 256, so an iteration count goes straight in. Entry 0 is black, the rest go round the colour wheel |
+| `SAVE-PPM` `SAVE-PNG` | `( c-addr u -- ior )`: write the picture; 0 when it worked |
+
+The files go through the file system of the host (see Files), so they need the permission for files:
+`-259` without it. On the command line they land on the disk; in MCP they are files in memory. The PNG is
+not compressed (stored deflate blocks), so it is larger than a viewer's own export, but every viewer reads
+it. `examples/mandelbrot.fs` draws the Mandelbrot set and a Julia set with the fixed-point words of the
+previous section (`32 FX-BITS`), and writes `mandelbrot.ppm` and `julia.png`:
+`cargo run --release -- examples/mandelbrot.fs`.
+
 ### Operating system
 
 The word list `OPERATING-SYSTEM` (`ALSO OPERATING-SYSTEM`) has the operating-system words of

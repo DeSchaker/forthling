@@ -10,6 +10,7 @@ fn all() -> Forth {
     f.install(&Functional);
     f.install(&Strings);
     f.install(&Fixed);
+    f.install(&Canvas);
     f.install(&OperatingSystem);
     f.install(&Benchmark);
     f.install(&Testing);
