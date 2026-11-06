@@ -23,6 +23,27 @@ struct CanvasState {
     height: usize,
     pixels: Vec<u32>,
     palette: [u32; 256],
+    /// Drawn on since a host last took the picture with `Forth::take_canvas`.
+    changed: bool,
+}
+
+impl Forth {
+    /// The canvas as `(width, height, RGBA bytes)` for a host that shows it, or `None` when
+    /// there is no canvas or nothing was drawn since the last call. The playground calls
+    /// this after each run.
+    pub fn take_canvas(&mut self) -> Option<(usize, usize, Vec<u8>)> {
+        let st = self.state::<CanvasState>();
+        if !st.changed {
+            return None;
+        }
+        st.changed = false;
+        let mut rgba = Vec::with_capacity(st.pixels.len() * 4);
+        for &p in &st.pixels {
+            let [_, r, g, b] = p.to_be_bytes();
+            rgba.extend_from_slice(&[r, g, b, 255]);
+        }
+        Some((st.width, st.height, rgba))
+    }
 }
 
 impl Default for CanvasState {
@@ -31,7 +52,7 @@ impl Default for CanvasState {
         for (i, p) in palette.iter_mut().enumerate().skip(1) {
             *p = rainbow(i);
         }
-        CanvasState { width: 0, height: 0, pixels: Vec::new(), palette }
+        CanvasState { width: 0, height: 0, pixels: Vec::new(), palette, changed: false }
     }
 }
 
@@ -98,6 +119,7 @@ fn make_canvas(f: &mut Forth) -> Res {
     st.pixels = vec![0; w * h];
     st.width = w;
     st.height = h;
+    st.changed = true;
     Ok(())
 }
 
@@ -117,6 +139,7 @@ fn draw_line(f: &mut Forth) -> Res {
     loop {
         if let Some(i) = index(st, x, y) {
             st.pixels[i] = c;
+            st.changed = true;
         }
         if x == x2 && y == y2 {
             return Ok(());
@@ -253,7 +276,9 @@ impl Extension for Canvas {
         });
         add_word("CLEAR", |f| {
             let c = colour(f.pop()?);
-            canvas(f, "CLEAR")?.pixels.fill(c);
+            let st = canvas(f, "CLEAR")?;
+            st.pixels.fill(c);
+            st.changed = true;
             Ok(())
         });
         add_word("PIXEL", |f| {
@@ -263,6 +288,7 @@ impl Extension for Canvas {
             let st = canvas(f, "PIXEL")?;
             if let Some(i) = index(st, x, y) {
                 st.pixels[i] = c;
+                st.changed = true;
             }
             Ok(())
         });

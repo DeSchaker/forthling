@@ -40,6 +40,9 @@
     overflow-x: auto; white-space: nowrap;
   }
   #stack b { font-weight: 600; color: var(--muted); }
+  #picture { margin: 0 0 16px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+  #picture canvas { display: block; max-width: 100%; height: auto; image-rendering: pixelated; border: 1px solid var(--line); }
+  #picture .picture-head { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
   textarea {
     width: 100%; min-height: 140px; resize: vertical; padding: 10px 12px;
     background: var(--panel); color: var(--fg); border: 1px solid var(--line);
@@ -144,6 +147,15 @@
   <pre id="transcript" class="mono" aria-live="polite"></pre>
   <div id="stack" class="mono"><b>stack</b> <span id="cells">starting…</span></div>
 
+  <figure id="picture" hidden>
+    <canvas id="canvas" aria-label="The canvas of the IMAGE words"></canvas>
+    <div class="picture-head">
+      <span id="picture-note" class="hint" style="margin:0"></span>
+      <button id="picture-save" title="Download the picture as a PNG file">Save PNG</button>
+      <button id="picture-close" aria-label="Hide the picture">×</button>
+    </div>
+  </figure>
+
   <section id="stepper" hidden aria-label="Step through">
     <div class="step-head">
       <strong>Step through</strong>
@@ -218,11 +230,13 @@ const examples = {
   "JSON": "ALSO JSON\n: DOC  S\\\" {\\\"name\\\": \\\"Ada\\\", \\\"langs\\\": [\\\"en\\\", \\\"fr\\\"]}\" ;\nDOC S\" langs[1]\" JSON@ DROP TYPE CR\nJSON{ S\" sum\" JSON-KEY 1 2 + JSON-NUMBER S\" ok\" JSON-KEY -1 JSON-FLAG JSON}",
   "Trace": "\\ Each word that runs, with the stack when it starts\nALSO DEBUG\n: SQUARE ( n -- n*n ) DUP * ;\n: SUM-SQUARES ( a b -- n ) SQUARE SWAP SQUARE + ;\nTRACE-ON 3 4 SUM-SQUARES . TRACE-OFF",
   "Step through": "\\ Press \"Step through\" to follow each word and its stack;\n\\ BREAK marks a place that \"Next BREAK\" jumps to\nALSO DEBUG\n: SQUARE ( n -- n*n ) DUP * ;\n: SUM-SQUARES ( a b -- n ) SQUARE SWAP BREAK SQUARE + ;\n3 4 SUM-SQUARES .",
+  "Mandelbrot": "\\ The Mandelbrot set in fixed-point numbers (Q32.32), drawn on the canvas below\n\nALSO FIXED  ALSO IMAGE\n32 FX-BITS  TRUE FX-ROUND-LITERALS   \\ literals such as -2.2fx are rounded to 2^-32\n\n128 CONSTANT W   80 CONSTANT H   50 CONSTANT LIMIT   \\ small, to stay within 10 million steps\n\n\\ The iterations z := z*z + c takes before |z| passes 2, at most LIMIT.\n: ESCAPE  ( zr zi cr ci -- n )\n  0 {: zr zi cr ci n :}\n  BEGIN\n    n LIMIT <\n    zr zr FX*  zi zi FX*  FX+  4.0fx <  AND\n  WHILE\n    zr zr FX*  zi zi FX*  FX-  cr FX+          \\ new zr\n    zr zi FX*  DUP FX+  ci FX+  TO zi          \\ new zi = 2 zr zi + ci\n    TO zr\n    n 1+ TO n\n  REPEAT n ;\n\n\\ Pixel x of a line of W pixels, as a number from lo to lo + span.\n: SPREAD  ( x total lo span -- fx )\n  {: total lo span :}  S>FX span FX*  total S>FX FX/  lo FX+ ;\n\n: COLOUR  ( n -- colour )  DUP LIMIT = IF DROP 0 ELSE 1 + 2 * PALETTE@ THEN ;\n\n: MANDELBROT  ( -- )\n  W H CANVAS\n  H 0 DO\n    W 0 DO\n      0.0fx 0.0fx\n      I W -2.5fx 3.5fx SPREAD\n      J H -1.2fx 2.4fx SPREAD\n      ESCAPE COLOUR  >R  I J R> PIXEL\n    LOOP\n  LOOP ;\n\n: JULIA  ( -- )     \\ the set of c = -0.8 + 0.156i\n  W H CANVAS\n  H 0 DO\n    W 0 DO\n      I W -1.6fx 3.2fx SPREAD\n      J H -0.96fx 1.92fx SPREAD\n      -0.8fx 0.156fx\n      ESCAPE COLOUR  >R  I J R> PIXEL\n    LOOP\n  LOOP ;\n\nMANDELBROT  \\ or JULIA",
   "Files": "\\ Write a file, then INCLUDE it; see it under Files\nS\" hello.fs\" W/O CREATE-FILE THROW VALUE OUT\nS\\\" : HELLO .\\\" Hello from a file\\\" ;\" OUT WRITE-LINE THROW\nOUT CLOSE-FILE THROW\nINCLUDE hello.fs  HELLO",
   "The sandbox":"\\ An endless loop: the sandbox stops it\n: FOREVER BEGIN AGAIN ; FOREVER",
 };
 
 const $ = (id) => document.getElementById(id);
+const picture = $("picture"), canvas = $("canvas");
 const transcript = $("transcript"), code = $("code"), cells = $("cells");
 const buttons = [$("run"), $("debug"), $("words"), $("reset"), $("file-save"), $("file-upload-button"),
   $("lesson-back"), $("lesson-try"), $("lesson-check"), $("lesson-hint"), $("lesson-next")];
@@ -255,6 +269,25 @@ function errorText(e) {
   if (e.stack) text += `  stack at the error: ${e.stack.join(" ") || "empty"}\n`;
   return text;
 }
+
+// The canvas of the IMAGE words, drawn when a run has drawn on it.
+function showPicture({ width, height, rgba }) {
+  canvas.width = width;
+  canvas.height = height;
+  canvas.getContext("2d").putImageData(new ImageData(new Uint8ClampedArray(rgba.buffer), width, height), 0, 0);
+  // A small picture is shown larger, in whole steps, with sharp pixels.
+  canvas.style.width = `${width * Math.max(1, Math.min(4, Math.floor(640 / width)))}px`;
+  $("picture-note").textContent = `${width} x ${height}`;
+  picture.hidden = false;
+}
+$("picture-close").onclick = () => { picture.hidden = true; };
+$("picture-save").onclick = () => canvas.toBlob((blob) => {
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "forthling.png";
+  link.click();
+  URL.revokeObjectURL(link.href);
+});
 
 function busy(on) {
   for (const b of buttons) b.disabled = on;
@@ -312,6 +345,7 @@ function run(trace = 0) {
     if (answer.error) show((answer.output && !answer.output.endsWith("\n") ? "\n" : "") + errorText(answer.error), "err");
     else show(answer.compiling ? " compiled\n" : " ok\n", "ok");
     showStack(answer);
+    if (answer.canvas) showPicture(answer.canvas);
     if (trace) openStepper(answer);
     keepFiles(); // the program may have written some
   });

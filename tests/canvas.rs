@@ -180,3 +180,20 @@ fn environment_knows_the_extension() {
     let (mut f, _) = forth();
     assert_eq!(run(&mut f, "S\" FORTHLING-CANVAS\" ENVIRONMENT? . DROP"), "-1 ");
 }
+
+#[test]
+fn a_host_takes_the_picture_once_after_drawing() {
+    let (mut f, _) = forth();
+    assert_eq!(f.take_canvas(), None, "no canvas yet");
+    run(&mut f, "2 1 CANVAS 0 0 255 128 0 RGB PIXEL");
+    let (w, h, rgba) = f.take_canvas().expect("drawn on");
+    assert_eq!((w, h), (2, 1));
+    assert_eq!(rgba, [255, 128, 0, 255, 0, 0, 0, 255]);
+    assert_eq!(f.take_canvas(), None, "nothing drawn since");
+    run(&mut f, "1 PALETTE@ DROP 5 5 0 0 0 RGB PIXEL"); // outside, and not a change
+    assert_eq!(f.take_canvas(), None);
+    run(&mut f, "0 0 1 0 0 0 255 RGB LINE");
+    assert_eq!(f.take_canvas().expect("a line").2[..4], [0, 0, 255, 255]);
+    run(&mut f, "0 0 255 RGB CLEAR");
+    assert!(f.take_canvas().is_some());
+}

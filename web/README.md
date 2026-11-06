@@ -59,6 +59,12 @@ plays such a record back, word by word, forwards and back, with the stack before
 each word and jumps to each `BREAK`; WebAssembly cannot wait in the middle of a run, but
 the sandbox makes a run come out the same each time, so the record is what happened.
 
+A run that draws on the canvas (`ALSO IMAGE`, `w h CANVAS`, `PIXEL`, `LINE`, `CLEAR`) also has
+`canvas: { width, height, rgba }` in its answer, once after the drawing: `rgba` is a `Uint8Array` with
+4 bytes per pixel, rows from the top, so `new ImageData(new Uint8ClampedArray(rgba.buffer), width,
+height)` puts it on a `<canvas>`. The playground does that, and offers the picture as a PNG download.
+The export `fl_canvas()` is where those bytes are in the module's memory; `forth.eval` copies them out.
+
 `load()` instantiates the module for you. To do it yourself, give the module its one
 import, `fl_now_micros` in the module `env`: a function without arguments that returns the
 time in microseconds since 1970 as a number (an `f64`), read afresh at each call. Without

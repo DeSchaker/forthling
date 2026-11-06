@@ -152,3 +152,20 @@ test("the benchmark words use the clock of the page, in microseconds", async () 
   assert.ok(Math.abs(r.stack[0] / 1000 - Date.now()) < 5000, `UTIME gave ${r.stack[0]}`);
   assert.equal(forth.eval("999999999 BENCH").error.code, -24);
 });
+
+test("a run that draws on the canvas hands over its pixels once", async () => {
+  const forth = await fresh();
+  assert.equal(forth.eval("1 2 +").canvas, undefined);
+  let r = forth.eval("ALSO IMAGE 3 2 CANVAS 1 0 255 0 0 RGB PIXEL");
+  assert.equal(r.error, null);
+  assert.equal(r.canvas.width, 3);
+  assert.equal(r.canvas.height, 2);
+  assert.deepEqual([...r.canvas.rgba], [
+    0, 0, 0, 255, 255, 0, 0, 255, 0, 0, 0, 255,
+    0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255,
+  ]);
+  // Nothing drawn since: no picture in the answer.
+  assert.equal(forth.eval("1 2 +").canvas, undefined);
+  r = forth.eval("0 0 2 1 0 0 255 RGB LINE");
+  assert.deepEqual([...r.canvas.rgba.slice(0, 4)], [0, 0, 255, 255]);
+});

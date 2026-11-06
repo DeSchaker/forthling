@@ -11,6 +11,10 @@
 //   forth.eval(code, { trace: 10000 })   // also records the words that ran:
 //   // trace: [{ word, depth, stack, stack_depth }, ...], trace_dropped
 //
+// A run that draws on the canvas (ALSO IMAGE, w h CANVAS, ...) has in its answer
+// canvas: { width, height, rgba }, rgba a Uint8Array of 4 bytes per pixel, for
+// new ImageData(new Uint8ClampedArray(rgba.buffer), width, height).
+//
 // The session's files are in memory (at most 4 MiB); INCLUDE, the FILE words
 // and BLOCK use them, and so can the page:
 //
@@ -48,7 +52,14 @@ export class Forth {
     new Uint8Array(this.#wasm.memory.buffer, at, bytes.length).set(bytes);
     this.#wasm.fl_record(trace);
     try {
-      return this.#answer(this.#wasm.fl_eval());
+      const answer = this.#answer(this.#wasm.fl_eval());
+      if (answer.canvas) {
+        // The run drew on the canvas: its pixels, copied out of the module's memory.
+        const { width, height } = answer.canvas;
+        const rgba = new Uint8Array(this.#wasm.memory.buffer, this.#wasm.fl_canvas(), width * height * 4);
+        answer.canvas.rgba = rgba.slice();
+      }
+      return answer;
     } finally {
       this.#wasm.fl_record(0);
     }

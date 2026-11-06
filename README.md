@@ -498,6 +498,13 @@ it. `examples/mandelbrot.fs` draws the Mandelbrot set and a Julia set with the f
 previous section (`32 FX-BITS`), and writes `mandelbrot.ppm` and `julia.png`:
 `cargo run --release -- examples/mandelbrot.fs`.
 
+In the [playground](https://deschaker.github.io/forthling/) the picture shows below the transcript as soon as a
+run has drawn on the canvas, with a button to save it as a PNG; the Mandelbrot example there is a smaller
+version of the same program (128 by 80 pixels, 50 iterations at most, about 5.9 million steps, to stay within
+the limit of 10 million steps of a run). A Rust host that wants to show the picture itself calls
+`forth.take_canvas()`: it gives `(width, height, rgba)` once after the canvas was drawn on, and `None` when
+nothing changed.
+
 ### Operating system
 
 The word list `OPERATING-SYSTEM` (`ALSO OPERATING-SYSTEM`) has the operating-system words of

@@ -7,7 +7,8 @@
 //! The answer has the same shape as a result of the MCP server: `output`,
 //! `stack`, `fstack`, `compiling` and `error`. The session's files are in
 //! memory; `fl_write_file`, `fl_read_file`, `fl_delete_file` and `fl_files`
-//! reach them.
+//! reach them. A run that drew on the canvas (word list `IMAGE`) says so in its answer,
+//! and `fl_canvas` has the pixels.
 
 use forthling::{
     Benchmark, Debugger, Forth, Functional, Json, MemoryFs, OperatingSystem, Strings, Testing,
@@ -20,6 +21,7 @@ thread_local! {
     static SESSION: RefCell<Option<Forth>> = const { RefCell::new(None) };
     static INPUT: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
     static ANSWER: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
+    static PICTURE: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) }; // RGBA of the canvas, if drawn on
     static RECORD: Cell<usize> = const { Cell::new(0) }; // trace entries to record, 0 for none
     static FILES: RefCell<MemoryFs> = RefCell::new(MemoryFs::new()); // the session's files
 }
@@ -103,11 +105,16 @@ pub extern "C" fn fl_eval() -> usize {
         f.record_trace(None);
         let dropped = f.trace_dropped();
         let trace = f.take_trace();
+        let picture = f.take_canvas();
         let output = String::from_utf8_lossy(&f.take_output()).into_owned();
         let mut answer = state(f, &output, result.err());
         // What the run took: its steps and the deepest stack.
         answer.pop();
         let _ = write!(answer, ",\"steps\":{},\"max_depth\":{}", f.steps_used(), f.max_depth());
+        if let Some((width, height, rgba)) = picture {
+            let _ = write!(answer, ",\"canvas\":{{\"width\":{width},\"height\":{height}}}");
+            PICTURE.with(|p| *p.borrow_mut() = rgba);
+        }
         if record > 0 {
             let entries: Vec<String> = trace.iter().map(entry).collect();
             let _ =
@@ -229,6 +236,13 @@ pub extern "C" fn fl_files() -> usize {
         sizes.collect::<Vec<_>>().join(",")
     });
     set_answer(format!("[{files}]"))
+}
+
+/// Where the RGBA bytes of the canvas are (4 per pixel, rows from the top); the answer of
+/// a run that drew has `canvas` with its `width` and `height`.
+#[unsafe(no_mangle)]
+pub extern "C" fn fl_canvas() -> *const u8 {
+    PICTURE.with(|p| p.borrow().as_ptr())
 }
 
 /// Where the latest answer is.
