@@ -129,3 +129,14 @@ fn every_word_has_a_help_line_and_its_examples_work() {
         assert_eq!(out, e.output, "{}: {}", e.name, e.code);
     }
 }
+
+#[test]
+fn the_example_gives_the_output_beside_it() {
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/dates.fs");
+    let mut f = Forth::new();
+    f.install(&Regex);
+    f.include(path).unwrap_or_else(|e| panic!("{e}"));
+    let out = String::from_utf8_lossy(f.output()).into_owned();
+    let expected = std::fs::read_to_string(path.replace(".fs", ".out")).unwrap();
+    assert_eq!(out, expected);
+}

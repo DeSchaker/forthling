@@ -119,7 +119,8 @@ fn the_example_runs() {
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/people.fs");
     f.include(path).unwrap_or_else(|e| panic!("{e}"));
     let out = String::from_utf8_lossy(f.output()).into_owned();
-    assert_eq!(out, "Born after 1900:\n1906 Grace Hopper\n1912 Alan Turing\n");
+    let expected = std::fs::read_to_string(path.replace(".fs", ".out")).unwrap();
+    assert_eq!(out, expected);
 }
 
 #[test]

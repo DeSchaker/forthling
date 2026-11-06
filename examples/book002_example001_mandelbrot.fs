@@ -1,5 +1,5 @@
-\ mandelbrot.fs - the Mandelbrot set and a Julia set as pictures, in fixed-point
-\ numbers (Q32.32) on a canvas.   Run: cargo run -- examples/mandelbrot.fs
+\ book002_example001_mandelbrot.fs - the Mandelbrot set and a Julia set as pictures, in fixed-point
+\ numbers (Q32.32) on a canvas.   Run: cargo run -- examples/book002_example001_mandelbrot.fs
 \ It writes mandelbrot.ppm and julia.png in the current directory.
 
 ALSO FIXED  ALSO IMAGE

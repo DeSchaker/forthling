@@ -58,7 +58,7 @@ forthling — WORDS shows the dictionary, BYE quits.
 49  ok
 ```
 
-Run a file: `cargo run --release -- examples/demo.fs`
+Run a file: `cargo run --release -- examples/book000_example001_demo.fs`. More programs to copy are in the [cookbook](cookbook/).
 
 ### What to install
 
@@ -544,9 +544,9 @@ pixel outside it, a bad size or drawing before there is a canvas is −24.
 The files go through the file system of the host (see Files), so they need the permission for files:
 `-259` without it. On the command line they land on the disk; in MCP they are files in memory. The PNG is
 not compressed (stored deflate blocks), so it is larger than a viewer's own export, but every viewer reads
-it. `examples/mandelbrot.fs` draws the Mandelbrot set and a Julia set with the fixed-point words of the
+it. `examples/book002_example001_mandelbrot.fs` draws the Mandelbrot set and a Julia set with the fixed-point words of the
 previous section (`32 FX-BITS`), and writes `mandelbrot.ppm` and `julia.png`:
-`cargo run --release -- examples/mandelbrot.fs`. Add `SHOW` to see a picture in a terminal that shows
+`cargo run --release -- examples/book002_example001_mandelbrot.fs`. Add `SHOW` to see a picture in a terminal that shows
 24-bit colour. For a native window, `window/` adds the word `SHOW-WINDOW` in the word list `WINDOW`
 (`ALSO WINDOW`): it opens a window with the picture and waits until the window is closed or Esc is
 pressed. It needs the permission `System`, and `forthling-window` is the program with it; see

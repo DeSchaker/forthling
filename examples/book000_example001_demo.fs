@@ -1,4 +1,4 @@
-\ demo.fs - a few classic Forth examples.   Run: cargo run -- examples/demo.fs
+\ book000_example001_demo.fs - a few classic Forth examples.   Run: cargo run -- examples/book000_example001_demo.fs
 
 : SQUARE  ( n -- n*n )  DUP * ;
 ." 7 squared = " 7 SQUARE . CR

@@ -124,6 +124,12 @@ latest stable Rust, on Linux and Windows.
   `NAME ( effect ) description ;; code => output`; the part from `;;` is an example that
   the tests run. `tests/help.rs` fails for a word without a line. Write the effect in the
   standard notation, `( x1 x2 -- x2 x1 )`, so a stack check can read it later.
+- An example program is a file `name.fs` in `examples/` (or in `examples/` of a crate;
+  a cookbook example is called `book<NNN>_example<MMM>_<theme>.fs`, as `book001_example002_sudoku.fs`)
+  with its expected output in `name.out` beside it. `tests/examples.rs` runs every
+  program there and fails for one without a `.out` file, so an example cannot go stale.
+  The examples of `sqlite/` and `regex/` are run the same way by the tests of those crates.
+  `http/examples/` needs a server and is not run by a test. See [cookbook/](cookbook/).
 - Keep a change small and give it tests. If it changes how forthling behaves, update
   `COMPLIANCE.md` and the README where they describe that behaviour. `VERKLARING.md` is
   its Dutch translation; the maintainer keeps it in step, so you need not.

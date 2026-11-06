@@ -151,7 +151,7 @@ ALSO FIXED
 
 ## Images
 
-`ALSO IMAGE` gives a canvas with no window: `w h CANVAS`, `x y colour PIXEL`, `x1 y1 x2 y2 colour LINE`, `colour CLEAR`, `r g b RGB`, a palette of 256 colours (`PALETTE!`, `PALETTE@`) and `S" out.png" SAVE-PNG ( -- ior )` or `SAVE-PPM`; `SHOW` prints the picture in the terminal with half-block characters and 24-bit colour. A colour is the cell 0xRRGGBB, (0, 0) is the top left, and drawing outside the canvas is ignored. Saving needs the permission for files (ior -259 without it); in MCP the file is in memory. In the playground the picture is shown on the page. `examples/mandelbrot.fs` draws fractals with it.
+`ALSO IMAGE` gives a canvas with no window: `w h CANVAS`, `x y colour PIXEL`, `x1 y1 x2 y2 colour LINE`, `colour CLEAR`, `r g b RGB`, a palette of 256 colours (`PALETTE!`, `PALETTE@`) and `S" out.png" SAVE-PNG ( -- ior )` or `SAVE-PPM`; `SHOW` prints the picture in the terminal with half-block characters and 24-bit colour. A colour is the cell 0xRRGGBB, (0, 0) is the top left, and drawing outside the canvas is ignored. Saving needs the permission for files (ior -259 without it); in MCP the file is in memory. In the playground the picture is shown on the page. `examples/book002_example001_mandelbrot.fs` draws fractals with it.
 
 ```forth
 ALSO IMAGE
