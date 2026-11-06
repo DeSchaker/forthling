@@ -133,12 +133,12 @@ latest stable Rust, on Linux and Windows.
 
 ## Releasing
 
-The version is the same for `forthling`, `forthling-sqlite`, `forthling-regex`, `forthling-http` and
-`forthling-mcp`, and in `mcp/server.json` (a test in `mcp/tests` checks the last two) and
+The version is the same for `forthling`, `forthling-sqlite`, `forthling-regex`, `forthling-http`,
+`forthling-window` and `forthling-mcp`, and in `mcp/server.json` (a test in `mcp/tests` checks the last two) and
 `mcp/mcpb/manifest.json`. `python/` and `web/` have a version of their own (0.1.0): they
 are not published through `release.yml` and are not raised with a release. To
-release: raise the version in the five `Cargo.toml`, the path dependencies, `server.json` and `manifest.json`, and push a
-tag such as `v0.2.1`. `.github/workflows/release.yml` then publishes the crates to
+release: raise the version in the six `Cargo.toml`, the path dependencies, `server.json` and `manifest.json`, and push a
+tag such as `v0.2.3`. `.github/workflows/release.yml` then publishes the crates to
 crates.io and the server to the MCP Registry, both through GitHub OIDC, without secrets.
 With every release, also change the `forthling = "0.x.y"` examples in `README.md`.
 They name the full version (`"0.2.1"`), so they are easy to miss.
