@@ -130,6 +130,11 @@ latest stable Rust, on Linux and Windows.
   program there and fails for one without a `.out` file, so an example cannot go stale.
   The examples of `sqlite/` and `regex/` are run the same way by the tests of those crates.
   `http/examples/` needs a server and is not run by a test. See [cookbook/](cookbook/).
+- An example that is also in the playground is a copy in `web/www/index.html` (the object
+  `examples`). The copy is the file without the lines about the command line (`Run: cargo run ...`
+  and `Needs the core only ...`). Add it to `copies` in the last test of
+  `web/tests/forthling.test.mjs`: that test checks the text against the file, and that the module
+  gives the output in the `.out` file. Mandelbrot is not checked, since its picture is smaller there.
 - Keep a change small and give it tests. If it changes how forthling behaves, update
   `COMPLIANCE.md` and the README where they describe that behaviour. `VERKLARING.md` is
   its Dutch translation; the maintainer keeps it in step, so you need not.

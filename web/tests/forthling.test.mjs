@@ -169,3 +169,36 @@ test("a run that draws on the canvas hands over its pixels once", async () => {
   r = forth.eval("0 0 2 1 0 0 255 RGB LINE");
   assert.deepEqual([...r.canvas.rgba.slice(0, 4)], [0, 0, 255, 255]);
 });
+
+// The playground examples that are copies of programs in examples/ (issue #77): the text must be
+// the file, and running it in the module must give the output in the .out file beside it.
+// The only change allowed is that the lines about the command line ("Run: cargo run ..." and
+// "Needs the core only ...") are left out. Mandelbrot is left out of the check on purpose: its
+// picture is smaller in the playground, to stay within the step limit, and it draws on a canvas.
+const forPlayground = (text) =>
+  text.replace(/\n$/, "").split("\n")
+    .filter((l) => !/^\\ (Run: cargo run|Needs the core only)/.test(l))
+    .map((l) => l.replace(/\s+Run: cargo run.*$/, ""))
+    .join("\n");
+
+test("the playground examples match the programs in examples/", async () => {
+  const page = await readFile(new URL("../www/index.html", import.meta.url), "utf8");
+  const start = page.indexOf("const examples = {");
+  const end = page.indexOf("\n};", start);
+  assert.ok(start >= 0 && end > start, "the examples object is not in index.html");
+  const examples = new Function(`return ${page.slice(start + "const examples = ".length, end + 2)}`)();
+  const copies = {
+    Maze: "book001_example001_maze",
+    Sudoku: "book001_example002_sudoku",
+    Simplex: "book001_example003_simplex",
+  };
+  for (const [name, stem] of Object.entries(copies)) {
+    const dir = new URL("../../examples/", import.meta.url);
+    const program = (await readFile(new URL(`${stem}.fs`, dir), "utf8")).replace(/\r\n/g, "\n");
+    const expected = (await readFile(new URL(`${stem}.out`, dir), "utf8")).replace(/\r\n/g, "\n");
+    assert.equal(examples[name], forPlayground(program), `${name} differs from examples/${stem}.fs`);
+    const r = (await fresh()).eval(examples[name]);
+    assert.equal(r.error, null, `${name}: ${JSON.stringify(r.error)}`);
+    assert.equal(r.output, expected, `${name} gives other output than examples/${stem}.out`);
+  }
+});

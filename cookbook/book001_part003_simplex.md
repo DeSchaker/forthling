@@ -9,6 +9,8 @@ Its output is beside it, in `book001_example003_simplex.out`. Run it with:
 cargo run --release -- examples/book001_example003_simplex.fs
 ```
 
+In the playground, pick *Simplex* under *Examples*.
+
 ## The problem
 
 A workshop makes chairs, tables and shelves. Each product uses wood, labour hours and

@@ -14,6 +14,7 @@ solution. The puzzle in the file has 17 clues, the fewest a sudoku with one solu
 have. The program solves it with 482 calls of `SOLVE`, in 3 to 4 million steps, so it fits in
 the 10 million steps of the playground. It took about 0.075 seconds on the machine this was
 written on (a release build, measured with three runs: 0.076, 0.076 and 0.074 seconds).
+In the playground, pick *Sudoku* under *Examples*.
 
 A harder puzzle takes far more calls. One with 21 clues needed 10102 calls and more than 70
 million steps: it runs from the command line with `--max-steps 100000000`, but not in the
