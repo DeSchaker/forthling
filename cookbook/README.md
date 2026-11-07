@@ -21,6 +21,9 @@ the open parts are in [issue #59](https://github.com/DeSchaker/forthling/issues/
 - [A maze: make it and solve it](book001_part001_maze.md): depth-first backtracking and
   breadth-first search with vectors and a small random number generator
   ([`book001_example001_maze.fs`](../examples/book001_example001_maze.fs)).
+- [A sudoku: solve it by backtracking](book001_part002_sudoku.md): bitmasks for the digits
+  in each row, column and box, and recursion
+  ([`book001_example002_sudoku.fs`](../examples/book001_example002_sudoku.fs)).
 
 **Programs without a chapter yet**, which also run in the tests, are in
 [`examples/`](../examples/):
@@ -44,7 +47,7 @@ the tests of that extension.
 
 1. Write `examples/book001_example001_maze.fs`. The name says the book, the number of the
    example in that book and the theme: `book<NNN>_example<MMM>_<theme>`, for instance
-   `book001_example002_sudoku.fs`. Start the file with a comment that says what it does, how
+   `book001_example003_queens.fs`. Start the file with a comment that says what it does, how
    to run it and what it needs.
 2. Run it and check the output by eye. Save it as `examples/book001_example001_maze.out`.
 3. Run `cargo test --test examples`.
