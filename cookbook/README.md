@@ -24,6 +24,9 @@ the open parts are in [issue #59](https://github.com/DeSchaker/forthling/issues/
 - [A sudoku: solve it by backtracking](book001_part002_sudoku.md): bitmasks for the digits
   in each row, column and box, and recursion
   ([`book001_example002_sudoku.fs`](../examples/book001_example002_sudoku.fs)).
+- [Linear programming: the simplex method](book001_part003_simplex.md): a production mix
+  solved on a table of fixed-point numbers, with the shadow prices of the resources
+  ([`book001_example003_simplex.fs`](../examples/book001_example003_simplex.fs)).
 
 **Programs without a chapter yet**, which also run in the tests, are in
 [`examples/`](../examples/):

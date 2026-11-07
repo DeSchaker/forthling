@@ -1,0 +1,15 @@
+Step 1: make more tables until the wood is used up
+Step 2: make more chairs until the labour is used up
+Step 3: make more shelves until the paint is used up
+
+Most profit per week: 1350.00
+
+Make:
+  chairs: 10.00
+  tables: 10.00
+  shelves: 5.00
+
+Resources, used of available, and what one more unit of it would add to the profit:
+  wood: 70.00 of 70.00 (+10.00)
+  labour: 70.00 of 70.00 (+5.00)
+  paint: 60.00 of 60.00 (+5.00)
