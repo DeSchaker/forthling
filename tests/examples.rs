@@ -28,6 +28,9 @@ fn run(program: &Path) -> String {
     let out = Command::new(env!("CARGO_BIN_EXE_forthling"))
         .arg(program)
         .current_dir(&dir)
+        // SHOW prints other characters with NO_COLOR and other widths with COLUMNS.
+        .env_remove("NO_COLOR")
+        .env_remove("COLUMNS")
         .stdin(Stdio::null())
         .output()
         .unwrap();

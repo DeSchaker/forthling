@@ -10,7 +10,7 @@ cargo run --release -- examples/book002_example002_life.fs
 ```
 
 It prints the number of live cells every 10 generations and draws the last generation on the
-canvas. Add `SHOW` at the end of the file to see the picture in the terminal, or
+canvas. Remove the `\` before `SHOW` at the end of the file to see the picture in the terminal, or
 `ALSO WINDOW SHOW-WINDOW` with the program `forthling-window` (`cargo run --release
 --manifest-path window/Cargo.toml -- examples/book002_example002_life.fs`) to see it in a
 window. In the playground, pick *Life* under *Examples*: the picture shows below the
@@ -144,6 +144,23 @@ an independent program in Python, written for the check (5, 11, 32, 27, 33, 64, 
 67, 98 and 109 for generations 0, 10, 20 and so on). That is the check that the rules and the
 wrapping are right; `cargo test` compares the output with the file beside the program, so the text
 here cannot drift from the code.
+
+## Animated in the terminal
+
+[`examples/book002_example004_life_animated.fs`](../examples/book002_example004_life_animated.fs)
+has the same world and rules, but shows every generation: `DRAW` paints the canvas, `SHOW`
+prints it, and `0 0 AT-XY` takes the cursor back to the top left, so the next picture is
+printed over the last one. `MS` waits 50 milliseconds between two pictures. It shows 61
+pictures (generation 0 to 60) and needs a terminal with 24-bit colour, such as Windows
+Terminal:
+
+```
+cargo run --release -- examples/book002_example004_life_animated.fs
+```
+
+A picture of 48 by 30 pixels takes 15 lines, since `SHOW` prints two pixels in each
+character. The file beside the program holds all the escape sequences, which is why it is large.
+The window (`SHOW-WINDOW`) and the playground show one picture, so they cannot animate yet.
 
 ## Try it
 
