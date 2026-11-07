@@ -28,11 +28,21 @@ the open parts are in [issue #59](https://github.com/DeSchaker/forthling/issues/
   solved on a table of fixed-point numbers, with the shadow prices of the resources
   ([`book001_example003_simplex.fs`](../examples/book001_example003_simplex.fs)).
 
+**Book 2, Pictures**
+
+- [Game of Life: a world on the canvas](book002_part001_life.md): two grids, live cells that
+  count themselves into their neighbours, and a colour by age
+  ([`book002_example002_life.fs`](../examples/book002_example002_life.fs)).
+- [Fractals: Mandelbrot, Julia and Sierpinski](book002_part002_fractals.md): fixed-point
+  numbers for the Mandelbrot and Julia sets
+  ([`book002_example001_mandelbrot.fs`](../examples/book002_example001_mandelbrot.fs)), and
+  the Sierpinski triangle from Pascal's triangle and by the chaos game
+  ([`book002_example003_sierpinski.fs`](../examples/book002_example003_sierpinski.fs)).
+
 **Programs without a chapter yet**, which also run in the tests, are in
 [`examples/`](../examples/):
 
 - [`book000_example001_demo.fs`](../examples/book000_example001_demo.fs): a few classic Forth examples.
-- [`book002_example001_mandelbrot.fs`](../examples/book002_example001_mandelbrot.fs): the Mandelbrot set and a Julia set in fixed-point numbers.
 
 ## Running an example
 
