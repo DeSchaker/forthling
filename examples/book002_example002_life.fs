@@ -1,6 +1,6 @@
 \ book002_example002_life.fs - Conway's Game of Life on the canvas.
 \ Run: cargo run --release -- examples/book002_example002_life.fs
-\ Needs the core only (IMAGE, the canvas). SHOW at the end prints the picture in a terminal, SHOW-WINDOW opens it in forthling-window.
+\ Needs the core only (IMAGE, the canvas). The program only prints the counts; remove the \ before SHOW at the end to see the picture in a terminal (24-bit colour), or use SHOW-WINDOW in forthling-window.
 \
 \ How it works:
 \   1. The world is a grid of W x H cells that wraps around at the edges (a torus). A cell
@@ -85,5 +85,6 @@ CREATE COUNTS  N ALLOT                               \ per cell: how many live n
   DROP  DRAW ;
 
 100 LIFE
+\ SHOW                                              \ remove the \ to see the picture in a terminal
 
 PREVIOUS
