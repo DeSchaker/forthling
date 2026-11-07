@@ -34,9 +34,9 @@ CREATE CORNER-Y   SIZE 1- , SIZE 1- , 0 ,
 
 : CHAOS  ( jumps -- lit )
   SIZE SIZE CANVAS
-  SIZE 2/ SIZE 2/ 0 {: x y c :}  0 SWAP            \ lit pixels so far, then the jump counter
+  SIZE 2/ SIZE 2/ {: x y :}  0 SWAP                \ lit pixels so far, then the jump counter
   0 DO
-    3 RND CELLS TO c
+    3 RND CELLS {: c :}                            \ the corner of this round
     x CORNER-X c + @ + 2/ TO x                     \ half way to the corner
     y CORNER-Y c + @ + 2/ TO y
     x y PIXEL@ 0= IF  1+  THEN                     \ a new spot?

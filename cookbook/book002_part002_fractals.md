@@ -138,9 +138,9 @@ steps aside, the points always land on the Sierpinski triangle:
 ```forth
 : CHAOS  ( jumps -- lit )
   SIZE SIZE CANVAS
-  SIZE 2/ SIZE 2/ 0 {: x y c :}  0 SWAP
+  SIZE 2/ SIZE 2/ {: x y :}  0 SWAP
   0 DO
-    3 RND CELLS TO c
+    3 RND CELLS {: c :}
     x CORNER-X c + @ + 2/ TO x                     \ half way to the corner
     y CORNER-Y c + @ + 2/ TO y
     x y PIXEL@ 0= IF  1+  THEN                     \ a new spot?
@@ -150,9 +150,9 @@ steps aside, the points always land on the Sierpinski triangle:
 
 The result of `30000 CHAOS` is the number of different pixels painted, 3380 here. The random
 numbers come from a small generator of our own with a fixed seed (the same as in the maze),
-so the picture and the number are always the same. All the locals (`x`, `y` and `c`) are declared once, at the start of the word; `c` starts as 0
-and `TO c` sets it in each round. (A `{: c :}` in the middle of the loop did not give the
-right answer when this was written, so the declaration stays at the start.)
+so the picture and the number are always the same. `x` and `y` are locals of the whole word. `c`, the corner of this round, is
+declared inside the loop with `{: c :}`: it takes the number from the stack in each round,
+so it needs no starting value and no `TO`.
 
 Two ways, one picture: the first is exact and has no chance in it; the second is a
 picture that grows out of noise.

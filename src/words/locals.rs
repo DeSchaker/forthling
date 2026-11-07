@@ -73,7 +73,7 @@ impl Forth {
     /// locals from the stack, except the last `zeroed` ones, which start at 0.
     pub(crate) fn end_locals(&mut self, zeroed: usize) {
         let take = self.local_names.len() - self.locals_bound - zeroed;
-        self.code.push(Instr::Locals(take, zeroed));
+        self.code.push(Instr::Locals(self.locals_bound, take, zeroed));
         self.locals_bound = self.local_names.len();
     }
 

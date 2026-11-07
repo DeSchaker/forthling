@@ -27,9 +27,9 @@ pub(crate) enum Instr {
     Store(usize),    // compiled TO and IS: stores the top of the stack here
     Fetch(usize),    // compiled ACTION-OF: pushes the cell stored here
     FStore(usize),   // compiled TO of an FVALUE: stores the top float here
-    Locals(usize, usize), // new locals: this many from the stack, then this many zeroed
-    Local(usize),    // pushes the frame's local with this index
-    ToLocal(usize),  // compiled TO of a local
+    Locals(usize, usize, usize), // new locals at this slot: this many from the stack, then this many zeroed
+    Local(usize),                // pushes the frame's local with this index
+    ToLocal(usize),              // compiled TO of a local
     Exit,
 }
 
@@ -284,7 +284,11 @@ impl Forth {
                     let r = self.fpop()?;
                     self.fset(addr, r);
                 }
-                Instr::Locals(take, zeroed) => {
+                Instr::Locals(at, take, zeroed) => {
+                    // Fixed slots, so that a `{:` inside a loop reuses its own
+                    // slots in each pass instead of growing the frame.
+                    let base = self.frames.last().unwrap().locals;
+                    self.locals.resize(base + at, 0);
                     let start =
                         self.stack.len().checked_sub(take).ok_or(Throw::new(STACK_UNDERFLOW))?;
                     self.locals.extend(self.stack.drain(start..));

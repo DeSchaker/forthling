@@ -791,6 +791,10 @@ fn locals() {
     f.set_input(Box::new(io::Cursor::new(Vec::new())));
     assert_eq!(f.interpret(": T {: A").unwrap_err().code, -22);
     assert_eq!(err(": T {: A | B | C :} ;").code, -22);
+    // a {: in the middle of a definition, also in a loop, keeps its own slots (#80)
+    assert_eq!(run(": B {: x :} 0 3 0 DO I 2 * {: c :} c + LOOP x + ; 5 B ."), "11 ");
+    assert_eq!(run(": B {: x :} 0 3 0 DO I 2 * {: c :} x c + + LOOP ; 5 B ."), "21 ");
+    assert_eq!(run(": B 3 0 DO I {: a :} I 10 * {: b :} a b + . LOOP ; B"), "0 11 22 ");
 }
 
 #[test]

@@ -236,7 +236,7 @@ impl Forth {
             Instr::Fetch(addr) => format!("{addr} @"),
             Instr::FLit(r) => format!("{r:E}"),
             Instr::FStore(addr) => format!("{addr} F!"),
-            Instr::Locals(take, zeroed) => format!("(LOCALS) {take} {zeroed}"),
+            Instr::Locals(at, take, zeroed) => format!("(LOCALS) {at} {take} {zeroed}"),
             Instr::Local(i) => format!("LOCAL#{i}"),
             Instr::ToLocal(i) => format!("TO LOCAL#{i}"),
             Instr::Exit => "EXIT".into(),
