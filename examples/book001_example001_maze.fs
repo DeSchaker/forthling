@@ -30,7 +30,7 @@ VARIABLE HEAD                          \ the front of Q
 \ --- a small random number generator (a linear congruential one), so the maze is always the same ---
 \ forthling has RANDOM too, but a generator of our own with a fixed seed gives the same maze on
 \ every machine, so that the output can be checked by the tests.
-VARIABLE SEED   2024 SEED !            \ change the seed for another maze
+VARIABLE SEED   2024 SEED !            \ change the seed for another maze (the playground picks one)
 : RND  ( n -- r )  \ a number from 0 to n-1
   SEED @ 1103515245 * 12345 + 2147483647 AND   \ next seed: multiply, add, keep 31 bits
   DUP SEED !
@@ -121,8 +121,9 @@ CREATE OFFS  GW NEGATE , 1 , GW , -1 ,       \ to the squares above, right, belo
     LOOP CR
   LOOP ;
 
+SEED @                                 \ keep the seed we start from, so that it can be printed
 MAKE-MAZE
-." A maze of " CW . ." x " CH . ." rooms:" CR CR
+." A maze of " CW . ." x " CH . ." rooms, seed " . CR CR
 .MAZE CR
 SOLVE
 ." Solved. The shortest way takes " GOAL CELLS DIST + @ . ." steps:" CR CR

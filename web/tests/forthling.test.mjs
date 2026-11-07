@@ -192,6 +192,15 @@ test("the playground examples match the programs in examples/", async () => {
     Sudoku: "book001_example002_sudoku",
     Simplex: "book001_example003_simplex",
   };
+  // The page puts a new seed in the Maze text on each pick (exampleText in index.html): another
+  // seed must give another maze that still solves, and the program must print the seed it used.
+  assert.ok(page.includes('replace("2024 SEED !"'), "index.html no longer swaps the seed of Maze");
+  assert.ok(examples.Maze.includes("2024 SEED !"));
+  const other = (await fresh()).eval(examples.Maze.replace("2024 SEED !", "777 SEED !"));
+  assert.equal(other.error, null, JSON.stringify(other.error));
+  assert.match(other.output, /rooms, seed 777 \n/);
+  assert.match(other.output, /Solved\. The shortest way takes \d+ steps/);
+  assert.notEqual(other.output, (await fresh()).eval(examples.Maze).output);
   for (const [name, stem] of Object.entries(copies)) {
     const dir = new URL("../../examples/", import.meta.url);
     const program = (await readFile(new URL(`${stem}.fs`, dir), "utf8")).replace(/\r\n/g, "\n");

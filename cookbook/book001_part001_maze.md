@@ -9,12 +9,15 @@ Its output is beside it, in `book001_example001_maze.out`. Run it with:
 cargo run --release -- examples/book001_example001_maze.fs
 ```
 
-In the playground, pick *Maze* under *Examples*.
+In the playground, pick *Maze* under *Examples*. Each pick gives a new maze.
 
 It makes a maze of 12 x 6 rooms, prints it, finds the shortest way from `S` to `G` and
-prints the maze again with the way marked by dots. The maze is always the same, because the
-random number generator starts from a fixed seed (2024). Change the seed or the sizes
-`CW` and `CH` at the top for another maze.
+prints the maze again with the way marked by dots. On the command line the maze is always
+the same, because the random number generator starts from a fixed seed (2024). The first
+line of the output says which seed made the maze. Change the seed, `2024 SEED !`, or the
+sizes `CW` and `CH` at the top for another maze. In the playground the seed is a new
+random number on each pick; it is in the text of the program, so to get a maze back, put
+its seed back there.
 
 ## The grid
 
@@ -61,7 +64,7 @@ tables, `DXS` and `DYS`, that `STEP` reads: a step is two squares, from room to 
 ## Random numbers
 
 forthling has a `RANDOM` of its own, but this program writes a small generator, so that
-the maze is the same on every machine and the output can be checked:
+the same seed gives the same maze on every machine and the output can be checked:
 
 ```forth
 VARIABLE SEED   2024 SEED !
