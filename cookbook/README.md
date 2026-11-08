@@ -58,6 +58,10 @@ the open parts are in [issue #59](https://github.com/DeSchaker/forthling/issues/
   applied to its own result; three pictures, from plain noise to ink in water. Heavy: it does
   not run in the playground
   ([`book002_example008_warp.fs`](../examples/book002_example008_warp.fs)).
+- [Truchet tiles, cut into smaller tiles](book002_part007_truchet.md): a square is one tile or
+  is cut into four and each quarter is treated the same way (`RECURSE`); the tile is two quarter
+  circles drawn with the midpoint algorithm and clipped to the square
+  ([`book002_example009_truchet.fs`](../examples/book002_example009_truchet.fs)).
 
 **Book 3, Data and tools**
 

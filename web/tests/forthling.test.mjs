@@ -210,6 +210,26 @@ test("the Clifford example of the playground is the file, smaller, and draws", a
   assert.equal(r.canvas.width, 128);
 });
 
+test("the Truchet example of the playground is the file without the PNG, and draws", async () => {
+  const page = await readFile(new URL("../www/index.html", import.meta.url), "utf8");
+  const start = page.indexOf("const examples = {");
+  const end = page.indexOf("\n};", start);
+  const examples = new Function(`return ${page.slice(start + "const examples = ".length, end + 2)}`)();
+  const dir = new URL("../../examples/", import.meta.url);
+  const file = (await readFile(new URL("book002_example009_truchet.fs", dir), "utf8")).replace(/\r\n/g, "\n").split("\n");
+  // Every line is a line of the file; the file has more: the lines about the command line and SAVE-PNG.
+  for (const line of examples.Truchet.split("\n")) {
+    assert.ok(file.includes(line), `not in the file: ${line}`);
+  }
+  assert.ok(!examples.Truchet.includes("SAVE-PNG"));
+  const expected = (await readFile(new URL("book002_example009_truchet.out", dir), "utf8")).replace(/\r\n/g, "\n");
+  const r = (await fresh()).eval(examples.Truchet);
+  assert.equal(r.error, null, JSON.stringify(r.error));
+  // The file's output, without its last line (the result of SAVE-PNG).
+  assert.equal(r.output, expected.replace(/truchet\.png: ior 0 \n$/, ""));
+  assert.equal(r.canvas.width, 256);
+});
+
 test("the playground examples match the programs in examples/", async () => {
   const page = await readFile(new URL("../www/index.html", import.meta.url), "utf8");
   const start = page.indexOf("const examples = {");
