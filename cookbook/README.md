@@ -58,6 +58,9 @@ the open parts are in [issue #59](https://github.com/DeSchaker/forthling/issues/
   `lines` tool with options and file names, the same `MAIN` for the real command line and a
   fake one (`DEFER`), and `READ-LINE`
   ([`book003_example004_cli_tool.fs`](../examples/book003_example004_cli_tool.fs)).
+- [A benchmark: two ways to count primes](book003_part005_benchmark.md): trial division
+  against the sieve, timed with `BENCH-BEST`, and a test that does not depend on the clock
+  ([`book003_example005_benchmark.fs`](../examples/book003_example005_benchmark.fs)).
 
 **Programs without a chapter yet**, which also run in the tests, are in
 [`examples/`](../examples/):
