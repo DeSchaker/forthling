@@ -696,3 +696,264 @@ fn adaptive_runge_kutta() {
     f.interpret("1e 1 FV-FROM-STACK TO Y").unwrap();
     assert_eq!(code(&mut f, "Y ' BLOW 0e 2e 1e-9 ODE-RKF"), SCIENCE_ERROR);
 }
+
+/// Functions for the root finders and the interpolation.
+const ROOTS: &str = "
+: SQ2 ( F: x -- y ) FDUP F* 2e F- ;
+: DSQ2 ( F: x -- y ) 2e F* ;
+: COSMX ( F: x -- y ) FDUP FCOS FSWAP F- ;
+: DCOSMX ( F: x -- y ) FSIN FNEGATE 1e F- ;
+: FLAT ( F: x -- y ) FDROP 1e ;
+: STEEP ( F: x -- y ) 6 0 DO FDUP F* LOOP 1e F- ;
+: STEEPER ( F: x -- y ) 10 0 DO FDUP F* LOOP 1e F- ;
+: NAN ( F: x -- y ) FDROP 0e 0e F/ ;
+: CUBEM ( F: x -- y ) FDUP FDUP F* F* 1e F- ;
+: ZEROD ( F: x -- y ) FDROP 0e ;
+FVARIABLE SEEN
+: COUNTING ( F: x -- y ) 1e SEEN F@ F+ SEEN F! FDUP F* 2e F- ;
+";
+
+fn roots() -> Forth {
+    let mut f = forth();
+    f.interpret(ROOTS).unwrap();
+    f
+}
+
+fn assert_all_near(got: &[f64], want: &[f64], rel: f64) {
+    assert_eq!(got.len(), want.len(), "{got:?} and {want:?}");
+    for (&g, &w) in got.iter().zip(want) {
+        near(g, w, rel);
+    }
+}
+
+#[test]
+fn orthogonal_polynomials() {
+    let mut f = roots();
+    // Chebyshev: T_n(cos t) = cos(n t) and U_n(cos t) = sin((n+1) t) / sin t.
+    let x = 0.7f64;
+    let t = x.acos();
+    for n in [0, 1, 2, 5, 12, 40] {
+        let r = floats(&mut f, &format!("{n} {x:e} CHEBYSHEV-T"));
+        assert!((r[0] - (f64::from(n) * t).cos()).abs() < 1e-12, "T{n}: {r:?}");
+        let r = floats(&mut f, &format!("{n} {x:e} CHEBYSHEV-U"));
+        assert!((r[0] - (f64::from(n + 1) * t).sin() / t.sin()).abs() < 1e-11, "U{n}: {r:?}");
+    }
+    // Legendre, Hermite (the physicists' form) and Laguerre against their closed forms.
+    let x = 0.3f64;
+    let want = [
+        ("LEGENDRE", 4, (35.0 * x.powi(4) - 30.0 * x * x + 3.0) / 8.0),
+        ("LEGENDRE", 5, (63.0 * x.powi(5) - 70.0 * x.powi(3) + 15.0 * x) / 8.0),
+        ("HERMITE", 4, 16.0 * x.powi(4) - 48.0 * x * x + 12.0),
+        ("HERMITE", 0, 1.0),
+        ("LAGUERRE", 3, (-x.powi(3) + 9.0 * x * x - 18.0 * x + 6.0) / 6.0),
+        ("LAGUERRE", 1, 1.0 - x),
+    ];
+    for (word, n, v) in want {
+        let r = floats(&mut f, &format!("{n} {x:e} {word}"));
+        assert!((r[0] - v).abs() < 1e-13, "{word} {n}: {r:?} not {v}");
+    }
+    // P_n(1) = 1 for every n.
+    near(floats(&mut f, "200 1e LEGENDRE")[0], 1.0, 1e-12);
+    assert_eq!(code(&mut f, "-1 0.5e LEGENDRE"), -24);
+    assert_eq!(code(&mut f, "3 CHEBYSHEV-T"), -45);
+}
+
+#[test]
+fn polynomials() {
+    let mut f = roots();
+    // p = 1 + 2x + 3x^2 + 4x^3.
+    f.interpret("1e 2e 3e 4e 4 FV-FROM-STACK CONSTANT P").unwrap();
+    assert_eq!(floats(&mut f, "2e P POLY-EVAL"), [49.0]);
+    assert_eq!(floats(&mut f, "2e P POLY-EVAL-D"), [49.0, 62.0]);
+    assert_eq!(floats(&mut f, "3e 5e 1 FV-FROM-STACK POLY-EVAL"), [5.0]);
+    assert_eq!(floats(&mut f, "P POLY-DERIV FV@S"), [2.0, 6.0, 12.0]);
+    assert_eq!(floats(&mut f, "1e 1 FV-FROM-STACK POLY-DERIV FV-LEN S>F"), [0.0]);
+    // x^3 - 6 x^2 + 11 x - 6 = (x-1)(x-2)(x-3): deflate by the root 1.
+    f.interpret("-6e 11e -6e 1e 4 FV-FROM-STACK CONSTANT R").unwrap();
+    assert_eq!(floats(&mut f, "1e R POLY-DEFLATE FV@S"), [6.0, -5.0, 1.0]);
+    // Laguerre finds each of the three roots from a start near it.
+    for (start, root) in [(0.0, 1.0), (2.4, 2.0), (10.0, 3.0)] {
+        let r = floats(&mut f, &format!("{start:e} 1e-14 R POLY-LAGUERRE"));
+        near(r[0], root, 1e-12);
+    }
+    // All roots by deflation: find one, divide it out, find the next.
+    f.interpret(
+        ": ALL-ROOTS ( c -- ) ( F: -- r1 r2 r3 )
+            {: c :}
+            3 0 DO
+               0.2e 1e-14 c POLY-LAGUERRE FDUP
+               c POLY-DEFLATE TO c
+            LOOP ;",
+    )
+    .unwrap();
+    // (the roots are not printed in order, so only the sum is checked: 1 + 2 + 3)
+    let sum = floats(&mut f, "R ALL-ROOTS F+ F+");
+    near(sum[0], 6.0, 1e-9);
+    // x^2 + 1 has no real root: -264, not a loop. A wrong address, an empty vector.
+    f.interpret("1e 0e 1e 3 FV-FROM-STACK CONSTANT Q").unwrap();
+    assert_eq!(code(&mut f, "0.5e 1e-12 Q POLY-LAGUERRE"), SCIENCE_ERROR);
+    assert_eq!(code(&mut f, "1e 0 FV-NEW POLY-EVAL"), SCIENCE_ERROR);
+    assert_eq!(code(&mut f, "0.5e 1e-12 -1 POLY-LAGUERRE"), -9);
+}
+
+#[test]
+fn quadratic_and_cubic_roots() {
+    let mut f = roots();
+    let solve = |f: &mut Forth, word: &str, coefficients: &str| {
+        f.interpret(&format!("{coefficients} {word}")).unwrap();
+        let n = f.pop().unwrap();
+        let v = f.fstack().to_vec();
+        f.interpret("FCLEAR").unwrap();
+        (n, v)
+    };
+    let q = |f: &mut Forth, a: &str| solve(f, "QUADRATIC", a);
+    assert_eq!(q(&mut f, "1e -3e 2e"), (2, vec![1.0, 2.0]));
+    assert_eq!(q(&mut f, "1e 2e 1e"), (2, vec![-1.0, -1.0]));
+    assert_eq!(q(&mut f, "1e 0e 1e"), (0, vec![]));
+    assert_eq!(q(&mut f, "0e 2e -6e"), (1, vec![3.0]));
+    assert_eq!(q(&mut f, "0e 0e 5e"), (0, vec![]));
+    assert_eq!(q(&mut f, "1e 0e 0e"), (2, vec![0.0, 0.0]));
+    assert_eq!(q(&mut f, "-2e 6e -4e"), (2, vec![1.0, 2.0]));
+    // No digits are lost to cancellation: the roots of x^2 + 1e8 x + 1.
+    let (n, v) = q(&mut f, "1e 1e8 1e");
+    assert_eq!(n, 2);
+    near(v[0], -1e8 + 1e-8, 1e-15);
+    near(v[1], -1e-8 - 1e-24, 1e-15);
+}
+
+#[test]
+fn cubic_roots() {
+    let mut f = roots();
+    let mut c = |a: &str| {
+        f.interpret(&format!("{a} CUBIC")).unwrap();
+        let n = f.pop().unwrap();
+        let v = f.fstack().to_vec();
+        f.interpret("FCLEAR").unwrap();
+        (n, v)
+    };
+    let (n, v) = c("1e -6e 11e -6e");
+    assert_eq!(n, 3);
+    assert_all_near(&v, &[1.0, 2.0, 3.0], 1e-14);
+    let (n, v) = c("2e 0e 0e -16e"); // 2 x^3 = 16
+    assert_eq!(n, 1);
+    assert_all_near(&v, &[2.0], 1e-14);
+    let (n, v) = c("1e 0e 1e 0e"); // x^3 + x
+    assert_eq!(n, 1);
+    assert!(v[0].abs() < 1e-14);
+    let (n, v) = c("1e -3e 3e -1e"); // (x-1)^3
+    assert_eq!(n, 3);
+    assert_all_near(&v, &[1.0, 1.0, 1.0], 1e-5);
+    assert_eq!(c("1e 0e 0e 0e"), (3, vec![0.0; 3])); // x^3
+    let (n, v) = c("-1e 6e -11e 6e"); // the sign of a does not matter
+    assert_eq!(n, 3);
+    assert_all_near(&v, &[1.0, 2.0, 3.0], 1e-14);
+    // Roots far apart: (x - 0.001)(x - 1)(x + 1000).
+    let (n, v) = c("1e 998.999e -1000.999e 1e0");
+    assert_eq!(n, 3);
+    assert_all_near(&v, &[-1000.0, 0.001, 1.0], 1e-9);
+    // a = 0 is a quadratic.
+    assert_eq!(c("0e 1e -3e 2e"), (2, vec![1.0, 2.0]));
+}
+
+#[test]
+fn interpolation() {
+    let mut f = roots();
+    // The points of y = x^3 - 2x + 1 at 0, 1, 2, 4: a cubic is reproduced exactly.
+    f.interpret(
+        "0e 1e 2e 4e 4 FV-FROM-STACK CONSTANT XS  1e 0e 5e 57e 4 FV-FROM-STACK CONSTANT YS",
+    )
+    .unwrap();
+    for x in [-1.0f64, 0.5, 3.0, 3.7] {
+        let want = x * x * x - 2.0 * x + 1.0;
+        near(floats(&mut f, &format!("{x:e} XS YS LAGRANGE"))[0], want, 1e-13);
+        let r = floats(&mut f, &format!("{x:e} XS YS AITKEN"));
+        near(r[0], want, 1e-13);
+        assert!(r[1].is_finite(), "{r:?}");
+    }
+    // Newton's divided differences: 1, -1, 3, 1 for this cubic.
+    assert_all_near(&floats(&mut f, "XS YS NEWTON-DD FV@S"), &[1.0, -1.0, 3.0, 1.0], 1e-14);
+    f.interpret("XS YS NEWTON-DD CONSTANT DD").unwrap();
+    near(floats(&mut f, "3.7e XS DD NEWTON-EVAL")[0], 3.7f64.powi(3) - 7.4 + 1.0, 1e-13);
+    // At a node the value is the value.
+    assert_eq!(floats(&mut f, "2e XS YS LAGRANGE"), [5.0]);
+    // A single point is a constant.
+    assert_eq!(floats(&mut f, "9e 3e 1 FV-FROM-STACK 8e 1 FV-FROM-STACK AITKEN"), [8.0, 0.0]);
+    // sin on 9 points: the error estimate is of the size of the true error.
+    f.interpret(
+        "9 FV-NEW CONSTANT SX  9 FV-NEW CONSTANT SY
+         : FILL-SIN  9 0 DO I S>F 0.25e F* FDUP I SX FV[] F! FSIN I SY FV[] F! LOOP ;
+         FILL-SIN",
+    )
+    .unwrap();
+    let r = floats(&mut f, "0.9e SX SY AITKEN");
+    let true_error = (r[0] - 0.9f64.sin()).abs();
+    assert!(true_error < 1e-8, "{r:?}");
+    assert!(r[1] >= true_error * 0.1 && r[1] < 1e-5, "{r:?}");
+    // Rational interpolation of 1/(1+x^2) at the nodes -2 .. 2 is exact: the function is rational.
+    f.interpret(
+        "-2e -1e 0e 1e 2e 5 FV-FROM-STACK CONSTANT RX
+         0.2e 0.5e 1e 0.5e 0.2e 5 FV-FROM-STACK CONSTANT RY",
+    )
+    .unwrap();
+    for x in [-1.5f64, 0.3, 0.9, 3.0] {
+        let r = floats(&mut f, &format!("{x:e} RX RY RATIONAL-INTERP"));
+        near(r[0], 1.0 / (1.0 + x * x), 1e-12);
+    }
+    assert_eq!(floats(&mut f, "1e RX RY RATIONAL-INTERP"), [0.5, 0.0]);
+    // Equal nodes, and vectors of different lengths.
+    f.interpret("1e 1e 2e 3 FV-FROM-STACK CONSTANT BADX  1e 2e 3e 3 FV-FROM-STACK CONSTANT BADY")
+        .unwrap();
+    assert_eq!(code(&mut f, "0.5e BADX BADY LAGRANGE"), SCIENCE_ERROR);
+    assert_eq!(code(&mut f, "BADX BADY NEWTON-DD"), SCIENCE_ERROR);
+    assert_eq!(code(&mut f, "0.5e BADX BADY AITKEN"), SCIENCE_ERROR);
+    assert_eq!(code(&mut f, "0.5e XS RY LAGRANGE"), SCIENCE_ERROR);
+    assert_eq!(code(&mut f, "0.5e 0 FV-NEW 0 FV-NEW LAGRANGE"), SCIENCE_ERROR);
+}
+
+#[test]
+fn root_finders() {
+    let mut f = roots();
+    let sqrt2 = std::f64::consts::SQRT_2;
+    near(floats(&mut f, "0e 2e 1e-14 ' SQ2 BISECT")[0], sqrt2, 1e-13);
+    near(floats(&mut f, "2e 0e 1e-14 ' SQ2 BISECT")[0], sqrt2, 1e-13);
+    near(floats(&mut f, "0e 2e 1e-14 ' SQ2 REGULA-FALSI")[0], sqrt2, 1e-13);
+    near(floats(&mut f, "2e 0e 1e-14 ' SQ2 REGULA-FALSI")[0], sqrt2, 1e-13);
+    near(floats(&mut f, "1e 1e-14 ' SQ2 ' DSQ2 NEWTON")[0], sqrt2, 1e-14);
+    near(floats(&mut f, "-3e 1e-14 ' SQ2 ' DSQ2 NEWTON")[0], -sqrt2, 1e-14);
+    // The fixed point of cos, the Dottie number.
+    let dottie = 0.739_085_133_215_160_6;
+    for word in ["0e 1e 1e-14 ' COSMX BISECT", "0e 1e 1e-14 ' COSMX REGULA-FALSI"] {
+        near(floats(&mut f, word)[0], dottie, 1e-13);
+    }
+    near(floats(&mut f, "1e 1e-14 ' COSMX ' DCOSMX NEWTON")[0], dottie, 1e-14);
+    // A root at an end is found at once.
+    assert_eq!(floats(&mut f, "1e 3e 1e-9 ' CUBEM BISECT"), [1.0]);
+    assert_eq!(floats(&mut f, "-3e 1e 1e-9 ' CUBEM REGULA-FALSI"), [1.0]);
+    // A steep function (x^64 = 1): the Illinois rule still gets there; x^1024 = 1 needs
+    // hundreds of steps, and the word says so instead of answering too early.
+    near(floats(&mut f, "0e 1.5e 1e-12 ' STEEP REGULA-FALSI")[0], 1.0, 1e-9);
+    assert_eq!(code(&mut f, "0e 1.5e 1e-12 ' STEEPER REGULA-FALSI"), SCIENCE_ERROR);
+    near(floats(&mut f, "0e 1.5e 1e-12 ' STEEPER BISECT")[0], 1.0, 1e-9);
+    // No sign change, a NaN, a derivative of 0.
+    assert_eq!(code(&mut f, "0e 1e 1e-9 ' FLAT BISECT"), SCIENCE_ERROR);
+    assert_eq!(code(&mut f, "0e 1e 1e-9 ' FLAT REGULA-FALSI"), SCIENCE_ERROR);
+    assert_eq!(code(&mut f, "0e 1e 1e-9 ' NAN BISECT"), SCIENCE_ERROR);
+    assert_eq!(code(&mut f, "0e 1e 1e-9 ' NAN REGULA-FALSI"), SCIENCE_ERROR);
+    assert_eq!(code(&mut f, "0e 1e-9 ' SQ2 ' ZEROD NEWTON"), SCIENCE_ERROR);
+    assert_eq!(code(&mut f, "0e 1e-9 ' NAN ' DSQ2 NEWTON"), SCIENCE_ERROR);
+    // A tolerance of 0 ends too: bisection when the midpoint reaches an end.
+    near(floats(&mut f, "0e 2e 0e ' SQ2 BISECT")[0], sqrt2, 1e-15);
+    // The function is called a modest number of times.
+    f.interpret("0e SEEN F!").unwrap();
+    f.interpret("0e 2e 1e-14 ' COUNTING REGULA-FALSI FDROP").unwrap();
+    let calls = floats(&mut f, "SEEN F@")[0];
+    assert!(calls < 20.0, "{calls} calls");
+    // Nothing stays on the heap: many rounds fit in the default memory.
+    f.interpret(
+        ": ROOTS-ROUND  0e 2e 1e-14 ['] SQ2 BISECT FDROP  0e 2e 1e-14 ['] SQ2 REGULA-FALSI FDROP
+            1e 1e-14 ['] SQ2 ['] DSQ2 NEWTON FDROP ;
+         : MANY  3000 0 DO ROOTS-ROUND LOOP ;
+         MANY",
+    )
+    .unwrap();
+}

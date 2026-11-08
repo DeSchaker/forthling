@@ -31,6 +31,7 @@
 
 #![allow(clippy::many_single_char_names, reason = "the names of the mathematics: a, b, x, n")]
 
+mod poly;
 mod special;
 
 use forthling::{Cell, Extension, Forth, Res, Throw, to_cell};
@@ -634,11 +635,14 @@ impl Extension for Science {
         install_matrices(f);
         install_algebra(f);
         special::install(f);
+        poly::install(f);
         // Integration and differential equations call a function the program
         // passes as an execution token, so they are written in Forth.
         f.interpret("ALSO SCIENCE DEFINITIONS").expect("SCIENCE is a word list");
-        let result = f.interpret(include_str!("calculus.fs"));
+        let result = f
+            .interpret(include_str!("calculus.fs"))
+            .and_then(|()| f.interpret(include_str!("roots.fs")));
         f.interpret("PREVIOUS FORTH DEFINITIONS").expect("FORTH is a word list");
-        result.expect("calculus.fs must compile");
+        result.expect("calculus.fs and roots.fs must compile");
     }
 }

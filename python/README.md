@@ -75,7 +75,7 @@ except forthling.ForthError as e:
 - `S" FORTHLING-PYTHON" ENVIRONMENT?` gives `1 true` in Forth.
 - The regular expression words are installed too (`ALSO REGEX`; see
   [regex/README.md](https://github.com/DeSchaker/forthling/blob/main/regex/README.md)).
-- The vector, matrix, linear algebra, special function, integration and differential equation words are installed too (`ALSO SCIENCE`; see
+- The vector, matrix, linear algebra, special function, integration, differential equation, polynomial, root finding and interpolation words are installed too (`ALSO SCIENCE`; see
   [science/README.md](https://github.com/DeSchaker/forthling/blob/main/science/README.md)).
 - The HTTP words are installed too (`ALSO HTTP`; see
   [http/README.md](https://github.com/DeSchaker/forthling/blob/main/http/README.md)), but closed:

@@ -1,10 +1,11 @@
-# Numerical words for forthling: linear algebra, special functions, integration and differential equations
+# Numerical words for forthling: linear algebra, special functions, calculus, roots and interpolation
 
 The word list `SCIENCE` for [forthling](https://github.com/DeSchaker/forthling): vectors of
 floats, matrices, and the linear algebra on them (solving equations, determinants,
 inverses and condition numbers), and the special functions: gamma, error function,
 incomplete gamma and beta, logistic, and numerical integration and ordinary differential
-equations for a function that the program passes as an execution token. It is built from
+equations for a function that the program passes as an execution token, and polynomials,
+root finding and interpolation. It is built from
 the mathematics, with no dependencies (the arrays and the special functions are Rust, the
 integration and the differential equations are Forth, in `src/calculus.fs`), and it reaches
 nothing outside Forth: no permission is needed, so the words work in the sandbox, in the
@@ -163,6 +164,100 @@ double integral: 0.25
 y(10) with ODE-RKF: 88.6508
 y(10) exactly: 88.6508
 y(10) with RK4: 88.6508
+```
+
+## Polynomials and orthogonal polynomials
+
+A polynomial is a float vector of coefficients, the constant term first: `1e 2e 3e 3
+FV-FROM-STACK` is 1 + 2x + 3x^2. `ALSO SCIENCE` first.
+
+| Word | Stack | |
+|---|---|---|
+| `POLY-EVAL` | `( c -- ) ( F: x -- r )` | the value at x, by Horner's rule |
+| `POLY-EVAL-D` | `( c -- ) ( F: x -- p dp )` | the value and the derivative |
+| `POLY-DERIV` | `( c -- d )` | the derivative, a vector one shorter |
+| `POLY-DEFLATE` | `( c -- q ) ( F: r -- )` | the quotient by (x - r); the remainder is dropped |
+| `POLY-LAGUERRE` | `( c -- ) ( F: x0 tol -- r )` | a real root near x0 by Laguerre's method |
+| `CHEBYSHEV-T`, `CHEBYSHEV-U` | `( n -- ) ( F: x -- r )` | Chebyshev polynomials of the first and the second kind |
+| `LEGENDRE` | `( n -- ) ( F: x -- r )` | the Legendre polynomial |
+| `HERMITE` | `( n -- ) ( F: x -- r )` | the Hermite polynomial, physicists' form (H_1 = 2x) |
+| `LAGUERRE` | `( n -- ) ( F: x -- r )` | the Laguerre polynomial |
+| `QUADRATIC` | `( F: a b c -- x1 … xn ) ( -- n )` | the real roots of a x^2 + b x + c, smallest first |
+| `CUBIC` | `( F: a b c d -- x1 … xn ) ( -- n )` | the real roots of a x^3 + b x^2 + c x + d, smallest first |
+
+The orthogonal polynomials use their three-term recurrences (so `n` may be large); a
+negative `n` throws -24. `QUADRATIC` and `CUBIC` leave n real roots on the float stack
+(the smallest deepest) and n on the data stack: 2 or 0 for a quadratic (a double root
+counts twice; 1 when a is 0), 3 or 1 for a cubic. `QUADRATIC` avoids the cancellation of the
+textbook formula, so the small root of x^2 + 10^8 x + 1 keeps all its digits; `CUBIC` uses
+Cardano's formula or the trigonometric form, and one Newton step polishes each root.
+`POLY-LAGUERRE` works with real numbers only: it throws -264 when a step would be complex
+(a polynomial without a real root near the start, such as x^2 + 1) or when it does not
+settle in 100 steps. Deflating by a root found leaves a polynomial for the other roots; the
+[example](examples/roots.fs) finds all four roots of a quartic that way. Complex roots are
+for the complex numbers of a later step.
+
+## Root finding
+
+The function is an execution token with the effect `( F: x -- y )`. `ALSO SCIENCE` first.
+
+| Word | Stack | |
+|---|---|---|
+| `BISECT` | `( xt -- ) ( F: a b tol -- r )` | bisection in [a, b] until the interval is no wider than tol |
+| `REGULA-FALSI` | `( xt -- ) ( F: a b tol -- r )` | false position with the Illinois rule |
+| `NEWTON` | `( xt dxt -- ) ( F: x0 tol -- r )` | Newton's method with the function and its derivative |
+
+`BISECT` and `REGULA-FALSI` need f(a) and f(b) of different sign, or one of them 0 (that end
+is the answer); otherwise they throw -264, as for a NaN from the function. Bisection always
+gets there. Regula falsi usually needs far fewer calls (for x^2 - 2 on [0, 2] with a tolerance
+of 1e-14 it calls the function 11 times, bisection 50 times), and the Illinois rule halves the value at an end that stays twice, so that
+one end cannot stay for ever; for a very steep function (x^1024 - 1 on [0, 1.5]) it still
+needs hundreds of steps, throws -264 after 200, and `BISECT` is the word to use. `NEWTON`
+ends when the step is at most `tol * max(1, abs(x))` and throws -264 when the derivative is
+0 or after 100 steps. Each word keeps its floats in a scratch vector that it frees at the
+end.
+
+## Interpolation
+
+`xs` and `ys` are float vectors of one length (the nodes and the values at them). The nodes
+must differ: equal nodes, or vectors of unequal length, throw -264. `ALSO SCIENCE` first.
+
+| Word | Stack | |
+|---|---|---|
+| `LAGRANGE` | `( xs ys -- ) ( F: x -- y )` | the polynomial through the points, at x |
+| `NEWTON-DD` | `( xs ys -- d )` | the divided differences, as a vector |
+| `NEWTON-EVAL` | `( xs d -- ) ( F: x -- y )` | Newton's form with those differences, at x |
+| `AITKEN` | `( xs ys -- ) ( F: x -- y err )` | repeated linear interpolation (Neville's scheme) with an error estimate |
+| `RATIONAL-INTERP` | `( xs ys -- ) ( F: x -- y err )` | a rational function through the points (Bulirsch-Stoer) with an error estimate |
+
+`NEWTON-DD` once and `NEWTON-EVAL` many times is cheaper than `LAGRANGE` for many x.
+`err` is the size of the last correction: an estimate of the error, not a bound. A rational
+function does better than a polynomial near a pole: with the five points of 1/(1 - x^2) at
+x = 0, 0.2, ..., 0.8, the value at 0.9 is 5.26316 from `RATIONAL-INTERP` and 4.0332 from
+`LAGRANGE`, where the function is 5.26316 (this is in the example). Every word costs time
+in proportion to n squared for n points, charged against the limits.
+
+The [example](examples/roots.fs) shows all of this:
+
+```
+quadratic: 2. 1.
+cubic: 3. 2. 1.
+no real roots of x^2 + 1: 0
+roots by Laguerre and deflation: 1. 2. 3. 4.
+p(2.5) = 0.5625
+T5(0.3) = 0.99888
+P3(0.3) = -0.3825
+H3(0.3) = -3.384
+bisection: 0.739085
+regula falsi: 0.739085
+Newton: 0.739085
+sin(0.9) = 0.783327
+Lagrange: 0.783327
+Aitken: 0.783327
+Newton's form: 0.783327
+1/(1-0.9^2) = 5.26316
+polynomial: 4.0332
+rational: 5.26316
 ```
 
 ## Conditioning

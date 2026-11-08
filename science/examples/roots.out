@@ -1,0 +1,18 @@
+quadratic: 2. 1. 
+cubic: 3. 2. 1. 
+no real roots of x^2 + 1: 0 
+roots by Laguerre and deflation: 1. 2. 3. 4. 
+p(2.5) = 0.5625 
+T5(0.3) = 0.99888 
+P3(0.3) = -0.3825 
+H3(0.3) = -3.384 
+bisection: 0.739085 
+regula falsi: 0.739085 
+Newton: 0.739085 
+sin(0.9) = 0.783327 
+Lagrange: 0.783327 
+Aitken: 0.783327 
+Newton's form: 0.783327 
+1/(1-0.9^2) = 5.26316 
+polynomial: 4.0332 
+rational: 5.26316 

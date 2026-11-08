@@ -57,15 +57,15 @@ V DB-STEP THROW DROP  0 V DB-COLUMN TYPE
 3.53.2 ok
 ```
 
-## Linear algebra, special functions, integration and differential equations
+## Linear algebra, special functions, calculus, roots and interpolation
 
 `science/` adds the word list `SCIENCE`: float vectors (`FV-NEW`, `FV-DOT`, …), matrices
 (`MAT-NEW`, `MAT*`, `MAT-T`, …) and linear algebra (`MAT-SOLVE`, `MAT-DET`, `MAT-INV`,
 `MAT-LU`, `MAT-COND`) and special functions (`GAMMA`, `ERF`, `GAMMA-P`, `BETA-I`, …), numerical integration (`SIMPSON`, `ROMBERG`, `INTEGRATE`) and ordinary
-differential equations (`RK4`, `ODE-RKF`) for a function passed as an execution token. It has
+differential equations (`RK4`, `ODE-RKF`) for a function passed as an execution token, polynomials (`POLY-EVAL`, `CUBIC`, `LEGENDRE`, �), root finding (`BISECT`, `REGULA-FALSI`, `NEWTON`) and interpolation (`LAGRANGE`, `AITKEN`, `RATIONAL-INTERP`). It has
 no dependencies and reaches nothing outside Forth, so it needs no permission: the words are in the MCP server, the Python module and
 the playground, and `forthling-science` is the program with them. See
-[science/README.md](../science/README.md) and the examples ([linear algebra](../science/examples/linear_algebra.fs), [special functions](../science/examples/special_functions.fs), [integration and differential equations](../science/examples/calculus.fs)).
+[science/README.md](../science/README.md) and the examples ([linear algebra](../science/examples/linear_algebra.fs), [special functions](../science/examples/special_functions.fs), [integration and differential equations](../science/examples/calculus.fs), [roots, polynomials and interpolation](../science/examples/roots.fs)).
 
 ```
 ALSO SCIENCE
