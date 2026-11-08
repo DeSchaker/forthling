@@ -39,6 +39,8 @@ What the forthling system offers as a Forth, and how it follows the standard. Ba
   more; `CHAR`, `[CHAR]`, `'€'` and `PARSE` take whole characters
 - Word lists and the search order: `WORDLIST GET-ORDER SET-ORDER ALSO ONLY PREVIOUS
   DEFINITIONS ORDER SEARCH-WORDLIST`, and `TRAVERSE-WORDLIST NAME>STRING`
+- Modules: `MODULE name ... EXPORT ... END-MODULE` keeps helper words private and makes the
+  rest a word list; `USING name` opens it (see [Modules](wordlists.md#modules))
 - Programming tools: `.S ? DUMP SEE WORDS`, `[IF] [ELSE] [THEN]`, `[DEFINED] [UNDEFINED]`,
   `AHEAD CS-PICK CS-ROLL`, `N>R NR>` and `SYNONYM`
 - Words inspired by other Forths: the loops `+DO -DO U+DO U-DO FOR NEXT -LOOP ?LEAVE ?EXIT`, strings (`BOUNDS PLACE STR=

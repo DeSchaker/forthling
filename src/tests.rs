@@ -1151,3 +1151,49 @@ fn included_lists() {
     assert!(out.contains("listed.fs"), "{out}");
     assert_eq!(run("VLIST").trim_end(), run("WORDS").trim_end());
 }
+
+#[test]
+fn modules() {
+    let geometry = "MODULE geometry : sq DUP * ; EXPORT : area * ; : circle sq 3 * ; END-MODULE ";
+    // Exported words are found after USING; the private helper is not.
+    assert_eq!(run(&format!("{geometry} USING geometry 4 3 area . 2 circle .")), "12 12 ");
+    assert_eq!(err(&format!("{geometry} USING geometry 2 sq")).code, UNDEFINED_WORD);
+    // Without USING nothing of the module is visible, but the name is.
+    assert_eq!(err(&format!("{geometry} 4 3 area")).code, UNDEFINED_WORD);
+    assert_eq!(run(&format!("{geometry} ALSO geometry 4 3 area . PREVIOUS")), "12 ");
+    // END-MODULE restores the search order and the current word list.
+    let one = run("ORDER");
+    assert_eq!(
+        run(&format!("ALSO ORDER PREVIOUS {geometry} ORDER")),
+        run("ALSO ORDER PREVIOUS ORDER")
+    );
+    assert_eq!(run("ORDER MODULE m ORDER END-MODULE ORDER").matches(&one).count(), 2);
+    // Private words are visible to the module's own code, also later exports.
+    assert_eq!(
+        run(
+            "MODULE m : a 1 ; : b a 10 + ; EXPORT : c b 100 + ; : d c c + ; END-MODULE USING m d ."
+        ),
+        "222 "
+    );
+    // A private word may shadow a standard one, inside the module only.
+    assert_eq!(
+        run("MODULE m : DUP DROP 7 ; EXPORT : f 1 DUP ; END-MODULE USING m f . 3 DUP .S"),
+        "7 <2> 3 3 "
+    );
+    // Modules nest; the inner one ends first.
+    assert_eq!(
+        run(
+            "MODULE o : x 1 ; EXPORT : y x ; MODULE i : z 2 ; EXPORT : w z ; END-MODULE USING i : v y w + ; END-MODULE USING o v ."
+        ),
+        "3 "
+    );
+    // Words defined in a module can be seen and run through SEE and WORDS.
+    assert_eq!(run(&format!("{geometry} USING geometry WORDS")).trim(), "CIRCLE AREA");
+    // Mistakes.
+    assert_eq!(err("EXPORT").code, CONTROL_MISMATCH);
+    assert_eq!(err("END-MODULE").code, CONTROL_MISMATCH);
+    assert_eq!(err("MODULE m EXPORT EXPORT").code, CONTROL_MISMATCH);
+    assert_eq!(err("MODULE").code, ZERO_LENGTH_NAME);
+    // A module without EXPORT has an empty public list.
+    assert_eq!(err("MODULE m : a 1 ; END-MODULE USING m a").code, UNDEFINED_WORD);
+}

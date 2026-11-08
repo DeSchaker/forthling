@@ -195,3 +195,15 @@ fn the_readme_example() {
     forth.interpret("7 SQUARE 0 <# #S #> OUT WRITE-FILE THROW  OUT CLOSE-FILE THROW").unwrap();
     assert_eq!(files.get("out.txt").unwrap(), b"49");
 }
+
+#[test]
+fn a_module_in_a_required_file_is_made_once() {
+    let (mut f, vfs) = in_memory(usize::MAX);
+    vfs.insert("lib/geo.fs", "MODULE geo : sq DUP * ; EXPORT : area sq ; END-MODULE").unwrap();
+    vfs.insert("lib/a.fs", "REQUIRE geo.fs").unwrap();
+    f.interpret("REQUIRE lib/geo.fs INCLUDE lib/a.fs REQUIRE lib/geo.fs").unwrap();
+    f.interpret("USING geo 5 area .").unwrap();
+    assert_eq!(output(&f), "25 ");
+    f.interpret("ORDER").unwrap();
+    assert!(output(&f).contains("Search order: GEO FORTH"), "{}", output(&f));
+}

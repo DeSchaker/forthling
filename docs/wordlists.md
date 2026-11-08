@@ -2,6 +2,32 @@
 
 The words that come with forthling beyond the standard, each in a word list of its own so that a standard program never meets them by accident. Open one with `ALSO name`. Back to the [README](../README.md).
 
+## Modules
+
+Your own libraries can have a word list too. `MODULE name` starts one: the words you define
+are private until `EXPORT`, and the words after `EXPORT` are public. `END-MODULE` ends it.
+`USING name` (the same as `ALSO name`) makes the public words visible.
+
+```forth
+MODULE geometry
+  : SQUARE  DUP * ;                    \ private: only the module sees it
+  EXPORT
+  : AREA  ( w h -- n )  * ;
+  : DISC  ( r -- n )  SQUARE 3 * ;     \ 3 for pi, whole numbers only
+END-MODULE
+USING geometry
+4 3 AREA .          \ 12
+2 DISC .            \ 12
+PREVIOUS
+```
+
+The public words keep working after `END-MODULE`, because they were compiled while the
+private words were visible; but `3 SQUARE` outside the module is an undefined word (-13). While a module is open the search order is its public list, its private list and
+then the order from before; `END-MODULE` puts the order and the current word list back as
+they were. Modules nest, and `EXPORT` can come once. `ORDER` shows the public list under the
+name of the module. For a file that other files load, use `REQUIRE`: it loads a file once, so
+the module is made once. The search is relative to the including file; there is no search path.
+
 ## JSON
 
 The word list `JSON` (`ALSO JSON`) is built in; the forthling program and the Python

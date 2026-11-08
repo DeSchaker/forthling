@@ -610,6 +610,17 @@ laat, staat de keuze hieronder.
   woord doet wat het xt doet en is nooit immediate; `SYNONYM` kopieert immediate) en
   `VOCABULARY` (een woordenlijst waarvan de naam de eerste woordenlijst van de zoekvolgorde
   vervangt).
+- Modules: `MODULE naam`, `EXPORT` en `END-MODULE` zijn suiker over woordenlijsten.
+  `MODULE` maakt twee woordenlijsten, een publieke (het woord `naam` maakt haar de eerste
+  van de zoekvolgorde, zoals bij `VOCABULARY`) en een private. Zolang de module open is,
+  bestaat de zoekvolgorde uit de publieke lijst, de private lijst en daarna de volgorde van
+  ervoor, en komen definities in de private lijst; na `EXPORT` komen ze in de publieke
+  lijst. `END-MODULE` zet de zoekvolgorde en de huidige woordenlijst terug zoals ze waren,
+  wat de module er ook mee deed. `USING naam` is `ALSO naam`. De private woorden blijven
+  zichtbaar voor de code die in de module is gecompileerd, maar een latere zoekopdracht
+  vindt ze niet. Modules mogen genest zijn; twee keer `EXPORT`, of `EXPORT` en `END-MODULE`
+  buiten een module, geven -22. Een tweede `MODULE` met dezelfde naam maakt een nieuwe
+  module; `REQUIRE` zorgt dat een bestand niet twee keer wordt geladen.
 - Uitvoer: `UD. UD.R DEC. HEX. F.S`. `HEX.` drukt een `$` voor de cijfers af. `F.S` toont de
   floatstack zoals `.S` de datastack toont.
 - Floats: `FNIP FTUCK F-ROT F2* F2/ F= F> F>= F0<= PI`. De vergelijkingen zijn onwaar als

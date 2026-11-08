@@ -590,6 +590,16 @@ that leaves room, the choice is below.
   `VALUE` that starts at 0; there are no tasks), `ALIAS ( xt "name" -- )` (the new word
   does what the xt does and is never immediate; `SYNONYM` copies immediacy) and
   `VOCABULARY` (a word list whose name replaces the first word list of the search order).
+- Modules: `MODULE name`, `EXPORT` and `END-MODULE` are sugar over word lists. `MODULE`
+  makes two word lists, a public one (the word `name` makes it the first of the search
+  order, as for `VOCABULARY`) and a private one. While the module is open the search order
+  is the public list, the private list and then the order from before, and definitions go
+  into the private list; after `EXPORT` they go into the public list. `END-MODULE` puts the
+  search order and the current word list back as they were, whatever the module did to
+  them. `USING name` is `ALSO name`. The private words stay visible to the code compiled in
+  the module, but a later search does not find them. Modules nest; `EXPORT` twice, or
+  `EXPORT` and `END-MODULE` outside a module, are -22. A second `MODULE` of the same name
+  makes a new module; `REQUIRE` is what keeps a file from being loaded twice.
 - Output: `UD. UD.R DEC. HEX. F.S`. `HEX.` prints a `$` before the digits. `F.S` shows
   the float stack as `.S` shows the data stack.
 - Floats: `FNIP FTUCK F-ROT F2* F2/ F= F> F>= F0<= PI`. The comparisons are false when a

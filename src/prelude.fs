@@ -148,6 +148,8 @@ SYNONYM \G \
 : UVALUE  0 VALUE ;
 : VOCABULARY  WORDLIST CREATE ,
    DOES> @ >R GET-ORDER NIP R> SWAP SET-ORDER ;
+\ USING name: ALSO name, for a VOCABULARY or a MODULE.
+: USING  ' ALSO EXECUTE ;
 \ Output and numbers.
 : UD.R    >R <# #S #> R> OVER - SPACES TYPE ;
 : UD.     0 UD.R SPACE ;

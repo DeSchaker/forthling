@@ -124,6 +124,7 @@ pub struct Forth {
     wordlists: Vec<Option<String>>,     // by wid - 1: the name, if the list has one
     order: Vec<usize>,                  // the search order, first searched first
     current_wid: usize,                 // the word list new definitions go into
+    modules: Vec<ModuleFrame>,          // the MODULEs being defined, innermost last
     current: Option<usize>,
     encoding_name: Option<usize>, // where XCHAR-ENCODING keeps its answer, once asked
     fence: usize,                 // the words of the system itself, which FORGET leaves alone
@@ -208,6 +209,7 @@ impl Forth {
             wordlists: vec![Some("FORTH".into())],
             order: vec![FORTH_WID],
             current_wid: FORTH_WID,
+            modules: Vec::new(),
             current: None,
             fence: 0,
             encoding_name: None,

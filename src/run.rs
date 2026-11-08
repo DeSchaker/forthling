@@ -182,6 +182,7 @@ impl Forth {
                 self.wordlists.truncate(wordlists);
                 self.order = order;
                 self.current_wid = current_wid;
+                self.modules.clear();
                 Ok(())
             }
         }

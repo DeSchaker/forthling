@@ -325,6 +325,10 @@ FORGET ( "name" -- ) Remove the word and everything defined after it.
 SYNONYM ( "new" "old" -- ) Define a second name that behaves exactly like the old word.
 ALIAS ( xt "name" -- ) Define a name that runs the execution token (Gforth).
 VOCABULARY ( "name" -- ) Define a word list; its name makes it the first in the search order (Gforth).
+USING ( "name" -- ) Same as ALSO name: put the word list of a VOCABULARY or a MODULE first in the search order. ;; MODULE M EXPORT : A 5 ; END-MODULE USING M A . PREVIOUS => 5
+MODULE ( "name" -- ) Start a module: words go into a private list until EXPORT; the name of the module is a word list like a VOCABULARY. ;; MODULE M : P 1 ; EXPORT : Q P 1+ ; END-MODULE USING M Q . PREVIOUS => 2
+EXPORT ( -- ) In a module: the words defined from here on are public, the ones before it stay private.
+END-MODULE ( -- ) End the module: the search order and the current word list come back as they were before MODULE.
 ENDIF ( -- ) Same as THEN (Gforth).
 NOOP ( -- ) Do nothing (Gforth).
 PERFORM ( a-addr -- ) Fetch an xt from the address and execute it (Gforth).

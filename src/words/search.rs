@@ -10,6 +10,7 @@ pub(crate) fn install(f: &mut Forth) {
     install_search(f);
     install_search_ext(f);
     install_tools(f);
+    install_modules(f);
 }
 
 fn install_search(f: &mut Forth) {
@@ -110,6 +111,59 @@ fn install_search_ext(f: &mut Forth) {
             f.wordlist_name(f.current_wid)
         );
         f.emit_str(&text);
+        Ok(())
+    });
+}
+
+/// MODULE, EXPORT and END-MODULE: sugar over word lists. While a module is
+/// open the search order is its public list, its private list, and then the
+/// order from before; definitions go into the private list, and after
+/// EXPORT into the public one. END-MODULE restores the order and the
+/// current word list. The module name works like a VOCABULARY: it makes
+/// the public list the first of the search order.
+fn install_modules(f: &mut Forth) {
+    f.prim("MODULE", |f| {
+        let name = f.name()?;
+        if f.order.len() + 2 > MAX_ORDER {
+            return Err(Throw::new(ORDER_OVERFLOW));
+        }
+        let count = f.wordlists.len();
+        f.wordlists.push(Some(name.to_ascii_uppercase()));
+        f.wordlists.push(None);
+        let (public, private) = (count + 1, count + 2);
+        if let Err(e) = f.new_word(
+            &name,
+            Kind::Host(Rc::new(move |f| {
+                f.set_first(public);
+                Ok(())
+            })),
+        ) {
+            f.wordlists.truncate(count);
+            return Err(e);
+        }
+        f.modules.push(ModuleFrame {
+            order: f.order.clone(),
+            current_wid: f.current_wid,
+            public,
+            exported: false,
+        });
+        f.order.splice(0..0, [public, private]);
+        f.current_wid = private;
+        Ok(())
+    });
+    f.prim("EXPORT", |f| {
+        let module = f.modules.last_mut().ok_or(Throw::new(CONTROL_MISMATCH))?;
+        if module.exported {
+            return Err(Throw::new(CONTROL_MISMATCH));
+        }
+        module.exported = true;
+        f.current_wid = module.public;
+        Ok(())
+    });
+    f.prim("END-MODULE", |f| {
+        let module = f.modules.pop().ok_or(Throw::new(CONTROL_MISMATCH))?;
+        f.order = module.order;
+        f.current_wid = module.current_wid;
         Ok(())
     });
 }

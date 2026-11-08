@@ -6,6 +6,15 @@ use std::fmt::Write as _;
 pub(crate) const FORTH_WID: usize = 1; // word list ids count from 1
 pub(crate) const MAX_ORDER: usize = 16; // word lists in the search order
 
+/// A MODULE being defined: the search order and the word list for
+/// definitions from before it, to come back to at END-MODULE.
+pub(crate) struct ModuleFrame {
+    pub(crate) order: Vec<usize>,
+    pub(crate) current_wid: usize,
+    pub(crate) public: usize,
+    pub(crate) exported: bool,
+}
+
 #[derive(Clone)]
 pub(crate) enum Kind {
     Prim(Prim),
