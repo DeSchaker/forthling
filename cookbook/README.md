@@ -54,6 +54,10 @@ the open parts are in [issue #59](https://github.com/DeSchaker/forthling/issues/
   and two letters with `REPLACES` and `SUBSTITUTE`, prices with `<# ... #>`, and `UNESCAPE`
   for text from a user
   ([`book003_example003_template.fs`](../examples/book003_example003_template.fs)).
+- [A command-line tool: arguments with NEXT-ARG](book003_part004_cli_tool.md): a small
+  `lines` tool with options and file names, the same `MAIN` for the real command line and a
+  fake one (`DEFER`), and `READ-LINE`
+  ([`book003_example004_cli_tool.fs`](../examples/book003_example004_cli_tool.fs)).
 
 **Programs without a chapter yet**, which also run in the tests, are in
 [`examples/`](../examples/):

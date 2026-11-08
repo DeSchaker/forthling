@@ -1,0 +1,14 @@
+usage: lines [-n] [-c] file ...
+  -n  number the lines
+  -c  only count the lines
+
+$ lines -n demo.txt
+  1: first line
+  2: second line
+  3: third line
+
+$ lines -c demo.txt
+demo.txt: 3 
+
+$ lines missing.txt
+lines: cannot read missing.txt
