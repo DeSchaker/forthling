@@ -44,6 +44,17 @@ HITS SIZE SIZE * CELLS ERASE
 : TOTAL  ( -- n )   0  SIZE SIZE * 0 DO HITS I CELLS + @ + LOOP ;
 : LIT  ( -- n )     0  SIZE SIZE * 0 DO HITS I CELLS + @ 0<> - LOOP ;  \ a flag is -1
 
+\ sin and cos differ in the last bits from one machine to another, and the jumps magnify that, so
+\ the exact counts are not the same everywhere. The output below holds only what is the same:
+\ every jump is counted, and the picture has a few dense places and much empty space.
+FALSE VALUE SHOW-NUMBERS                             \ set it to TRUE to print the counts
+: YES/NO  ( f -- )  IF ." yes" ELSE ." no" THEN CR ;
+: NUMBERS  ( -- )
+  SHOW-NUMBERS IF
+    ." most hits in one pixel: " MAXHIT . CR
+    ." pixels hit: " LIT . ." of " SIZE SIZE * . CR
+  THEN ;
+
 \ A brightness of 0 to 255 from a count and the largest count, on a logarithmic scale.
 : BRIGHT  ( n max -- v )
   1+ S>F FLN  1+ S>F FLN  FSWAP F/  255e F*  F>S ;
@@ -63,8 +74,9 @@ HITS SIZE SIZE * CELLS ERASE
 
 ITERATE
 ." jumps: " JUMPS . ." counted: " TOTAL . CR
-." most hits in one pixel: " MAXHIT . CR
-." pixels hit: " LIT . ." of " SIZE SIZE * . CR
+." some pixel was hit over 100 times: " MAXHIT 100 > YES/NO
+." under half of the pixels were hit: " LIT SIZE SIZE * 2/ < YES/NO
+NUMBERS
 DRAW
 S" clifford.png" SAVE-PNG  ." clifford.png: ior " . CR
 

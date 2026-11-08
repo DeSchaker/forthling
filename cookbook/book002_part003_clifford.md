@@ -91,8 +91,8 @@ The starting point `(0.1, 0.1)` is arbitrary: the first jumps already land on th
 
 ## Smoke
 
-A pixel that was hit 311 times (the most, here) is not 311 times brighter than one that was hit
-once; the eye would see only the dense places. The colour follows the *logarithm* of the count:
+A pixel that was hit 311 times (the most, on the author's Windows machine) is not 311 times
+brighter than one that was hit once; the eye would see only the dense places. The colour follows the *logarithm* of the count:
 
 ```forth
 : BRIGHT  ( n max -- v )
@@ -111,16 +111,20 @@ brightness `v` from 0 to 255 into a colour, a cold white with the blue part stro
 A colour on the canvas is one number, `0xRRGGBB`: the red part is moved 16 bits up, the green
 part 8. `DRAW` goes over the array, finds the colour for each pixel that was hit and paints it.
 
-The program also prints how many pixels were hit at all: 7038 of 25600 here. A picture like
-this is mostly empty, which is why the smoke shows against black.
+The program prints two facts about the picture: some pixel was hit over 100 times, and under
+half of the pixels were hit at all. The picture is mostly empty, which is why the smoke shows
+against black. The exact counts are left out of the output on purpose. `sin` and `cos` differ in
+the last bits from one machine to another, and the jumps magnify that: the picture looks the
+same, but the counts do not (the most hits in one pixel was 311 on Windows and 344 on Linux).
+Set `SHOW-NUMBERS` to `TRUE` to print them: here that gives 7038 pixels hit of 25600.
 
 ## Try it
 
 - Change `A B C D`. `-1.7 1.3 -0.1 -1.2` gives a quite different shape. Its `y` can reach
-  `1 + 1.2 = 2.2`, a little outside the square, so the program counts 97434 of the 100000
-  jumps: that is what the check line is for. Widen the range in `>PIXEL` (2.1 and 4.2) to
+  `1 + 1.2 = 2.2`, a little outside the square, so the program counts fewer than the 100000
+  jumps (97434 on Windows): that is what the check line is for. Widen the range in `>PIXEL` (2.1 and 4.2) to
   2.3 and 4.6, and all jumps are counted.
 - Raise `JUMPS` to 1 000 000 for a smoother picture (it took about 1.5 seconds here, one run).
-  With more jumps the dense places have far larger counts (3261 at most, here), so the
+  With more jumps the dense places have far larger counts (3261 at most on Windows), so the
   logarithm matters more.
 - Take `SIZE` 320 for a larger picture. The cell array and the canvas grow with it.
