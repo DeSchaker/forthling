@@ -78,7 +78,8 @@ cookbook explains how each one works. `node docs/make-pictures.mjs` makes them a
 | <img src="docs/img/clifford.png" alt="The Clifford attractor, in soft white on black" width="320"><br>The Clifford attractor: three million jumps of one point, shaded by how often each pixel was hit | <img src="docs/img/dejong.png" alt="A De Jong attractor, in soft white on black" width="320"><br>A De Jong attractor: the same counting, another jump and four numbers |
 
 The [cookbook](cookbook/) has complete programs on puzzles, pictures, and data and tools
-(JSON, word counts, templates), each with a chapter that explains it.
+(JSON, word counts, templates), each with a chapter that explains it, and a guide,
+[Forth for people who know Python](cookbook/guide001_python.md).
 
 ## Where to go next
 

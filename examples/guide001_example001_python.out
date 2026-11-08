@@ -1,0 +1,59 @@
+
+-- names and assignment
+6 
+<2> 2 1 
+
+-- functions
+12 
+12 
+3 2 
+-4 1 
+
+-- if, for and while
+big small
+0 1 2 3 4 
+0 1 2 
+7 
+
+-- lists
+3 10 20 
+10 20 30 
+60 30 
+20 30 
+
+-- list comprehensions
+<4> 4 16 36 64 
+55 
+-1 -1 
+1 4 
+
+-- dictionaries
+-1 30 0 
+-1 2 
+alice=30 carol=41 
+
+-- strings
+Hello, World
+12 llo,  World
+-1 -1 
+a;b;c;
+a, b, c
+FORTHLING
+
+-- f-strings
+Dear Ada, you owe 1250 euro.
+3.14
+00042
+
+-- exceptions
+(division by zero) 0 2 
+5 bad value 
+
+-- with
+wrote 0 
+about to fail 77 0 
+
+-- numbers
+3 3.5 
+-1 0 
+total: 17 

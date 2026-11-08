@@ -92,6 +92,13 @@ the open parts are in [issue #59](https://github.com/DeSchaker/forthling/issues/
   host that is not allowed; needs `forthling-http` and a network, so no test runs it
   ([`book003_example007_http_json.fs`](../http/examples/book003_example007_http_json.fs)).
 
+**Guide**
+
+- [Forth for people who know Python](guide001_python.md): list comprehensions, dicts, f-strings,
+  slicing, exceptions and `with`, each with the Python beside the forthling words and their stack
+  pictures; every snippet is in one program
+  ([`guide001_example001_python.fs`](../examples/guide001_example001_python.fs)).
+
 **Programs without a chapter yet**, which also run in the tests, are in
 [`examples/`](../examples/):
 
