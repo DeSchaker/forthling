@@ -144,6 +144,13 @@ test("the date words", async () => {
   assert.equal(forth.eval('S" 2001-02-30" ISO8601>').error.code, -265);
 });
 
+test("the URL words", async () => {
+  const forth = await fresh();
+  const r = forth.eval('ALSO URL S" https://example.com:8080/a?x=1" URL-HOST TYPE');
+  assert.equal(r.output, "example.com");
+  assert.equal(forth.eval('S" http://host:80a/" URL-PORT').error.code, -265);
+});
+
 test("the encoding words", async () => {
   const forth = await fresh();
   const r = forth.eval('ALSO ENCODING S" foobar" >BASE64 TYPE');

@@ -1,4 +1,4 @@
-# Small building blocks for forthling: CSV, encoding and date words
+# Small building blocks for forthling: CSV, encoding, date and URL words
 
 The crate `forthling-extras` for [forthling](https://github.com/DeSchaker/forthling) holds
 small, boring building blocks that programs need when they talk to the world. Each is a word
@@ -6,7 +6,7 @@ list of its own. The crate is small, has no dependencies and only computes on te
 Forth memory, so it needs no permission: the words work in the sandbox, in the MCP server, in
 the Python module and in the playground, where they are built in.
 
-Now: the word lists `CSV`, `ENCODING` and `DATE`. URLs and UUIDs are planned (issues #101 and
+Now: the word lists `CSV`, `ENCODING`, `DATE` and `URL`. UUIDs are planned (issue
 #102 in the repository).
 
 ## Running
@@ -21,7 +21,7 @@ In a Rust program: `forth.install(&forthling_extras::Extras)`, or
 `forthling::cli::main(&[&forthling_extras::Extras])` for the whole program.
 
 `S" FORTHLING-EXTRAS" ENVIRONMENT?` gives `1 true` when the words are there. A program
-starts with `ALSO CSV`, `ALSO ENCODING` or `ALSO DATE`.
+starts with `ALSO CSV`, `ALSO ENCODING`, `ALSO DATE` or `ALSO URL`.
 
 ## CSV
 
@@ -131,3 +131,45 @@ numbers, and the forms `YYYYMMDD` or `YYYY-DDD`. Anything that is not exactly th
 throws -265: a date that does not exist (30 February), a number in the wrong place, a lower-case
 `t` or `z`, and a time outside the years 0 to 9999. Reading counts against the step limit by the
 number of bytes, like the other extensions.
+
+## URL
+
+Percent-encoding (RFC 3986) and cutting a URL into its parts. The words only cut and convert
+text: they do not fetch anything and need no permission. They read the host, port and query
+as the `HTTP` words (`http/`) do: the host of an IPv6 address keeps its brackets, and a URL
+without a port has none. One difference: `HTTP` sees the path of `http://example.com` as `/`,
+while `URL-PATH` gives the empty text, since it cuts what is written.
+
+| Word | Effect | |
+|---|---|---|
+| `>PERCENT` | `( c-addr u -- c-addr' u' )` | Every byte except `A-Z a-z 0-9 - . _ ~` becomes `%XX` (upper-case hex); a space is `%20`. `ALLOCATE`d. |
+| `PERCENT>` | `( c-addr u -- c-addr' u' )` | `%XX` becomes a byte, in upper or lower case; a `+` stays a plus. `ALLOCATE`d. |
+| `URL-SCHEME` | `( c-addr u -- c-addr' u' )` | `https` of `https://example.com/`. |
+| `URL-USERINFO` | `( c-addr u -- c-addr' u' )` | What stands before the `@` of the authority. |
+| `URL-HOST` | `( c-addr u -- c-addr' u' )` | `example.com`; `[::1]` for IPv6. |
+| `URL-PORT` | `( c-addr u -- n )` | The port, or -1 when there is none. |
+| `URL-PATH` | `( c-addr u -- c-addr' u' )` | `/a/b` of `https://example.com/a/b?x=1`. |
+| `URL-QUERY` | `( c-addr u -- c-addr' u' )` | What stands after the `?`, without it. |
+| `URL-FRAGMENT` | `( c-addr u -- c-addr' u' )` | What stands after the `#`, without it. |
+| `URL-PARAM` | `( query-addr query-u name-addr name-u -- value-addr value-u true \| false )` | The value of the first parameter with that name in a query such as `a=1&b=2`; a name without `=` has an empty value. |
+
+The words that cut a URL give a place in the text they were given, with no copy and no
+allocation. A part that is not there is empty (length 0), so `?` with nothing after it and no
+`?` at all look the same. Relative references work too (`/a/b?c#d` has a path, a query and a
+fragment and nothing else). Only the form is checked: a port must be a number from 0 to 65535 and
+a host that starts with `[` must have its `]`; both throw -265. The characters of a part are not
+checked, and a part is not decoded: `URL-PARAM` finds a name as it is written, and the value
+goes through `PERCENT>` when it is needed.
+
+```
+ALSO URL
+S" https://example.com:8443/search?q=forth%20in%20rust" 2DUP URL-QUERY S" q" URL-PARAM DROP PERCENT> TYPE
+```
+
+prints `forth in rust`. The full example is [examples/url.fs](examples/url.fs) (its output is in
+`url.out`).
+
+Not supported: the form encoding of HTML (a `+` for a space), which `PERCENT>` leaves alone on
+purpose; building a URL from parts (join the pieces with `>PERCENT` on each value); resolving a
+relative reference against a base; punycode for non-ASCII host names. Reading counts against the step limit by
+the number of bytes, like the other extensions.

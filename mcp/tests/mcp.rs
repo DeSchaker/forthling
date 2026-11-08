@@ -495,6 +495,16 @@ fn date_words_are_there() {
 
 #[cfg(feature = "extras")]
 #[test]
+fn url_words_are_there() {
+    let mut s = server();
+    let r = eval(&mut s, "ALSO URL S\" https://example.com:8080/a?x=1\" URL-HOST TYPE");
+    assert_eq!(r["structuredContent"]["output"], "example.com");
+    let r = eval(&mut s, "S\" http://host:80a/\" URL-PORT");
+    assert_eq!(r["structuredContent"]["error"]["code"], -265);
+}
+
+#[cfg(feature = "extras")]
+#[test]
 fn encoding_words_are_there() {
     let mut s = server();
     let r = eval(&mut s, "ALSO ENCODING S\" abc\" SHA-256 >HEX TYPE");

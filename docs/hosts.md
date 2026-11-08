@@ -74,14 +74,14 @@ ALSO SCIENCE
 ```
 
 
-## CSV, encoding and date words
+## CSV, encoding, date and URL words
 
-`extras/` adds small building blocks that only compute on text (`forthling-extras`). The word list `DATE` reads and writes ISO 8601 text and adds days and months, in UTC (`>ISO8601`, `ISO8601>`, `DAY-OF-WEEK`, `+DAYS`, `+MONTHS`). The word list `ENCODING`
+`extras/` adds small building blocks that only compute on text (`forthling-extras`). The word list `URL` percent-encodes and decodes text and cuts a URL into scheme, host, port, path, query and fragment (`>PERCENT`, `URL-HOST`, `URL-QUERY`, `URL-PARAM`). The word list `DATE` reads and writes ISO 8601 text and adds days and months, in UTC (`>ISO8601`, `ISO8601>`, `DAY-OF-WEEK`, `+DAYS`, `+MONTHS`). The word list `ENCODING`
 has `>BASE64`, `>BASE64URL`, `>HEX` and their reverses, `SHA-256` and `CRC-32`. The word list `CSV`: `CSV-FIELD` reads one field at a time, with quotes, `CSV>STRING` and `CSV-QUOTE` read and
 write quoted fields, `CSV-SKIP` skips a header, `CSV-SEPARATOR` changes the separator. It has no dependencies
 and needs no permission: the words are in the MCP server, the Python module and the playground build, and
 `forthling-extras` is the program with them. See [extras/README.md](../extras/README.md) and the
-examples [csv.fs](../extras/examples/csv.fs), [encoding.fs](../extras/examples/encoding.fs) and [date.fs](../extras/examples/date.fs).
+examples [csv.fs](../extras/examples/csv.fs), [encoding.fs](../extras/examples/encoding.fs), [date.fs](../extras/examples/date.fs) and [url.fs](../extras/examples/url.fs).
 
 ## Regular expressions
 

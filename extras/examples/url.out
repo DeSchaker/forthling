@@ -1,0 +1,12 @@
+scheme = https
+userinfo = ann
+host = example.com
+8443 
+path = /search/books
+query = q=forth%20in%20rust&page=2
+fragment = results
+forth in rust
+2
+0 
+q=fish%20%26%20chips&lang=nl%2Fbe
+-265 

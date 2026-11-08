@@ -3,6 +3,7 @@
 CSV ( -- ) The word list of the CSV- words for comma-separated values. ALSO CSV adds it to the search order.
 DATE ( -- ) The word list of the date and time words: ISO 8601, day of week and date arithmetic, on seconds since 1970 in UTC. ALSO DATE adds it to the search order.
 ENCODING ( -- ) The word list of base64, hex, SHA-256 and CRC-32. ALSO ENCODING adds it to the search order.
+URL ( -- ) The word list of percent-encoding and the words that split a URL into scheme, host, port, path, query and fragment. ALSO URL adds it to the search order.
 [CSV]
 CSV-SEPARATOR ( char -- ) The separator between fields; a comma to begin with. 9 gives tabs, 59 semicolons.
 CSV-FIELD ( c-addr u -- rest-addr rest-u field-addr field-u last? ) The first field of the text without its quotes, and what is left; last? is true when the field ended its record. A doubled quote inside stays doubled (see CSV>STRING). ;; ALSO CSV S" ab,c" CSV-FIELD . TYPE 2DROP PREVIOUS => 0 ab
@@ -28,3 +29,14 @@ DAY-OF-WEEK ( seconds -- n ) The day of the week as in ISO 8601: 1 is Monday and
 +MONTHS ( seconds n -- seconds' ) Add n months (n may be negative); a day that the new month lacks becomes its last day. ;; ALSO DATE S" 2023-01-31" ISO8601> 1 +MONTHS >ISO8601 TYPE PREVIOUS => 2023-02-28T00:00:00Z
 LEAP-YEAR? ( year -- flag ) True for a leap year of the Gregorian calendar. ;; ALSO DATE 1900 LEAP-YEAR? . 2000 LEAP-YEAR? . PREVIOUS => 0 -1
 DAYS-IN-MONTH ( year month -- n ) The number of days of the month (1 to 12); throws -265 for another month. ;; ALSO DATE 2024 2 DAYS-IN-MONTH . PREVIOUS => 29
+[URL]
+>PERCENT ( c-addr u -- c-addr' u' ) Percent-encode: every byte except A-Z a-z 0-9 - . _ ~ becomes %XX (upper-case hex), a space is %20. The new text is ALLOCATEd. ;; ALSO URL S" a b&c" >PERCENT TYPE PREVIOUS => a%20b%26c
+PERCENT> ( c-addr u -- c-addr' u' ) Decode %XX to bytes, upper or lower case; a + stays a plus. Throws -265 for a % without two hex digits. The new text is ALLOCATEd. ;; ALSO URL S" a%20b%26c" PERCENT> TYPE PREVIOUS => a b&c
+URL-SCHEME ( c-addr u -- c-addr' u' ) The scheme of a URL (https), empty when there is none. The answer points into the given text. ;; ALSO URL S" https://example.com/a" URL-SCHEME TYPE PREVIOUS => https
+URL-USERINFO ( c-addr u -- c-addr' u' ) The user information before the @ of the authority, empty when there is none.
+URL-HOST ( c-addr u -- c-addr' u' ) The host; an IPv6 address keeps its brackets. Throws -265 for a port that is not a number from 0 to 65535 or for a [ without ]. ;; ALSO URL S" https://example.com:8080/a" URL-HOST TYPE PREVIOUS => example.com
+URL-PORT ( c-addr u -- n ) The port number, or -1 when the URL has none. ;; ALSO URL S" https://example.com:8080/a" URL-PORT . PREVIOUS => 8080
+URL-PATH ( c-addr u -- c-addr' u' ) The path, empty when there is none. ;; ALSO URL S" https://example.com/a/b?x=1" URL-PATH TYPE PREVIOUS => /a/b
+URL-QUERY ( c-addr u -- c-addr' u' ) The query after the ?, without the ?. ;; ALSO URL S" https://example.com/a?x=1&y=2#top" URL-QUERY TYPE PREVIOUS => x=1&y=2
+URL-FRAGMENT ( c-addr u -- c-addr' u' ) The fragment after the #, without the #. ;; ALSO URL S" https://example.com/a?x=1#top" URL-FRAGMENT TYPE PREVIOUS => top
+URL-PARAM ( query-addr query-u name-addr name-u -- value-addr value-u true | false ) The value of the first parameter of a query (a=1&b=2) with that name, as written (use PERCENT> to decode it); a name without = has an empty value. ;; ALSO URL S" a=1&b=2" S" b" URL-PARAM . TYPE PREVIOUS => -1 2

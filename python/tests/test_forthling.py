@@ -218,6 +218,12 @@ class AddWordTest(unittest.TestCase):
         with self.assertRaises(forthling.ForthError):
             f.interpret('S" 2001-02-30" ISO8601>')
 
+    def test_url(self):
+        f = forthling.Forth()
+        self.assertEqual(f.interpret('ALSO URL S" https://example.com:8080/a?x=1" URL-HOST TYPE'), "example.com")
+        with self.assertRaises(forthling.ForthError):
+            f.interpret('S" http://host:80a/" URL-PORT')
+
     def test_encoding(self):
         f = forthling.Forth()
         self.assertEqual(f.interpret('ALSO ENCODING S" foobar" >BASE64 TYPE'), "Zm9vYmFy")

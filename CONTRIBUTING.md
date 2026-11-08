@@ -80,7 +80,7 @@ and `--all-features`), and builds the WebAssembly module and tests it with Node
   mathematics), likewise a crate of its own, with the program `forthling-science`; check and
   test it with `--manifest-path science/Cargo.toml`. The MCP server, the web module and the
   Python module install it.
-- `extras/`: small building blocks (now the CSV, ENCODING and DATE words; URLs and UUIDs planned),
+- `extras/`: small building blocks (now the CSV, ENCODING, DATE and URL words; UUIDs planned),
   one word list each, no dependencies, likewise a crate of its own, with the program
   `forthling-extras`; check and test it with `--manifest-path extras/Cargo.toml`. It is for
   pure computation only: a topic that needs a dependency or a permission gets a crate of its own
