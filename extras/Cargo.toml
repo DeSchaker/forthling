@@ -3,11 +3,11 @@ name = "forthling-extras"
 version = "0.2.4"
 edition = "2024"
 rust-version = "1.85"
-description = "Small building blocks for forthling: CSV words (and more to come), no dependencies"
+description = "Small building blocks for forthling: CSV, encoding and hash words (and more to come), no dependencies"
 license = "MIT"
 repository = "https://github.com/DeSchaker/forthling"
 readme = "README.md"
-keywords = ["forth", "csv", "interpreter"]
+keywords = ["forth", "csv", "base64", "sha256", "interpreter"]
 categories = ["text-processing", "parser-implementations"]
 
 # A workspace of its own, like the other extension crates.

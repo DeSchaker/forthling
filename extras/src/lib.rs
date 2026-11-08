@@ -1,5 +1,5 @@
-//! Small building blocks for forthling, each a word list of its own: CSV now,
-//! and encodings and hashes, dates, URLs and UUIDs to come. They only compute
+//! Small building blocks for forthling, each a word list of its own: CSV, and
+//! encodings and hashes now, dates, URLs and UUIDs to come. They only compute
 //! on text in the Forth memory, with no dependencies, so they need no
 //! permission and work in the sandbox, in the MCP server, in the Python module
 //! and in the playground. Strings that a word returns are `ALLOCATE`d, for the
@@ -16,6 +16,7 @@
 //! ```
 
 mod csv;
+mod encoding;
 
 use forthling::{Cell, Extension, Forth, Res};
 
@@ -40,5 +41,6 @@ impl Extension for Extras {
     fn install(&self, f: &mut Forth) {
         f.add_help(include_str!("help.txt"));
         csv::install(f);
+        encoding::install(f);
     }
 }

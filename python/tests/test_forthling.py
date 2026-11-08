@@ -212,6 +212,12 @@ class AddWordTest(unittest.TestCase):
         with self.assertRaises(forthling.ForthError):
             f.interpret('S\\" \\"open" CSV-FIELD')
 
+    def test_encoding(self):
+        f = forthling.Forth()
+        self.assertEqual(f.interpret('ALSO ENCODING S" foobar" >BASE64 TYPE'), "Zm9vYmFy")
+        with self.assertRaises(forthling.ForthError):
+            f.interpret('S" Zg" BASE64>')
+
     def test_linear_algebra(self):
         f = forthling.Forth()
         # 2x + y = 5 and x + 3y = 10 give x = 1 and y = 3.

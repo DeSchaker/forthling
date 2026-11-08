@@ -822,7 +822,7 @@ fn instructions(s: &Settings) -> String {
         ""
     };
     let extras = if cfg!(feature = "extras") {
-        " `ALSO CSV` reads and writes comma-separated values: `CSV-FIELD ( c-addr u -- rest-addr rest-u field-addr field-u last? )` takes one field (the flag is true when it ended its record, so a loop reads a record and then asks whether text is left), `CSV>STRING` makes doubled quotes single (ALLOCATEd), `CSV-QUOTE` quotes a field for writing (ALLOCATEd), `CSV-SKIP` skips a record, `59 CSV-SEPARATOR` changes the separator."
+        " `ALSO CSV` reads and writes comma-separated values: `CSV-FIELD ( c-addr u -- rest-addr rest-u field-addr field-u last? )` takes one field (the flag is true when it ended its record, so a loop reads a record and then asks whether text is left), `CSV>STRING` makes doubled quotes single (ALLOCATEd), `CSV-QUOTE` quotes a field for writing (ALLOCATEd), `CSV-SKIP` skips a record, `59 CSV-SEPARATOR` changes the separator. `ALSO ENCODING` has `>BASE64` `BASE64>` `>BASE64URL` `BASE64URL>` `>HEX` `HEX>` and `SHA-256`, all `( c-addr u -- c-addr' u' )` with the new text ALLOCATEd (SHA-256 gives the 32 raw bytes; `>HEX` shows them), and `CRC-32 ( c-addr u -- u )`; bad base64 or hex throws -265."
     } else {
         ""
     };

@@ -137,6 +137,13 @@ test("regular expressions", async () => {
   assert.equal(forth.eval('S" a" S" (" RE-MATCH?').error.code, -262);
 });
 
+test("the encoding words", async () => {
+  const forth = await fresh();
+  const r = forth.eval('ALSO ENCODING S" foobar" >BASE64 TYPE');
+  assert.equal(r.output, "Zm9vYmFy");
+  assert.equal(forth.eval('S" Zg" BASE64>').error.code, -265);
+});
+
 test("the csv words", async () => {
   const forth = await fresh();
   const r = forth.eval('ALSO CSV S" ab,c" CSV-FIELD DROP TYPE 2DROP');

@@ -483,6 +483,19 @@ fn csv_words_are_there() {
     assert_eq!(r["structuredContent"]["error"]["code"], -265);
 }
 
+#[cfg(feature = "extras")]
+#[test]
+fn encoding_words_are_there() {
+    let mut s = server();
+    let r = eval(&mut s, "ALSO ENCODING S\" abc\" SHA-256 >HEX TYPE");
+    assert_eq!(
+        r["structuredContent"]["output"],
+        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    );
+    let r = eval(&mut s, "S\" Zg\" BASE64>");
+    assert_eq!(r["structuredContent"]["error"]["code"], -265);
+}
+
 #[cfg(feature = "http")]
 mod http {
     use super::*;

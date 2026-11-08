@@ -221,7 +221,7 @@ R> CLOSE-PIPE THROW .                                \ 0, the exit status
 - [SQLite words](https://github.com/DeSchaker/forthling/blob/main/sqlite/README.md)
 - [Regular expression words](https://github.com/DeSchaker/forthling/blob/main/regex/README.md)
 - [Linear algebra (vectors, matrices), special functions (gamma, erf, incomplete gamma and beta), integration, differential equations, polynomials, root finding, interpolation, complex numbers, FFT, complex roots, minimization and curve fitting, random distributions and Monte Carlo words](https://github.com/DeSchaker/forthling/blob/main/science/README.md)
-- [CSV words (quoted fields, any separator)](https://github.com/DeSchaker/forthling/blob/main/extras/README.md)
+- [CSV words (quoted fields, any separator) and encoding words (base64, hex, SHA-256, CRC-32)](https://github.com/DeSchaker/forthling/blob/main/extras/README.md)
 - [HTTP words](https://github.com/DeSchaker/forthling/blob/main/http/README.md)
 - [Native window for the canvas](https://github.com/DeSchaker/forthling/blob/main/window/README.md)
 - [Playground](https://deschaker.github.io/forthling/): Forth in the browser

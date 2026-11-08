@@ -74,14 +74,14 @@ ALSO SCIENCE
 ```
 
 
-## CSV words
+## CSV and encoding words
 
-`extras/` adds the word list `CSV` (`forthling-extras`), the first of some small building blocks that only
-compute on text: `CSV-FIELD` reads one field at a time, with quotes, `CSV>STRING` and `CSV-QUOTE` read and
+`extras/` adds small building blocks that only compute on text (`forthling-extras`). The word list `ENCODING`
+has `>BASE64`, `>BASE64URL`, `>HEX` and their reverses, `SHA-256` and `CRC-32`. The word list `CSV`: `CSV-FIELD` reads one field at a time, with quotes, `CSV>STRING` and `CSV-QUOTE` read and
 write quoted fields, `CSV-SKIP` skips a header, `CSV-SEPARATOR` changes the separator. It has no dependencies
 and needs no permission: the words are in the MCP server, the Python module and the playground build, and
 `forthling-extras` is the program with them. See [extras/README.md](../extras/README.md) and the
-[example](../extras/examples/csv.fs).
+examples [csv.fs](../extras/examples/csv.fs) and [encoding.fs](../extras/examples/encoding.fs).
 
 ## Regular expressions
 

@@ -1,9 +1,19 @@
 // The help text of the word lists of forthling-extras, in the form of src/help.txt of forthling.
 [FORTH]
 CSV ( -- ) The word list of the CSV- words for comma-separated values. ALSO CSV adds it to the search order.
+ENCODING ( -- ) The word list of base64, hex, SHA-256 and CRC-32. ALSO ENCODING adds it to the search order.
 [CSV]
 CSV-SEPARATOR ( char -- ) The separator between fields; a comma to begin with. 9 gives tabs, 59 semicolons.
 CSV-FIELD ( c-addr u -- rest-addr rest-u field-addr field-u last? ) The first field of the text without its quotes, and what is left; last? is true when the field ended its record. A doubled quote inside stays doubled (see CSV>STRING). ;; ALSO CSV S" ab,c" CSV-FIELD . TYPE 2DROP PREVIOUS => 0 ab
 CSV-SKIP ( c-addr u -- rest-addr rest-u ) Skip one record, for a header line. ;; ALSO CSV S" a,b" CSV-SKIP NIP . PREVIOUS => 0
 CSV>STRING ( c-addr u -- c-addr' u' ) A field with its doubled quotes made single. The new text is ALLOCATEd.
 CSV-QUOTE ( c-addr u -- c-addr' u' ) A field as it is written: in quotes, with quotes doubled, when it holds the separator, a quote or a line end. The new text is ALLOCATEd.
+[ENCODING]
+>BASE64 ( c-addr u -- c-addr' u' ) The text as base64 (RFC 4648), padded with =. The new text is ALLOCATEd. ;; ALSO ENCODING S" foobar" >BASE64 TYPE PREVIOUS => Zm9vYmFy
+BASE64> ( c-addr u -- c-addr' u' ) The bytes of padded base64 text; throws -265 for anything else. The new text is ALLOCATEd. ;; ALSO ENCODING S" Zm9vYg==" BASE64> TYPE PREVIOUS => foob
+>BASE64URL ( c-addr u -- c-addr' u' ) The text as base64url (- and _ for + and /), without padding. The new text is ALLOCATEd. ;; ALSO ENCODING S" fo" >BASE64URL TYPE PREVIOUS => Zm8
+BASE64URL> ( c-addr u -- c-addr' u' ) The bytes of base64url text, with or without padding; throws -265 for anything else. The new text is ALLOCATEd.
+>HEX ( c-addr u -- c-addr' u' ) The bytes as two lower-case hex digits each. The new text is ALLOCATEd. ;; ALSO ENCODING S" Hi!" >HEX TYPE PREVIOUS => 486921
+HEX> ( c-addr u -- c-addr' u' ) The bytes of hex text, upper or lower case; throws -265 for an odd length or a character that is not a digit. The new text is ALLOCATEd. ;; ALSO ENCODING S" 486921" HEX> TYPE PREVIOUS => Hi!
+SHA-256 ( c-addr u -- c-addr' u' ) The SHA-256 digest of the text: 32 bytes (use >HEX to show them). The new text is ALLOCATEd. ;; ALSO ENCODING S" abc" SHA-256 >HEX TYPE PREVIOUS => ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+CRC-32 ( c-addr u -- u ) The CRC-32 checksum of the text, as in zip and PNG. ;; ALSO ENCODING S" 123456789" CRC-32 HEX . DECIMAL PREVIOUS => CBF43926
