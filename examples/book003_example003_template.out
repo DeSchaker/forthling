@@ -1,0 +1,22 @@
+Dear Alice,
+
+Thank you for your order of 2 x brass bell.
+The total is 25,00 euro, with a 5% discount already taken off.
+Your order number is 1001.
+
+Kind regards,
+The Forth Shop
+
+Dear Bob,
+
+Thank you for your order of 10 x ink pot.
+The total is 39,50 euro, with a 5% discount already taken off.
+Your order number is 1002.
+
+Kind regards,
+The Forth Shop
+
+Fill in Bob and %nmae%. (1 replaced)
+
+As it is:    Hello Bob. Note: ring twice, The Forth Shop is a secret.
+Unescaped:   Hello Bob. Note: ring twice, %shop% is a secret.
