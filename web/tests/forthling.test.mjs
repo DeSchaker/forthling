@@ -192,6 +192,24 @@ const forPlayground = (text) =>
     .map((l) => l.replace(/\s+Run: cargo run.*$/, ""))
     .join("\n");
 
+test("the Clifford example of the playground is the file, smaller, and draws", async () => {
+  const page = await readFile(new URL("../www/index.html", import.meta.url), "utf8");
+  const start = page.indexOf("const examples = {");
+  const end = page.indexOf("\n};", start);
+  const examples = new Function(`return ${page.slice(start + "const examples = ".length, end + 2)}`)();
+  const file = (await readFile(new URL("../../examples/book002_example005_clifford.fs", import.meta.url), "utf8"))
+    .replace(/\r\n/g, "\n").split("\n");
+  // Every line is a line of the file, except the two sizes and the lines about the command line.
+  for (const line of examples.Clifford.split("\n")) {
+    if (/CONSTANT (SIZE|JUMPS)/.test(line)) continue;
+    assert.ok(file.includes(line), `not in the file: ${line}`);
+  }
+  const r = (await fresh()).eval(examples.Clifford);
+  assert.equal(r.error, null, JSON.stringify(r.error));
+  assert.match(r.output, /jumps: 40000 counted: 40000 \n/);
+  assert.equal(r.canvas.width, 128);
+});
+
 test("the playground examples match the programs in examples/", async () => {
   const page = await readFile(new URL("../www/index.html", import.meta.url), "utf8");
   const start = page.indexOf("const examples = {");

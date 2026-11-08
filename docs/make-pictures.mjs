@@ -6,6 +6,7 @@
 // - mandelbrot.png, julia.png: the files that book002_example001_mandelbrot.fs writes
 //   (mandelbrot.ppm and julia.png), packed with compression, since SAVE-PNG stores its data
 //   uncompressed.
+// - clifford.png: the Clifford attractor of book002_example005_clifford.fs, run larger.
 // - maze.svg, sudoku.svg: the output of the maze and the sudoku program as a terminal window.
 //   The text comes from the .out files, which the tests compare with a real run.
 //
@@ -103,6 +104,27 @@ try {
   writeFileSync(join(out, "julia.png"), encodePng(j.width, j.height, j.rgb));
 } finally {
   rmSync(work, { recursive: true, force: true });
+}
+
+// ---- Clifford -----------------------------------------------------------------------------
+
+// The program in examples/ is small and quick (160 pixels, 100000 jumps). For the README the same
+// program runs with 480 pixels and 3 million jumps (about 5 seconds), which needs more memory
+// (-m 16M) for the array of hits.
+const cliffordWork = mkdtempSync(join(tmpdir(), "forthling-pictures-"));
+try {
+  let source = readFileSync(join(root, "examples", "book002_example005_clifford.fs"), "utf8");
+  for (const [from, to] of [["160 CONSTANT SIZE", "480 CONSTANT SIZE"], ["100000 CONSTANT JUMPS", "3000000 CONSTANT JUMPS"]]) {
+    if (!source.includes(from)) throw new Error(`"${from}" is not in the Clifford program any more`);
+    source = source.replace(from, to);
+  }
+  writeFileSync(join(cliffordWork, "big.fs"), source);
+  const run = spawnSync(exe, ["-m", "16M", join(cliffordWork, "big.fs")], { cwd: cliffordWork, encoding: "utf8" });
+  if (run.status !== 0) throw new Error("the Clifford program failed: " + run.stdout + run.stderr);
+  const c = decodePng(readFileSync(join(cliffordWork, "clifford.png")));
+  writeFileSync(join(out, "clifford.png"), encodePng(c.width, c.height, c.rgb));
+} finally {
+  rmSync(cliffordWork, { recursive: true, force: true });
 }
 
 // ---- Text as a terminal window ------------------------------------------------------------

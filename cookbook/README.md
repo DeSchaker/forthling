@@ -40,6 +40,10 @@ the open parts are in [issue #59](https://github.com/DeSchaker/forthling/issues/
   ([`book002_example001_mandelbrot.fs`](../examples/book002_example001_mandelbrot.fs)), and
   the Sierpinski triangle from Pascal's triangle and by the chaos game
   ([`book002_example003_sierpinski.fs`](../examples/book002_example003_sierpinski.fs)).
+- [The Clifford attractor: a picture from one formula](book002_part003_clifford.md): a point
+  that jumps on the float stack, a count of hits per pixel, and a colour by the logarithm of
+  the count, so the picture looks like smoke
+  ([`book002_example005_clifford.fs`](../examples/book002_example005_clifford.fs)).
 
 **Book 3, Data and tools**
 

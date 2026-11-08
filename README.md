@@ -75,6 +75,7 @@ cookbook explains how each one works. `node docs/make-pictures.mjs` makes them a
 |---|---|
 | <img src="docs/img/mandelbrot.png" alt="The Mandelbrot set, in colour" width="320"><br>The Mandelbrot set, with fixed-point numbers on the canvas | <img src="docs/img/julia.png" alt="A Julia set, in colour" width="320"><br>A Julia set, from the same program |
 | <img src="docs/img/maze.svg" alt="A maze with its shortest path" width="320"><br>A maze, made and solved | <img src="docs/img/sudoku.svg" alt="A sudoku, the puzzle and its answer" width="320"><br>A sudoku, solved by backtracking |
+| <img src="docs/img/clifford.png" alt="The Clifford attractor, in soft white on black" width="320"><br>The Clifford attractor: three million jumps of one point, shaded by how often each pixel was hit | |
 
 The [cookbook](cookbook/) has complete programs on puzzles, pictures, and data and tools
 (JSON, word counts, templates), each with a chapter that explains it.
