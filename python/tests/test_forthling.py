@@ -212,6 +212,12 @@ class AddWordTest(unittest.TestCase):
         with self.assertRaises(forthling.ForthError):
             f.interpret('S\\" \\"open" CSV-FIELD')
 
+    def test_date(self):
+        f = forthling.Forth()
+        self.assertEqual(f.interpret('ALSO DATE 1000000000 >ISO8601 TYPE'), "2001-09-09T01:46:40Z")
+        with self.assertRaises(forthling.ForthError):
+            f.interpret('S" 2001-02-30" ISO8601>')
+
     def test_encoding(self):
         f = forthling.Forth()
         self.assertEqual(f.interpret('ALSO ENCODING S" foobar" >BASE64 TYPE'), "Zm9vYmFy")

@@ -137,6 +137,13 @@ test("regular expressions", async () => {
   assert.equal(forth.eval('S" a" S" (" RE-MATCH?').error.code, -262);
 });
 
+test("the date words", async () => {
+  const forth = await fresh();
+  const r = forth.eval('ALSO DATE 1000000000 >ISO8601 TYPE');
+  assert.equal(r.output, "2001-09-09T01:46:40Z");
+  assert.equal(forth.eval('S" 2001-02-30" ISO8601>').error.code, -265);
+});
+
 test("the encoding words", async () => {
   const forth = await fresh();
   const r = forth.eval('ALSO ENCODING S" foobar" >BASE64 TYPE');

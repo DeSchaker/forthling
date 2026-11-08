@@ -1,6 +1,7 @@
 // The help text of the word lists of forthling-extras, in the form of src/help.txt of forthling.
 [FORTH]
 CSV ( -- ) The word list of the CSV- words for comma-separated values. ALSO CSV adds it to the search order.
+DATE ( -- ) The word list of the date and time words: ISO 8601, day of week and date arithmetic, on seconds since 1970 in UTC. ALSO DATE adds it to the search order.
 ENCODING ( -- ) The word list of base64, hex, SHA-256 and CRC-32. ALSO ENCODING adds it to the search order.
 [CSV]
 CSV-SEPARATOR ( char -- ) The separator between fields; a comma to begin with. 9 gives tabs, 59 semicolons.
@@ -17,3 +18,13 @@ BASE64URL> ( c-addr u -- c-addr' u' ) The bytes of base64url text, with or witho
 HEX> ( c-addr u -- c-addr' u' ) The bytes of hex text, upper or lower case; throws -265 for an odd length or a character that is not a digit. The new text is ALLOCATEd. ;; ALSO ENCODING S" 486921" HEX> TYPE PREVIOUS => Hi!
 SHA-256 ( c-addr u -- c-addr' u' ) The SHA-256 digest of the text: 32 bytes (use >HEX to show them). The new text is ALLOCATEd. ;; ALSO ENCODING S" abc" SHA-256 >HEX TYPE PREVIOUS => ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
 CRC-32 ( c-addr u -- u ) The CRC-32 checksum of the text, as in zip and PNG. ;; ALSO ENCODING S" 123456789" CRC-32 HEX . DECIMAL PREVIOUS => CBF43926
+[DATE]
+>ISO8601 ( seconds -- c-addr u ) The time as ISO 8601 text in UTC, like 2001-09-09T01:46:40Z. The text is ALLOCATEd. Throws -265 outside the years 0 to 9999. ;; ALSO DATE 1000000000 >ISO8601 TYPE PREVIOUS => 2001-09-09T01:46:40Z
+ISO8601> ( c-addr u -- seconds ) Read YYYY-MM-DD (midnight) or YYYY-MM-DDTHH:MM:SS with Z, an offset like +02:00, or nothing (UTC). Throws -265 for anything else, also for a date that does not exist. ;; ALSO DATE S" 2001-09-09T03:46:40+02:00" ISO8601> . PREVIOUS => 1000000000
+SECONDS>DATE ( seconds -- sec min hour day month year ) The parts of a time in UTC, in the order of TIME&DATE. ;; ALSO DATE 1000000000 SECONDS>DATE . . . . . . PREVIOUS => 2001 9 9 1 46 40
+DATE>SECONDS ( sec min hour day month year -- seconds ) The time of the parts, in the order of TIME&DATE, so TIME&DATE DATE>SECONDS is now. Throws -265 for a date or time that does not exist. ;; ALSO DATE 40 46 1 9 9 2001 DATE>SECONDS . PREVIOUS => 1000000000
+DAY-OF-WEEK ( seconds -- n ) The day of the week as in ISO 8601: 1 is Monday and 7 is Sunday. ;; ALSO DATE 1000000000 DAY-OF-WEEK . PREVIOUS => 7
++DAYS ( seconds n -- seconds' ) Add n days (n may be negative), each of 86400 seconds. Throws -265 outside the years 0 to 9999. ;; ALSO DATE S" 2024-02-28" ISO8601> 2 +DAYS >ISO8601 TYPE PREVIOUS => 2024-03-01T00:00:00Z
++MONTHS ( seconds n -- seconds' ) Add n months (n may be negative); a day that the new month lacks becomes its last day. ;; ALSO DATE S" 2023-01-31" ISO8601> 1 +MONTHS >ISO8601 TYPE PREVIOUS => 2023-02-28T00:00:00Z
+LEAP-YEAR? ( year -- flag ) True for a leap year of the Gregorian calendar. ;; ALSO DATE 1900 LEAP-YEAR? . 2000 LEAP-YEAR? . PREVIOUS => 0 -1
+DAYS-IN-MONTH ( year month -- n ) The number of days of the month (1 to 12); throws -265 for another month. ;; ALSO DATE 2024 2 DAYS-IN-MONTH . PREVIOUS => 29

@@ -485,6 +485,16 @@ fn csv_words_are_there() {
 
 #[cfg(feature = "extras")]
 #[test]
+fn date_words_are_there() {
+    let mut s = server();
+    let r = eval(&mut s, "ALSO DATE 1000000000 >ISO8601 TYPE");
+    assert_eq!(r["structuredContent"]["output"], "2001-09-09T01:46:40Z");
+    let r = eval(&mut s, "S\" 2001-02-30\" ISO8601>");
+    assert_eq!(r["structuredContent"]["error"]["code"], -265);
+}
+
+#[cfg(feature = "extras")]
+#[test]
 fn encoding_words_are_there() {
     let mut s = server();
     let r = eval(&mut s, "ALSO ENCODING S\" abc\" SHA-256 >HEX TYPE");

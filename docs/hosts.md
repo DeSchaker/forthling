@@ -74,14 +74,14 @@ ALSO SCIENCE
 ```
 
 
-## CSV and encoding words
+## CSV, encoding and date words
 
-`extras/` adds small building blocks that only compute on text (`forthling-extras`). The word list `ENCODING`
+`extras/` adds small building blocks that only compute on text (`forthling-extras`). The word list `DATE` reads and writes ISO 8601 text and adds days and months, in UTC (`>ISO8601`, `ISO8601>`, `DAY-OF-WEEK`, `+DAYS`, `+MONTHS`). The word list `ENCODING`
 has `>BASE64`, `>BASE64URL`, `>HEX` and their reverses, `SHA-256` and `CRC-32`. The word list `CSV`: `CSV-FIELD` reads one field at a time, with quotes, `CSV>STRING` and `CSV-QUOTE` read and
 write quoted fields, `CSV-SKIP` skips a header, `CSV-SEPARATOR` changes the separator. It has no dependencies
 and needs no permission: the words are in the MCP server, the Python module and the playground build, and
 `forthling-extras` is the program with them. See [extras/README.md](../extras/README.md) and the
-examples [csv.fs](../extras/examples/csv.fs) and [encoding.fs](../extras/examples/encoding.fs).
+examples [csv.fs](../extras/examples/csv.fs), [encoding.fs](../extras/examples/encoding.fs) and [date.fs](../extras/examples/date.fs).
 
 ## Regular expressions
 
