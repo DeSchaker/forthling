@@ -352,6 +352,8 @@ fn sandbox(
     f.install(&forthling_sqlite::Sqlite);
     #[cfg(feature = "regex")]
     f.install(&forthling_regex::Regex);
+    #[cfg(feature = "science")]
+    f.install(&forthling_science::Science);
     // The machine stays closed: an agent that calls this server may not start programs.
     f.permit(Permission::System, false);
     // The network stays closed unless the server was started with hosts.
@@ -812,6 +814,11 @@ fn instructions(s: &Settings) -> String {
     } else {
         ""
     };
+    let science = if cfg!(feature = "science") {
+        " `ALSO SCIENCE` gives float vectors and matrices on the heap (`FV-NEW`, `MAT-NEW`, `MAT-FROM-STACK`; elements through `FV[]` and `MAT[]` with `F@` and `F!`) and linear algebra: `MAT-SOLVE`, `MAT-DET`, `MAT-INV`, `MAT-LU`, `MAT*`."
+    } else {
+        ""
+    };
     let http = if cfg!(feature = "http") && !s.hosts.is_empty() {
         format!(
             " `ALSO HTTP` gives an HTTP client for these hosts only: {}. `HTTP-GET ( url-addr url-u -- body-addr body-u status )` and `HTTP-POST ( url-addr url-u body-addr body-u type-addr type-u -- body-addr' body-u' status )` give the body, ALLOCATEd, and the status, a number such as 404 that is no error; `HTTP-HEADER ( name-addr name-u value-addr value-u -- )` sets a header for the next request only, and `HTTP-RESPONSE-HEADER ( name-addr name-u -- value-addr value-u true | false )` reads one of the response. A failed request throws -263. Put the strings of one call in a definition: the strings of `S\"` in the interpreter share a buffer.",
@@ -835,7 +842,7 @@ fn instructions(s: &Settings) -> String {
          as `users[0].name` from JSON text, and `JSON{{ S\" key\" JSON-KEY 1 JSON-NUMBER JSON}}` \
          writes JSON. `ALSO FUNCTIONAL` gives `MAP FOLD RUNNING-FOLD FILTER RANGE ANY? ALL? FIND COUNT-IF FLAT-MAP ITERATE REVERSE TAKE DROP-N ZIP SUM PRODUCT MIN-OF MAX-OF` on the data stack, and the same on a block of cells in memory (`MAP-CELLS FOLD-CELLS RUNNING-FOLD-CELLS FILTER-CELLS ANY?-CELLS` and more), \
          such as `1 6 RANGE [: DUP * ;] MAP 5 ' + FOLD .` (55). `ALSO DYNAMIC-STRINGS` gives dynamic strings: `$VARIABLE S  S\" hi\" S $!  S\" !\" S $+!  S $@ TYPE`, with `$@LEN $INS $DEL $SPLIT $ITER $TMP $EXEC` and arrays (`$[]VARIABLE $[]! $[]@ $[]+! $[]# $[]MAP`), all on the heap, so `$FREE` and `$[]FREE` give memory back. `ALSO STRINGS` gives `TRIM -LEADING UPPER LOWER STRING-PREFIX? STRING-SUFFIX? CONTAINS?` on `( c-addr u )` and `JOIN ( array c-addr u -- c-addr u )`, which joins a `$[]` array into an `ALLOCATE`d string. `ALSO COLLECTIONS` gives vectors (`VEC-VARIABLE V  5 V VEC+!  0 V VEC@`), dictionaries from text keys to cells in insertion order (`DICT-VARIABLE D  3 S\" apples\" D DICT!  S\" apples\" D DICT@` gives `3 true`, or `false`; also `DICT-DELETE DICT# DICT-EACH`) and `SORT-CELLS ( addr n xt -- )` (stable; `' <` sorts up); `VEC-FREE` and `DICT-FREE` give the memory back, and `$[]SORT` (in DYNAMIC-STRINGS) sorts a string array. For exact arithmetic use `ALSO FIXED` instead of floats (`0.1E 0.2E F+ 0.3E F=` is false): numbers are written `1.5fx` and count in 9 decimals, so `0.10fx 0.20fx FX+ 0.30fx =` is true and `FX.` prints them with all places. A literal the scale cannot hold exactly (`0.0000000001fx`) is an error (-24), never a rounding, and a result that does not fit throws -11 instead of wrapping. `n FX-DECIMALS` sets the decimals (0 to 18); `FX+` and `FX-` are exact, `FX*` and `FX/` round back to the scale (`FX-NEAREST` default, `FX-FLOOR`, `FX-TRUNC`). Words: `FX+ FX- FX* FX/ FXNEGATE FXABS FXSQRT S>FX FX>S F>FX FX>F >FX FX. FX>STRING`. `ALSO IMAGE` is a canvas without a window: `w h CANVAS`, `x y colour PIXEL`, `x1 y1 x2 y2 colour LINE`, `r g b RGB`, `PIXEL@` to read a pixel back; `SAVE-PPM` and `SAVE-PNG` write the picture as a file in memory.`ALSO OPERATING-SYSTEM` is there, but the machine is closed: `SYSTEM`, `GETENV`, the command line and the directories give -259 here (`BASENAME`, `DIRNAME` and `FILENAME-MATCH` work). `ALSO TUTORIAL` gives a Forth course of 20 lessons to walk a person \
-         through: `LESSONS`, `n LESSON`, `CHECK` (tests their answer), `HINT`, `NEXT`. `ALSO BENCHMARK` times your code: `BENCH ( xt -- microseconds )` runs a word once, `BENCH-BEST ( n xt -- microseconds )` gives the shortest of n runs. `ALSO TESTING` checks your code: `T{{ 3 SQUARE -> 9 }}T` passes when the cells before `->` equal those after it; a wrong result goes on, and the result has `tests` with `passed`, `failed` and per failure `line`, `expected` and `actual` (`TESTING text` names a group). Floats on the float stack are compared too, identical by default; `SET-NEAR` compares within `REL-NEAR` and `ABS-NEAR` (set with `F!`), `SET-EXACT` goes back.{sqlite}{regex}{http} \
+         through: `LESSONS`, `n LESSON`, `CHECK` (tests their answer), `HINT`, `NEXT`. `ALSO BENCHMARK` times your code: `BENCH ( xt -- microseconds )` runs a word once, `BENCH-BEST ( n xt -- microseconds )` gives the shortest of n runs. `ALSO TESTING` checks your code: `T{{ 3 SQUARE -> 9 }}T` passes when the cells before `->` equal those after it; a wrong result goes on, and the result has `tests` with `passed`, `failed` and per failure `line`, `expected` and `actual` (`TESTING text` names a group). Floats on the float stack are compared too, identical by default; `SET-NEAR` compares within `REL-NEAR` and `ABS-NEAR` (set with `F!`), `SET-EXACT` goes back.{sqlite}{regex}{science}{http} \
          Each call may take at most {} steps, {} ms and {} bytes of output; \
          the session's definitions and the like at most {} bytes in all. Files are in memory, \
          never on the disk, at most {} bytes in all: INCLUDE, REQUIRE, the FILE words \

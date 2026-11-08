@@ -18,6 +18,7 @@ crate-type = ["cdylib"]
 [dependencies]
 forthling = { path = ".." }
 forthling-regex = { path = "../regex" }
+forthling-science = { path = "../science" }
 forthling-http = { path = "../http" }
 pyo3 = { version = "0.30", features = ["extension-module"] }
 

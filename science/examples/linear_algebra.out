@@ -1,0 +1,16 @@
+x y z: 2. 3. -1. 
+determinant: -1. 
+inverse:
+4. 3. -1. 
+-2. -2. 1. 
+5. 4. -1. 
+two more right-hand sides: 4. -2. 5. 
+and: -1. 1. -1. 
+n   condition number   largest error
+3   7.480E2   9.992E-15 
+4   2.837E4   6.114E-13 
+5   9.437E5   6.168E-13 
+6   2.907E7   5.260E-10 
+7   9.852E8   2.566E-8 
+8   3.387E10   4.188E-7 
+9   1.100E12   1.958E-5 

@@ -1,0 +1,35 @@
+// The help text of the SCIENCE word list, in the form of src/help.txt of forthling.
+[FORTH]
+SCIENCE ( -- ) The word list of the FV- and MAT- words for float vectors, matrices and linear algebra. ALSO SCIENCE adds it to the search order.
+[SCIENCE]
+FV-NEW ( n -- a ) A vector of n floats, all zero, on the heap; the program FREEs it. Elements are read and written with FV[] and F@ F!. ;; ALSO SCIENCE 3 FV-NEW FV-LEN . PREVIOUS => 3
+FV-FROM-STACK ( n -- a ) ( F: x1 ... xn -- ) A vector of the n floats on the float stack. ;; ALSO SCIENCE 5e 7e 2 FV-FROM-STACK 1 SWAP FV[] F@ F>S . PREVIOUS => 7
+FV-LEN ( a -- n ) The number of elements of a vector.
+FV[] ( i a -- f-addr ) The address of element i (counted from 0) of a vector, for F@ and F!; -24 when i is out of range. ;; ALSO SCIENCE 3 FV-NEW DUP 2e 1 ROT FV[] F! 1 SWAP FV[] F@ F>S . PREVIOUS => 2
+FV-FILL ( a -- ) ( F: x -- ) Set every element of the vector to x.
+FV-DOT ( a b -- ) ( F: -- r ) The dot product of two vectors of one length. ;; ALSO SCIENCE 2e 3e 2 FV-FROM-STACK 1e 4e 2 FV-FROM-STACK FV-DOT F>S . PREVIOUS => 14
+FV-NORM ( a -- ) ( F: -- r ) The Euclidean length of a vector.
+FV-SCALE ( a -- c ) ( F: x -- ) A new vector: every element times x.
+FV+ ( a b -- c ) A new vector: the sum of two vectors of one length.
+FV- ( a b -- c ) A new vector: the difference of two vectors of one length.
+MAT-NEW ( rows cols -- a ) A matrix of zeros on the heap; the program FREEs it. Stored a row after a row.
+MAT-FROM-STACK ( rows cols -- a ) ( F: x11 x12 ... -- ) A matrix of the floats on the float stack, a row after a row. ;; ALSO SCIENCE 1e 2e 3e 4e 2 2 MAT-FROM-STACK MAT-DET F>S . PREVIOUS => -2
+MAT-IDENTITY ( n -- a ) The n by n identity matrix.
+MAT-HILBERT ( n -- a ) The n by n Hilbert matrix, with 1/(i+j+1) in row i and column j (from 0), a standard test of conditioning.
+MAT-ROWS ( a -- n ) The number of rows of a matrix.
+MAT-COLS ( a -- n ) The number of columns of a matrix.
+MAT[] ( i j a -- f-addr ) The address of the element in row i and column j (from 0), for F@ and F!; -24 when one is out of range.
+MAT-T ( a -- c ) A new matrix: the transpose.
+MAT+ ( a b -- c ) A new matrix: the sum of two matrices of one shape.
+MAT- ( a b -- c ) A new matrix: the difference of two matrices of one shape.
+MAT-SCALE ( a -- c ) ( F: x -- ) A new matrix: every element times x.
+MAT* ( a b -- c ) A new matrix: the product; the columns of a must equal the rows of b.
+MAT*V ( a v -- w ) A new vector: a matrix times a vector.
+MAT-NORM ( a -- ) ( F: -- r ) The infinity norm: the largest sum of the absolute values in a row.
+MAT-LU ( a -- lu piv sign ) LU factorization with partial pivoting of a square matrix: lu holds L (unit diagonal, not stored) and U, piv is a vector with the original row of each row, sign is 1 or -1. Throws -264 when the matrix is singular.
+LU-SOLVE ( b lu piv -- x ) Solve A x = b with the factorization of A that MAT-LU gave; cheap for many b.
+MAT-SOLVE ( b a -- x ) Solve A x = b for a vector b, with an LU factorization. Throws -264 when A is singular. ;; ALSO SCIENCE 8e -11e -3e 3 FV-FROM-STACK 2e 1e -1e -3e -1e 2e -2e 1e 2e 3 3 MAT-FROM-STACK MAT-SOLVE 0 SWAP FV[] F@ F>S . PREVIOUS => 2
+MAT-DET ( a -- ) ( F: -- r ) The determinant of a square matrix; 0 when it is singular.
+MAT-INV ( a -- c ) The inverse of a square matrix, by Gauss-Jordan elimination. Throws -264 when it is singular.
+MAT-COND ( a -- ) ( F: -- r ) The condition number in the infinity norm: the norm of A times the norm of its inverse.
+MAT-GAUSS-JORDAN ( a b -- x ) Solve A X = B by Gauss-Jordan elimination, for a matrix B with a column for each right-hand side.

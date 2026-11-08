@@ -4,7 +4,7 @@ forthling runs as a program, in the browser, behind an MCP server, in Python and
 
 ## In the browser
 
-`web/` compiles forthling to WebAssembly (about 490 KB, no dependencies, no wasm-bindgen)
+`web/` compiles forthling to WebAssembly (about 860 KB, 280 KB gzipped, no dependencies, no wasm-bindgen)
 and has a playground page: Forth in the browser, on the visitor's own computer, in the
 sandbox. Try it at **https://deschaker.github.io/forthling/**; see
 [web/README.md](../web/README.md).
@@ -55,6 +55,21 @@ S" SELECT sqlite_version()" DB DB-PREPARE THROW VALUE V
  ok
 V DB-STEP THROW DROP  0 V DB-COLUMN TYPE
 3.53.2 ok
+```
+
+## Vectors, matrices and linear algebra
+
+`science/` adds the word list `SCIENCE`: float vectors (`FV-NEW`, `FV-DOT`, …), matrices
+(`MAT-NEW`, `MAT*`, `MAT-T`, …) and linear algebra (`MAT-SOLVE`, `MAT-DET`, `MAT-INV`,
+`MAT-LU`, `MAT-COND`). It is plain Rust without dependencies and reaches nothing outside
+Forth, so it needs no permission: the words are in the MCP server, the Python module and
+the playground, and `forthling-science` is the program with them. See
+[science/README.md](../science/README.md) and [the example](../science/examples/linear_algebra.fs).
+
+```
+ALSO SCIENCE
+8e -11e -3e 3 FV-FROM-STACK  2e 1e -1e -3e -1e 2e -2e 1e 2e 3 3 MAT-FROM-STACK  MAT-SOLVE
+0 OVER FV[] F@ F.  1 OVER FV[] F@ F.  2 SWAP FV[] F@ F.
 ```
 
 ## Regular expressions

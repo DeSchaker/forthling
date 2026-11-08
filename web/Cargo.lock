@@ -15,11 +15,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "forthling-science"
+version = "0.2.3"
+dependencies = [
+ "forthling",
+]
+
+[[package]]
 name = "forthling-web"
 version = "0.1.0"
 dependencies = [
  "forthling",
  "forthling-regex",
+ "forthling-science",
 ]
 
 [[package]]

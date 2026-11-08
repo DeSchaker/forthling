@@ -2,6 +2,7 @@
 /python/target/
 /sqlite/target/
 /regex/target/
+/science/target/
 /mcp/target/
 /web/target/
 # built from web/, see web/README.md

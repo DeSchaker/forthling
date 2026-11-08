@@ -75,6 +75,8 @@ except forthling.ForthError as e:
 - `S" FORTHLING-PYTHON" ENVIRONMENT?` gives `1 true` in Forth.
 - The regular expression words are installed too (`ALSO REGEX`; see
   [regex/README.md](https://github.com/DeSchaker/forthling/blob/main/regex/README.md)).
+- The vector, matrix and linear algebra words are installed too (`ALSO SCIENCE`; see
+  [science/README.md](https://github.com/DeSchaker/forthling/blob/main/science/README.md)).
 - The HTTP words are installed too (`ALSO HTTP`; see
   [http/README.md](https://github.com/DeSchaker/forthling/blob/main/http/README.md)), but closed:
   `allow_hosts=["api.example.com"]` lists the hosts that Forth code may send requests to;

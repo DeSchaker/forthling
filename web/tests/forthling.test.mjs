@@ -137,6 +137,17 @@ test("regular expressions", async () => {
   assert.equal(forth.eval('S" a" S" (" RE-MATCH?').error.code, -262);
 });
 
+test("the science words: vectors, matrices and linear algebra", async () => {
+  const forth = await fresh();
+  // 2x + y = 5 and x + 3y = 10 give x = 1 and y = 3.
+  const r = forth.eval(
+    "ALSO SCIENCE 5e 10e 2 FV-FROM-STACK 2e 1e 1e 3e 2 2 MAT-FROM-STACK MAT-SOLVE " +
+      "DUP 0 SWAP FV[] F@ F>S . 1 SWAP FV[] F@ F>S .",
+  );
+  assert.equal(r.output, "1 3 ");
+  assert.equal(forth.eval("1e 2e 2e 4e 2 2 MAT-FROM-STACK MAT-INV").error.code, -264);
+});
+
 test("the benchmark words use the clock of the page, in microseconds", async () => {
   const forth = await fresh();
   // The clock is read at each use, so it advances during one call.

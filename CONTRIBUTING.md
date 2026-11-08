@@ -47,7 +47,8 @@ test suite included, on Rust 1.85 and on the latest stable Rust on Linux and Win
 builds the Python module and runs its tests (`python -m unittest discover -s python/tests`,
 after `pip install ./python`) and checks and tests the SQLite words
 (`cargo test --manifest-path sqlite/Cargo.toml`), the regular expression words
-(`cargo test --manifest-path regex/Cargo.toml`), the HTTP words
+(`cargo test --manifest-path regex/Cargo.toml`), the science words
+(`cargo test --manifest-path science/Cargo.toml`), the HTTP words
 (`cargo test --manifest-path http/Cargo.toml`, against a small server on the machine) and the
 MCP server (`cargo test --manifest-path mcp/Cargo.toml`, also with `--no-default-features`
 and `--all-features`), and builds the WebAssembly module and tests it with Node
@@ -74,6 +75,10 @@ and `--all-features`), and builds the WebAssembly module and tests it with Node
 - `regex/`: the regular expression words, likewise a crate of its own (regex-lite), with
   the program `forthling-regex`; check and test it with `--manifest-path regex/Cargo.toml`.
   The MCP server, the web module and the Python module install it.
+- `science/`: the vector, matrix and linear algebra words (no dependencies, built from the
+  mathematics), likewise a crate of its own, with the program `forthling-science`; check and
+  test it with `--manifest-path science/Cargo.toml`. The MCP server, the web module and the
+  Python module install it.
 - `http/`: the HTTP client words, likewise a crate of its own (ureq), with the program
   `forthling-http`; check and test it with `--manifest-path http/Cargo.toml` (its tests run a
   small server on the machine). It reaches the network, so it needs `Permission::Network` and
@@ -107,8 +112,8 @@ and `--all-features`), and builds the WebAssembly module and tests it with Node
 
 - Keep the core small. The core never gets a dependency or `unsafe` code. So the rule is:
   - Something that needs a dependency, or `unsafe` code, gets a crate of its own, as
-    `python/`, `sqlite/`, `regex/`, `http/`, `window/` and `mcp/` do.
-  - The compiler enforces the rule: the core, `mcp/`, `sqlite/`, `regex/`, `http/`, `window/` and
+    `python/`, `sqlite/`, `regex/`, `science/`, `http/`, `window/` and `mcp/` do.
+  - The compiler enforces the rule: the core, `mcp/`, `sqlite/`, `regex/`, `science/`, `http/`, `window/` and
     `python/` have `unsafe_code = "forbid"` in `[lints.rust]`. `web/` does not, since the
     exports of a WebAssembly module are `#[unsafe(no_mangle)]`.
   - Something that needs neither goes in the core, as the sandbox, the JSON words and the
@@ -136,8 +141,8 @@ and `--all-features`), and builds the WebAssembly module and tests it with Node
   checked with `check_space`. See `src/sandbox.rs`. An extension uses the public
   `charge`, `check_time` and `deadline` for work outside Forth, as the SQLite words do.
 - Every word needs a line in the help text: `src/help.txt` for the core and its
-  extensions, a `help.txt` in the crate for the word lists of `sqlite/`, `regex/` and
-  `http/` (added with `f.add_help(include_str!("help.txt"))` in `install`). A line is
+  extensions, a `help.txt` in the crate for the word lists of `sqlite/`, `regex/`,
+  `science/` and `http/` (added with `f.add_help(include_str!("help.txt"))` in `install`). A line is
   `NAME ( effect ) description ;; code => output`; the part from `;;` is an example that
   the tests run. `tests/help.rs` fails for a word without a line. Write the effect in the
   standard notation, `( x1 x2 -- x2 x1 )`, so a stack check can read it later.
@@ -145,7 +150,7 @@ and `--all-features`), and builds the WebAssembly module and tests it with Node
   a cookbook example is called `book<NNN>_example<MMM>_<theme>.fs`, as `book001_example002_sudoku.fs`)
   with its expected output in `name.out` beside it. `tests/examples.rs` runs every
   program there and fails for one without a `.out` file, so an example cannot go stale.
-  The examples of `sqlite/` and `regex/` are run the same way by the tests of those crates.
+  The examples of `sqlite/`, `regex/` and `science/` are run the same way by the tests of those crates.
   `http/examples/` needs a server and is not run by a test. See [cookbook/](cookbook/).
 - An example that is also in the playground is a copy in `web/www/index.html` (the object
   `examples`). The copy is the file without the lines about the command line (`Run: cargo run ...`
@@ -161,11 +166,11 @@ and `--all-features`), and builds the WebAssembly module and tests it with Node
 
 ## Releasing
 
-The version is the same for `forthling`, `forthling-sqlite`, `forthling-regex`, `forthling-http`,
-`forthling-window` and `forthling-mcp`, and in `mcp/server.json` (a test in `mcp/tests` checks the last two) and
+The version is the same for `forthling`, `forthling-sqlite`, `forthling-regex`, `forthling-science`,
+`forthling-http`, `forthling-window` and `forthling-mcp`, and in `mcp/server.json` (a test in `mcp/tests` checks the last two) and
 `mcp/mcpb/manifest.json`. `python/` and `web/` have a version of their own (0.1.0): they
 are not published through `release.yml` and are not raised with a release. To
-release: raise the version in the six `Cargo.toml`, the path dependencies, `server.json` and `manifest.json`, and push a
+release: raise the version in the seven `Cargo.toml`, the path dependencies, `server.json` and `manifest.json`, and push a
 tag such as `v0.2.3`. `.github/workflows/release.yml` then publishes the crates to
 crates.io and the server to the MCP Registry, both through GitHub OIDC, without secrets.
 With every release, also change the `forthling = "0.x.y"` examples in `docs/install.md`.

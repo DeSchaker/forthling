@@ -55,6 +55,7 @@ dependencies = [
  "forthling",
  "forthling-http",
  "forthling-regex",
+ "forthling-science",
  "pyo3",
 ]
 
@@ -64,6 +65,13 @@ version = "0.2.3"
 dependencies = [
  "forthling",
  "regex-lite",
+]
+
+[[package]]
+name = "forthling-science"
+version = "0.2.3"
+dependencies = [
+ "forthling",
 ]
 
 [[package]]

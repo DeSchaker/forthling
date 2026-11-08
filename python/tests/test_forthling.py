@@ -206,6 +206,17 @@ class AddWordTest(unittest.TestCase):
         f = forthling.Forth()
         self.assertEqual(f.interpret('ALSO REGEX S" order 66" S" [0-9]+" RE-FIND . . .'), "-1 2 6 ")
 
+    def test_linear_algebra(self):
+        f = forthling.Forth()
+        # 2x + y = 5 and x + 3y = 10 give x = 1 and y = 3.
+        out = f.interpret(
+            "ALSO SCIENCE 5e 10e 2 FV-FROM-STACK 2e 1e 1e 3e 2 2 MAT-FROM-STACK MAT-SOLVE "
+            "DUP 0 SWAP FV[] F@ F>S . 1 SWAP FV[] F@ F>S ."
+        )
+        self.assertEqual(out, "1 3 ")
+        with self.assertRaises(forthling.ForthError):
+            f.interpret("1e 2e 2e 4e 2 2 MAT-FROM-STACK MAT-INV")
+
     def test_fixed_point_is_exact(self):
         # 0.1 + 0.2 is 0.30000000000000004 in floats, and exactly 0.30 in decimals.
         f = forthling.Forth()
