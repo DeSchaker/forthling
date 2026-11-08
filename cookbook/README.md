@@ -53,6 +53,11 @@ the open parts are in [issue #59](https://github.com/DeSchaker/forthling/issues/
   in steps of that distance, and the shade is the number of steps. Heavy: it does not run in
   the playground
   ([`book002_example007_apollonian.fs`](../examples/book002_example007_apollonian.fs)).
+- [Domain-warped noise: small words that compose](book002_part006_warp.md): a hash, noise
+  from it, octaves of noise, and `WARP`, a word that moves a point by the noise and so can be
+  applied to its own result; three pictures, from plain noise to ink in water. Heavy: it does
+  not run in the playground
+  ([`book002_example008_warp.fs`](../examples/book002_example008_warp.fs)).
 
 **Book 3, Data and tools**
 
