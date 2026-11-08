@@ -127,8 +127,9 @@ FROM sales GROUP BY product ORDER BY sum(quantity * price) DESC
 ## Limits
 
 - A field cannot contain a comma. Real CSV puts such a field in double quotes, and this
-  program does not read those. For files from a spreadsheet, a program that reads quotes is
-  needed; a CSV crate is planned (issue #58).
+  program does not read those. The `CSV` words of `forthling-extras` do (`CSV-FIELD` reads
+  quoted fields; see [extras/README.md](../extras/README.md)); they are not installed in
+  `forthling-sqlite`, so this program keeps its own `$SPLIT`.
 - The database is `:memory:`, so it is gone at the end. Give `DB-OPEN` a file name to keep
   it; that needs file permission, so it does not work in a sandbox.
 

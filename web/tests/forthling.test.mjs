@@ -137,6 +137,13 @@ test("regular expressions", async () => {
   assert.equal(forth.eval('S" a" S" (" RE-MATCH?').error.code, -262);
 });
 
+test("the csv words", async () => {
+  const forth = await fresh();
+  const r = forth.eval('ALSO CSV S" ab,c" CSV-FIELD DROP TYPE 2DROP');
+  assert.equal(r.output, "ab");
+  assert.equal(forth.eval('S\\" \\"open" CSV-FIELD').error.code, -265);
+});
+
 test("the science words: vectors, matrices and linear algebra", async () => {
   const forth = await fresh();
   // 2x + y = 5 and x + 3y = 10 give x = 1 and y = 3.

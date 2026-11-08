@@ -77,6 +77,8 @@ except forthling.ForthError as e:
   [regex/README.md](https://github.com/DeSchaker/forthling/blob/main/regex/README.md)).
 - The vector, matrix, linear algebra, special function, integration, differential equation, polynomial, root finding, interpolation, complex number, FFT and complex root words are installed too (`ALSO SCIENCE`; see
   [science/README.md](https://github.com/DeSchaker/forthling/blob/main/science/README.md)).
+- The CSV words are installed too (`ALSO CSV`; see
+  [extras/README.md](https://github.com/DeSchaker/forthling/blob/main/extras/README.md)).
 - The HTTP words are installed too (`ALSO HTTP`; see
   [http/README.md](https://github.com/DeSchaker/forthling/blob/main/http/README.md)), but closed:
   `allow_hosts=["api.example.com"]` lists the hosts that Forth code may send requests to;

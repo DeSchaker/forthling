@@ -1,0 +1,37 @@
+[package]
+name = "forthling-extras"
+version = "0.2.4"
+edition = "2024"
+rust-version = "1.85"
+description = "Small building blocks for forthling: CSV words (and more to come), no dependencies"
+license = "MIT"
+repository = "https://github.com/DeSchaker/forthling"
+readme = "README.md"
+keywords = ["forth", "csv", "interpreter"]
+categories = ["text-processing", "parser-implementations"]
+
+# A workspace of its own, like the other extension crates.
+[workspace]
+
+[[bin]]
+name = "forthling-extras"
+path = "src/main.rs"
+
+[dependencies]
+forthling = { path = "..", version = "0.2.4" }
+
+[profile.release]
+# The profile of the core does not apply when it is a dependency, so this crate sets its own.
+lto = true
+codegen-units = 1
+
+[lints.rust]
+# CONTRIBUTING.md: this crate has no `unsafe` code, and the compiler keeps it so.
+unsafe_code = "forbid"
+
+[lints.clippy]
+# All of pedantic, so that new code cannot bring the warnings back; CI runs clippy
+# with `-D warnings`. Priority -1 lets the lints below this line override the group.
+pedantic = { level = "warn", priority = -1 }
+# `use crate::*;` is a convention of this project: a module sees what its parent sees.
+wildcard_imports = "allow"

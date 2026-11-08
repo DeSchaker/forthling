@@ -1,0 +1,9 @@
+// The help text of the word lists of forthling-extras, in the form of src/help.txt of forthling.
+[FORTH]
+CSV ( -- ) The word list of the CSV- words for comma-separated values. ALSO CSV adds it to the search order.
+[CSV]
+CSV-SEPARATOR ( char -- ) The separator between fields; a comma to begin with. 9 gives tabs, 59 semicolons.
+CSV-FIELD ( c-addr u -- rest-addr rest-u field-addr field-u last? ) The first field of the text without its quotes, and what is left; last? is true when the field ended its record. A doubled quote inside stays doubled (see CSV>STRING). ;; ALSO CSV S" ab,c" CSV-FIELD . TYPE 2DROP PREVIOUS => 0 ab
+CSV-SKIP ( c-addr u -- rest-addr rest-u ) Skip one record, for a header line. ;; ALSO CSV S" a,b" CSV-SKIP NIP . PREVIOUS => 0
+CSV>STRING ( c-addr u -- c-addr' u' ) A field with its doubled quotes made single. The new text is ALLOCATEd.
+CSV-QUOTE ( c-addr u -- c-addr' u' ) A field as it is written: in quotes, with quotes doubled, when it holds the separator, a quote or a line end. The new text is ALLOCATEd.

@@ -18,13 +18,15 @@ name = "forthling-mcp"
 path = "src/main.rs"
 
 [features]
-default = ["sqlite", "regex", "science"]
+default = ["sqlite", "regex", "science", "extras"]
 # The SQLite words, for :memory: databases.
 sqlite = ["dep:forthling-sqlite"]
 # The regular expression words.
 regex = ["dep:forthling-regex"]
 # The float vector, matrix and linear algebra words.
 science = ["dep:forthling-science"]
+# The small building blocks: CSV words.
+extras = ["dep:forthling-extras"]
 # The HTTP words, for the hosts of --allow-host; off by default, since they reach the network.
 http = ["dep:forthling-http"]
 
@@ -33,6 +35,7 @@ forthling = { path = "..", version = "0.2.4" }
 forthling-sqlite = { path = "../sqlite", version = "0.2.4", optional = true }
 forthling-regex = { path = "../regex", version = "0.2.4", optional = true }
 forthling-science = { path = "../science", version = "0.2.4", optional = true }
+forthling-extras = { path = "../extras", version = "0.2.4", optional = true }
 forthling-http = { path = "../http", version = "0.2.4", optional = true }
 serde_json = "1"
 

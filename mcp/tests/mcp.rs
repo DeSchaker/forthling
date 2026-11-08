@@ -473,6 +473,16 @@ fn regular_expressions_are_there() {
     assert_eq!(r["structuredContent"]["error"]["code"], -262);
 }
 
+#[cfg(feature = "extras")]
+#[test]
+fn csv_words_are_there() {
+    let mut s = server();
+    let r = eval(&mut s, "ALSO CSV S\" ab,c\" CSV-FIELD DROP TYPE 2DROP");
+    assert_eq!(r["structuredContent"]["output"], "ab");
+    let r = eval(&mut s, "S\\\" \\\"open\" CSV-FIELD");
+    assert_eq!(r["structuredContent"]["error"]["code"], -265);
+}
+
 #[cfg(feature = "http")]
 mod http {
     use super::*;

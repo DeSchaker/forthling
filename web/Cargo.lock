@@ -7,6 +7,13 @@ name = "forthling"
 version = "0.2.4"
 
 [[package]]
+name = "forthling-extras"
+version = "0.2.4"
+dependencies = [
+ "forthling",
+]
+
+[[package]]
 name = "forthling-regex"
 version = "0.2.4"
 dependencies = [
@@ -26,6 +33,7 @@ name = "forthling-web"
 version = "0.1.0"
 dependencies = [
  "forthling",
+ "forthling-extras",
  "forthling-regex",
  "forthling-science",
 ]

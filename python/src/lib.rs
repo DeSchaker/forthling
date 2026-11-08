@@ -195,6 +195,7 @@ impl PyForth {
         forth.install(&forthling::Testing);
         forth.install(&forthling_regex::Regex);
         forth.install(&forthling_science::Science);
+        forth.install(&forthling_extras::Extras);
         let hosts = allow_hosts.unwrap_or_default();
         forth.install(&forthling_http::Http::new().allow_all(hosts.iter().map(String::as_str)));
         if sandbox {

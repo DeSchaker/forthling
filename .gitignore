@@ -3,6 +3,7 @@
 /sqlite/target/
 /regex/target/
 /science/target/
+/extras/target/
 /mcp/target/
 /web/target/
 # built from web/, see web/README.md

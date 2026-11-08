@@ -73,6 +73,16 @@ ALSO SCIENCE
 0 OVER FV[] F@ F.  1 OVER FV[] F@ F.  2 SWAP FV[] F@ F.
 ```
 
+
+## CSV words
+
+`extras/` adds the word list `CSV` (`forthling-extras`), the first of some small building blocks that only
+compute on text: `CSV-FIELD` reads one field at a time, with quotes, `CSV>STRING` and `CSV-QUOTE` read and
+write quoted fields, `CSV-SKIP` skips a header, `CSV-SEPARATOR` changes the separator. It has no dependencies
+and needs no permission: the words are in the MCP server, the Python module and the playground build, and
+`forthling-extras` is the program with them. See [extras/README.md](../extras/README.md) and the
+[example](../extras/examples/csv.fs).
+
 ## Regular expressions
 
 `regex/` adds the word list `REGEX`: `RE-MATCH?`, `RE-FIND`, `RE-GROUP`, `RE-COUNT` and

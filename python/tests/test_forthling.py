@@ -206,6 +206,12 @@ class AddWordTest(unittest.TestCase):
         f = forthling.Forth()
         self.assertEqual(f.interpret('ALSO REGEX S" order 66" S" [0-9]+" RE-FIND . . .'), "-1 2 6 ")
 
+    def test_csv(self):
+        f = forthling.Forth()
+        self.assertEqual(f.interpret('ALSO CSV S" ab,c" CSV-FIELD DROP TYPE 2DROP'), "ab")
+        with self.assertRaises(forthling.ForthError):
+            f.interpret('S\\" \\"open" CSV-FIELD')
+
     def test_linear_algebra(self):
         f = forthling.Forth()
         # 2x + y = 5 and x + 3y = 10 give x = 1 and y = 3.

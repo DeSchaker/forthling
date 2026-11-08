@@ -144,6 +144,29 @@ jobs:
       - run: cargo clippy --manifest-path science/Cargo.toml --all-targets -- -D warnings
       - run: cargo test --manifest-path science/Cargo.toml
 
+  # The CSV words (and more to come) in extras/, a crate of its
+  # own without dependencies, on its rust-version and on the latest stable.
+  extras:
+    strategy:
+      matrix:
+        include:
+          - { os: ubuntu-latest, rust: "1.85" }
+          - { os: ubuntu-latest, rust: stable }
+          - { os: windows-latest, rust: stable }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: extras
+      - run: cargo fmt --manifest-path extras/Cargo.toml -- --check
+      - run: cargo clippy --manifest-path extras/Cargo.toml --all-targets -- -D warnings
+      - run: cargo test --manifest-path extras/Cargo.toml
+
   # The HTTP words in http/, a crate of its own with ureq, on its rust-version
   # and on the latest stable. Its tests talk to a small server on the machine.
   http:
@@ -215,6 +238,7 @@ jobs:
       - run: cargo test --manifest-path mcp/Cargo.toml --no-default-features
       - run: cargo test --manifest-path mcp/Cargo.toml --no-default-features --features regex
       - run: cargo test --manifest-path mcp/Cargo.toml --no-default-features --features science
+      - run: cargo test --manifest-path mcp/Cargo.toml --no-default-features --features extras
       - run: cargo test --manifest-path mcp/Cargo.toml --all-features
 
   # forthling in the browser: web/ builds a WebAssembly module (no

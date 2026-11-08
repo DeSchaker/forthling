@@ -41,6 +41,13 @@ name = "forthling"
 version = "0.2.4"
 
 [[package]]
+name = "forthling-extras"
+version = "0.2.4"
+dependencies = [
+ "forthling",
+]
+
+[[package]]
 name = "forthling-http"
 version = "0.2.4"
 dependencies = [
@@ -53,6 +60,7 @@ name = "forthling-py"
 version = "0.1.0"
 dependencies = [
  "forthling",
+ "forthling-extras",
  "forthling-http",
  "forthling-regex",
  "forthling-science",
