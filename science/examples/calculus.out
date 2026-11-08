@@ -1,0 +1,9 @@
+P(|Z| < 1.96) = 0.950004 
+error estimate below 1e-9: -1 
+Simpson, 20 panels: 0.950003 
+Romberg: 0.950004 
+sqrt: 0.666667 
+double integral: 0.25 
+y(10) with ODE-RKF: 88.6508 
+y(10) exactly: 88.6508 
+y(10) with RK4: 88.6508 

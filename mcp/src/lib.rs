@@ -815,7 +815,7 @@ fn instructions(s: &Settings) -> String {
         ""
     };
     let science = if cfg!(feature = "science") {
-        " `ALSO SCIENCE` gives float vectors and matrices on the heap (`FV-NEW`, `MAT-NEW`, `MAT-FROM-STACK`; elements through `FV[]` and `MAT[]` with `F@` and `F!`) and linear algebra: `MAT-SOLVE`, `MAT-DET`, `MAT-INV`, `MAT-LU`, `MAT*`. Special functions on the float stack: `GAMMA`, `LNGAMMA`, `n FACTORIAL`, `ERF`, `ERFC`, `GAMMA-P`, `GAMMA-Q` (`F: a x`), `BETA`, `BETA-I` (`F: a b x`), `LOGISTIC`."
+        " `ALSO SCIENCE` gives float vectors and matrices on the heap (`FV-NEW`, `MAT-NEW`, `MAT-FROM-STACK`; elements through `FV[]` and `MAT[]` with `F@` and `F!`) and linear algebra: `MAT-SOLVE`, `MAT-DET`, `MAT-INV`, `MAT-LU`, `MAT*`. Special functions on the float stack: `GAMMA`, `LNGAMMA`, `n FACTORIAL`, `ERF`, `ERFC`, `GAMMA-P`, `GAMMA-Q` (`F: a x`), `BETA`, `BETA-I` (`F: a b x`), `LOGISTIC`. Integration and differential equations take a function as an execution token (`' SQ`, effect `F: x -- y`): `F: a b tol` then `INTEGRATE` or `ROMBERG` (`xt --`, leaves `r err`), `xt n SIMPSON` or `TRAPEZOID` (`F: a b`), and for a state `y` (float vector) with `dy` filled by `( y dy -- ) ( F: t -- )`: `y xt steps RK4` (`F: t0 t1`), `y xt ODE-RKF` (`F: t0 t1 tol`)."
     } else {
         ""
     };

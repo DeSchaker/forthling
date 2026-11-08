@@ -1,12 +1,14 @@
-# Numerical words for forthling: linear algebra and special functions
+# Numerical words for forthling: linear algebra, special functions, integration and differential equations
 
 The word list `SCIENCE` for [forthling](https://github.com/DeSchaker/forthling): vectors of
 floats, matrices, and the linear algebra on them (solving equations, determinants,
 inverses and condition numbers), and the special functions: gamma, error function,
-incomplete gamma and beta, logistic. It is plain Rust, built from the mathematics, with no
-dependencies, and it reaches nothing outside Forth: no permission is needed, so the words
-work in the sandbox, in the MCP server, in the Python module and in the playground, where
-they are built in.
+incomplete gamma and beta, logistic, and numerical integration and ordinary differential
+equations for a function that the program passes as an execution token. It is built from
+the mathematics, with no dependencies (the arrays and the special functions are Rust, the
+integration and the differential equations are Forth, in `src/calculus.fs`), and it reaches
+nothing outside Forth: no permission is needed, so the words work in the sandbox, in the
+MCP server, in the Python module and in the playground, where they are built in.
 
 ## Running
 
@@ -109,6 +111,58 @@ P(|Z| > 1.96) = 0.049996
 chi-square, 1 degree, 3.841: p = 0.050014
 chi-square, 10 degrees, 18.307: p = 0.050001
 P(heads <= 14 of 40) = 0.040345
+```
+
+## Integration
+
+The function is an execution token with the effect `( F: x -- y )`. `ALSO SCIENCE` first.
+
+| Word | Stack | |
+|---|---|---|
+| `TRAPEZOID` | `( xt n -- ) ( F: a b -- r )` | the trapezoid rule with n panels |
+| `SIMPSON` | `( xt n -- ) ( F: a b -- r )` | Simpson's rule with n panels (n is made even); exact for a cubic |
+| `TRAPEZOID-TOL` | `( xt -- ) ( F: a b tol -- r err )` | the trapezoid rule, halving the panels until two sums differ by at most `tol * max(1, abs(r))` |
+| `ROMBERG` | `( xt -- ) ( F: a b tol -- r err )` | the same sums with Richardson extrapolation; fast for a smooth function |
+| `INTEGRATE` | `( xt -- ) ( F: a b tol -- r err )` | adaptive Gauss-Legendre: the interval with the largest error is split until the errors add up to at most `tol * max(1, abs(r))` |
+
+`err` is an estimate, not a bound. For `ROMBERG` and `TRAPEZOID-TOL` it is the difference
+between the last two values. For `INTEGRATE` it is the difference between one 5-point
+Gauss-Legendre rule and two on the halves of each interval, which is usually far above the
+true error (5 points are exact up to degree 9). `ROMBERG` and `TRAPEZOID-TOL` throw -264
+after 20 halvings, `INTEGRATE` after 500 intervals; `TRAPEZOID` and `SIMPSON` throw -24 for
+fewer than 1 panel. The ends may be in either order (the integral changes sign), and the
+function may integrate again: a double integral is an `INTEGRATE` in the word that
+`INTEGRATE` calls. Each word keeps its floats in a scratch vector that it frees at the end.
+
+## Ordinary differential equations
+
+The state `y` is a float vector. The derivative is an execution token with the effect
+`( y dy -- ) ( F: t -- )` that fills `dy` with y'(t). Both words change `y` in place.
+
+| Word | Stack | |
+|---|---|---|
+| `RK4` | `( y xt steps -- ) ( F: t0 t1 -- )` | the classical Runge-Kutta method of order 4 with a fixed number of steps |
+| `ODE-RKF` | `( y xt -- ) ( F: t0 t1 tol -- )` | the adaptive Runge-Kutta-Fehlberg method of orders 4 and 5; t1 may be below t0 |
+
+`ODE-RKF` keeps the error of a step below `tol * (1 + abs(y))` in each component, and
+throws -264 when the step gets too small (for example at a singularity) or after 100000
+steps. `RK4` throws -24 for fewer than 1 step. The tests check the fourth-order
+convergence of `RK4` (twice the steps gives about 16 times less error) and compare
+`ODE-RKF` with closed solutions (decay, the oscillator over a period and backwards in time).
+
+The [example](examples/calculus.fs) integrates the normal density, a function that is not
+smooth and a double integral, and solves logistic growth:
+
+```
+P(|Z| < 1.96) = 0.950004
+error estimate below 1e-9: -1
+Simpson, 20 panels: 0.950003
+Romberg: 0.950004
+sqrt: 0.666667
+double integral: 0.25
+y(10) with ODE-RKF: 88.6508
+y(10) exactly: 88.6508
+y(10) with RK4: 88.6508
 ```
 
 ## Conditioning

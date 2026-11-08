@@ -1,6 +1,6 @@
 // The help text of the SCIENCE word list, in the form of src/help.txt of forthling.
 [FORTH]
-SCIENCE ( -- ) The word list of the FV- and MAT- words for float vectors, matrices, linear algebra and special functions. ALSO SCIENCE adds it to the search order.
+SCIENCE ( -- ) The word list of the FV- and MAT- words for float vectors, matrices, linear algebra, special functions, integration and differential equations. ALSO SCIENCE adds it to the search order.
 [SCIENCE]
 FV-NEW ( n -- a ) A vector of n floats, all zero, on the heap; the program FREEs it. Elements are read and written with FV[] and F@ F!. ;; ALSO SCIENCE 3 FV-NEW FV-LEN . PREVIOUS => 3
 FV-FROM-STACK ( n -- a ) ( F: x1 ... xn -- ) A vector of the n floats on the float stack. ;; ALSO SCIENCE 5e 7e 2 FV-FROM-STACK 1 SWAP FV[] F@ F>S . PREVIOUS => 7
@@ -44,3 +44,33 @@ BETA ( F: a b -- r ) The beta function Gamma(a) Gamma(b) / Gamma(a + b), for a a
 BETA-I ( F: a b x -- r ) The regularized incomplete beta function I(x; a, b) for a, b > 0 and x from 0 to 1: the cumulative distribution of the beta distribution. ;; ALSO SCIENCE 2e 3e 0.5e BETA-I 1e3 F* F>S . PREVIOUS => 687
 LOGISTIC ( F: x -- r ) The logistic function 1 / (1 + e^-x); no overflow for any x. ;; ALSO SCIENCE 0e LOGISTIC 10e F* F>S . PREVIOUS => 5
 LOGISTIC-D ( F: x -- r ) The derivative of the logistic function, s (1 - s) with s = LOGISTIC(x). ;; ALSO SCIENCE 0e LOGISTIC-D 100e F* F>S . PREVIOUS => 25
+TRAPEZOID ( xt n -- ) ( F: a b -- r ) The integral of the function xt, with the effect ( F: x -- y ), from a to b by the trapezoid rule with n panels; throws -24 when n is below 1. ;; ALSO SCIENCE -1e 1e ' FABS 2 TRAPEZOID F>S . PREVIOUS => 1
+SIMPSON ( xt n -- ) ( F: a b -- r ) The integral of the function xt, with the effect ( F: x -- y ), from a to b by Simpson's rule with n panels (n is made even); exact for a cubic. Throws -24 when n is below 1. ;; ALSO SCIENCE 0e 1e ' FEXP 10 SIMPSON 1e6 F* F>S . PREVIOUS => 1718282
+TRAPEZOID-TOL ( xt -- ) ( F: a b tol -- r err ) The integral of the function xt by the trapezoid rule, halving the panels until two sums differ by at most tol * max(1, |r|); leaves the result and that difference. Throws -264 after 20 halvings. ;; ALSO SCIENCE 0e 3.141592653589793e ' FSIN 1e-8 TRAPEZOID-TOL FDROP 1e3 F* 0.5e F+ F>S . PREVIOUS => 2000
+ROMBERG ( xt -- ) ( F: a b tol -- r err ) The integral of the function xt by Romberg's method (the trapezoid rule with Richardson extrapolation), until two values differ by at most tol * max(1, |r|); leaves the result and that difference. Fast for a smooth function. Throws -264 after 20 halvings. ;; ALSO SCIENCE 0e 3.141592653589793e ' FSIN 1e-10 ROMBERG FDROP 1e3 F* 0.5e F+ F>S . PREVIOUS => 2000
+INTEGRATE ( xt -- ) ( F: a b tol -- r err ) The integral of the function xt by adaptive Gauss-Legendre: it splits the interval with the largest error until the sum of the errors is at most tol * max(1, |r|). Leaves the result and the error estimate (the difference between one 5-point rule and two on the halves, usually far above the true error). Copes with a function that is not smooth; throws -264 after 500 intervals. ;; ALSO SCIENCE 0e 1e ' FSQRT 1e-8 INTEGRATE FDROP 1e6 F* 0.5e F+ F>S . PREVIOUS => 666667
+RK4 ( y xt steps -- ) ( F: t0 t1 -- ) Solve y' = f(t, y) from t0 to t1 with the classical Runge-Kutta method of order 4 in a fixed number of steps. y is a float vector that changes in place; xt is a word with the effect ( y dy -- ) ( F: t -- ) that fills dy with the derivative. Throws -24 when steps is below 1. ;; ALSO SCIENCE : DECAY FDROP SWAP 0 SWAP FV[] F@ FNEGATE 0 SWAP FV[] F! ; 1e 1 FV-FROM-STACK DUP ' DECAY 10 0e 1e RK4 0 SWAP FV[] F@ 1e6 F* F>S . PREVIOUS => 367879
+ODE-RKF ( y xt -- ) ( F: t0 t1 tol -- ) Solve y' = f(t, y) from t0 to t1 with the adaptive Runge-Kutta-Fehlberg method of orders 4 and 5: it chooses the steps so that the error of a step stays below tol * (1 + |y|) in each component. y is a float vector that changes in place; xt is a word with the effect ( y dy -- ) ( F: t -- ). t1 may be below t0. Throws -264 when the step gets too small or after 100000 steps. ;; ALSO SCIENCE : DECAY2 FDROP SWAP 0 SWAP FV[] F@ FNEGATE 0 SWAP FV[] F! ; 1e 1 FV-FROM-STACK DUP ' DECAY2 0e 1e 1e-9 ODE-RKF 0 SWAP FV[] F@ 1e6 F* F>S . PREVIOUS => 367879
+(F<=) ( F: x y -- ) ( -- flag ) True when x <= y; false when one is NaN. A helper of the integration words.
+(S!) ( i s -- ) ( F: x -- ) Store x in element i of the scratch vector s. A helper of the integration words.
+(S@) ( i s -- ) ( F: -- x ) Fetch element i of the scratch vector s. A helper of the integration words.
+(T0) ( xt s -- ) The first trapezoid sum, for the helpers of ROMBERG and TRAPEZOID-TOL.
+(TNEXT) ( xt level s -- ) The trapezoid sum with the panels halved, for the helpers of ROMBERG and TRAPEZOID-TOL.
+(CONVERGED?) ( k -- flag ) ( F: err r tol -- ) True when err <= tol * max(1, |r|) after 3 halvings; a helper of ROMBERG and TRAPEZOID-TOL.
+(ROMBERG-ROW) ( k e s -- ) The next row of the Romberg table; a helper of ROMBERG.
+(GL-X1) ( F: -- x ) The second node of the 5-point Gauss-Legendre rule; a helper of INTEGRATE.
+(GL-X2) ( F: -- x ) The third node of the 5-point Gauss-Legendre rule; a helper of INTEGRATE.
+(GL-W1) ( F: -- w ) The weight of the node GL-X1; a helper of INTEGRATE.
+(GL-W2) ( F: -- w ) The weight of the node GL-X2; a helper of INTEGRATE.
+(G5PAIR) ( xt v -- ) ( F: x w -- r ) The contribution of a pair of nodes to the 5-point rule; a helper of INTEGRATE.
+(G5) ( xt -- ) ( F: a b -- r ) The integral over [a, b] by the 5-point Gauss-Legendre rule; a helper of INTEGRATE.
+(INTERVALS) ( -- n ) The most intervals that INTEGRATE keeps, 500.
+(ROW!) ( xt m r -- ) ( F: a b -- ) Evaluate an interval and store it in row r of the matrix m; a helper of INTEGRATE.
+(COMB) ( n y ks tab r cols out -- ) ( F: h -- ) A linear combination of stage vectors; a helper of ODE-RKF.
+(LC) ( y k out -- ) ( F: c -- ) out = y + c * k; a helper of RK4.
+(TROW) ( m r -- ) ( F: x0 ... x5 -- ) Store six floats in row r of a matrix; a helper of ODE-RKF.
+(RKF-TABLE) ( -- m ) The matrix of coefficients of Fehlberg's method; a helper of ODE-RKF.
+(FACTOR) ( F: en -- f ) The factor for the next step of ODE-RKF, 0.9 en^-1/5 between 1/5 and 5.
+(TOTALS) ( m n s -- ) Add up the integrals and the errors of the n intervals of m into the scratch vector s; a helper of INTEGRATE.
+(WORST) ( m n s -- i ) The number of the interval with the largest error; a helper of INTEGRATE.
+(ENOUGH?) ( s -- flag ) True when the error sum of INTEGRATE is within the tolerance; a helper of INTEGRATE.

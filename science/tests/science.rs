@@ -336,14 +336,23 @@ fn every_word_has_a_help_line_and_its_examples_work() {
 }
 
 #[test]
-fn the_example_gives_the_output_beside_it() {
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/linear_algebra.fs");
-    let mut f = Forth::new();
-    f.install(&Science);
-    f.include(path).unwrap_or_else(|e| panic!("{e}"));
-    let out = String::from_utf8_lossy(f.output()).into_owned();
-    let expected = std::fs::read_to_string(path.replace(".fs", ".out")).unwrap();
-    assert_eq!(out, expected);
+fn the_examples_give_the_output_beside_them() {
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/examples");
+    let mut count = 0;
+    for entry in std::fs::read_dir(dir).unwrap() {
+        let path = entry.unwrap().path();
+        if path.extension().is_none_or(|e| e != "fs") {
+            continue;
+        }
+        let mut f = Forth::new();
+        f.install(&Science);
+        f.include(path.to_str().unwrap()).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+        let out = String::from_utf8_lossy(f.output()).into_owned();
+        let expected = std::fs::read_to_string(path.with_extension("out")).unwrap();
+        assert_eq!(out, expected, "{}", path.display());
+        count += 1;
+    }
+    assert!(count >= 3, "found {count} examples");
 }
 
 /// One float from a one-argument word: `eval1(f, "GAMMA", 0.5)`.
@@ -541,4 +550,149 @@ fn logistic() {
     near(eval1(&mut f, "LOGISTIC-D", 2.0), 0.8807970779778823 * 0.11920292202211755, 1e-14);
     assert_eq!(eval1(&mut f, "LOGISTIC-D", 1000.0), 0.0);
     assert_eq!(eval1(&mut f, "LOGISTIC-D", -2.0), eval1(&mut f, "LOGISTIC-D", 2.0));
+}
+
+/// Words that the tests of integration and differential equations share.
+const CALCULUS: &str = "
+: SQ  FDUP F* ;
+: CUBE  FDUP FDUP F* F* ;
+: X9  FDUP FDUP F* FDUP F* FDUP F* F* ;
+FVARIABLE XV
+: INNER  XV F@ F* ;
+: OUTER  XV F!  0e 1e ['] INNER 1e-10 INTEGRATE FDROP ;
+: DECAY ( y dy -- ) ( F: t -- )  FDROP SWAP 0 SWAP FV[] F@ FNEGATE 0 SWAP FV[] F! ;
+: OSC ( y dy -- ) ( F: t -- )  FDROP
+   OVER 1 SWAP FV[] F@  DUP 0 SWAP FV[] F!
+   OVER 0 SWAP FV[] F@ FNEGATE  DUP 1 SWAP FV[] F!  2DROP ;
+: BLOW ( y dy -- ) ( F: t -- )  FDROP SWAP 0 SWAP FV[] F@ FDUP F* 0 SWAP FV[] F! ;
+";
+
+fn calculus() -> Forth {
+    let mut f = forth();
+    f.interpret(CALCULUS).unwrap();
+    f
+}
+
+#[test]
+fn trapezoid_and_simpson() {
+    let mut f = calculus();
+    // Simpson is exact for a cubic; the trapezoid rule is not.
+    assert_eq!(floats(&mut f, "0e 1e ' CUBE 2 SIMPSON"), [0.25]);
+    assert_eq!(floats(&mut f, "0e 1e ' SQ 3 SIMPSON"), floats(&mut f, "0e 1e ' SQ 4 SIMPSON"));
+    near(floats(&mut f, "0e 1e ' SQ 10 SIMPSON")[0], 1.0 / 3.0, 1e-15);
+    // Ten panels of the trapezoid rule for x^2: 1/3 + h^2 / 6.
+    near(floats(&mut f, "0e 1e ' SQ 10 TRAPEZOID")[0], 1.0 / 3.0 + 0.01 / 6.0, 1e-14);
+    // The ends in either order.
+    near(floats(&mut f, "1e 0e ' SQ 10 SIMPSON")[0], -1.0 / 3.0, 1e-15);
+    assert_eq!(code(&mut f, "0e 1e ' SQ 0 SIMPSON"), -24);
+    assert_eq!(code(&mut f, "0e 1e ' SQ -3 TRAPEZOID"), -24);
+}
+
+#[test]
+fn romberg_and_trapezoid_with_tolerance() {
+    let mut f = calculus();
+    let r = floats(&mut f, "0e 3.141592653589793e ' FSIN 1e-10 ROMBERG");
+    near(r[0], 2.0, 1e-10);
+    assert!(r[1] >= 0.0 && r[1] < 1e-9, "{r:?}");
+    let r = floats(&mut f, "0e 1e ' FEXP 1e-12 ROMBERG");
+    near(r[0], std::f64::consts::E - 1.0, 1e-12);
+    let r = floats(&mut f, "0e 3.141592653589793e ' FSIN 1e-6 TRAPEZOID-TOL");
+    near(r[0], 2.0, 1e-5);
+    assert!(r[1] < 1e-5, "{r:?}");
+    // A tolerance that cannot be met: -264 after 20 halvings.
+    assert_eq!(code(&mut f, "0e 1e ' SQ -1e ROMBERG"), SCIENCE_ERROR);
+    f.interpret("FCLEAR").unwrap();
+}
+
+#[test]
+fn adaptive_gauss_legendre() {
+    let mut f = calculus();
+    // Five points are exact up to degree 9.
+    let r = floats(&mut f, "0e 1e ' X9 1e-12 INTEGRATE");
+    near(r[0], 0.1, 1e-14);
+    let r = floats(&mut f, "0e 1e ' FSQRT 1e-8 INTEGRATE");
+    near(r[0], 2.0 / 3.0, 1e-8);
+    assert!(r[1] <= 1e-8, "{r:?}");
+    // 1 / (1 + x^2) gives the arctangent.
+    let r =
+        floats(&mut f, "-1e 1e : LORENTZ FDUP F* 1e F+ 1e FSWAP F/ ; ' LORENTZ 1e-12 INTEGRATE");
+    near(r[0], std::f64::consts::FRAC_PI_2, 1e-12);
+    // A reversed interval changes the sign; an empty one is zero.
+    let r = floats(&mut f, "1e 0e ' X9 1e-12 INTEGRATE");
+    near(r[0], -0.1, 1e-14);
+    assert_eq!(floats(&mut f, "2e 2e ' X9 1e-12 INTEGRATE"), [0.0, 0.0]);
+    // A peak that needs many intervals.
+    let r = floats(&mut f, "0e 1e : PEAK 0.3e F- SQ 1e-4 F+ 1e-4 FSWAP F/ ; ' PEAK 1e-8 INTEGRATE");
+    // The integral of 1e-4 / ((x - 0.3)^2 + 1e-4) over [0, 1] is 0.01 (atan(70) + atan(30)).
+    near(r[0], 0.01 * (70.0f64.atan() + 30.0f64.atan()), 1e-8);
+    assert!(r[1] < 1e-7, "{r:?}");
+    // Too many intervals: -264.
+    assert_eq!(code(&mut f, "0e 1e : WILD 1000e F* FSIN ; ' WILD 1e-14 INTEGRATE"), SCIENCE_ERROR);
+    f.interpret("FCLEAR").unwrap();
+}
+
+#[test]
+fn integration_can_be_nested() {
+    // The integral of x * y over the unit square is 1/4: the function that the
+    // outer integral calls integrates again.
+    let mut f = calculus();
+    let r = floats(&mut f, "0e 1e ' OUTER 1e-9 INTEGRATE");
+    near(r[0], 0.25, 1e-9);
+}
+
+#[test]
+fn integration_throws_pass_through() {
+    let mut f = calculus();
+    // A function that throws leaves the error as it is.
+    assert_eq!(code(&mut f, "0e 1e : BAD FDROP -77 THROW ; ' BAD 1e-9 INTEGRATE"), -77);
+}
+
+#[test]
+fn runge_kutta() {
+    let mut f = calculus();
+    f.interpret("1e 1 FV-FROM-STACK VALUE Y").unwrap();
+    f.interpret("Y ' DECAY 10 0e 1e RK4").unwrap();
+    near(floats(&mut f, "0 Y FV[] F@")[0], (-1.0f64).exp(), 1e-6);
+    // The error falls with the fourth power of the step.
+    let err = |f: &mut Forth, steps: u32| {
+        f.interpret("1e 1 FV-FROM-STACK TO Y").unwrap();
+        f.interpret(&format!("Y ' DECAY {steps} 0e 1e RK4")).unwrap();
+        (floats(f, "0 Y FV[] F@")[0] - (-1.0f64).exp()).abs()
+    };
+    let (e1, e2) = (err(&mut f, 10), err(&mut f, 20));
+    assert!(e1 / e2 > 12.0 && e1 / e2 < 20.0, "{e1} {e2}");
+    // A system: the oscillator, one period.
+    f.interpret("1e 0e 2 FV-FROM-STACK TO Y").unwrap();
+    f.interpret("Y ' OSC 200 0e 6.283185307179586e RK4").unwrap();
+    let y = floats(&mut f, "0 Y FV[] F@ 1 Y FV[] F@");
+    near(y[0], 1.0, 1e-8);
+    assert!(y[1].abs() < 1e-7, "{y:?}");
+    assert_eq!(code(&mut f, "Y ' OSC 0 0e 1e RK4"), -24);
+}
+
+#[test]
+fn adaptive_runge_kutta() {
+    let mut f = calculus();
+    f.interpret("1e 1 FV-FROM-STACK VALUE Y").unwrap();
+    f.interpret("Y ' DECAY 0e 1e 1e-9 ODE-RKF").unwrap();
+    near(floats(&mut f, "0 Y FV[] F@")[0], (-1.0f64).exp(), 1e-8);
+    // The oscillator over a period, and backwards in time.
+    f.interpret("1e 0e 2 FV-FROM-STACK TO Y").unwrap();
+    f.interpret("Y ' OSC 0e 6.283185307179586e 1e-10 ODE-RKF").unwrap();
+    let y = floats(&mut f, "0 Y FV[] F@ 1 Y FV[] F@");
+    near(y[0], 1.0, 1e-8);
+    assert!(y[1].abs() < 1e-8, "{y:?}");
+    f.interpret("1e 0e 2 FV-FROM-STACK TO Y").unwrap();
+    f.interpret("Y ' OSC 0e -3e 1e-9 ODE-RKF").unwrap();
+    let y = floats(&mut f, "0 Y FV[] F@ 1 Y FV[] F@");
+    near(y[0], (-3.0f64).cos(), 1e-7);
+    near(y[1], 3.0f64.sin(), 1e-7);
+    // An interval of no length leaves y as it was.
+    f.interpret("5e 1 FV-FROM-STACK TO Y").unwrap();
+    f.interpret("Y ' DECAY 2e 2e 1e-9 ODE-RKF").unwrap();
+    assert_eq!(floats(&mut f, "0 Y FV[] F@"), [5.0]);
+    // y' = y^2 with y(0) = 1 blows up at t = 1: the step gets too small and the
+    // word ends with -264, not in a loop.
+    f.interpret("1e 1 FV-FROM-STACK TO Y").unwrap();
+    assert_eq!(code(&mut f, "Y ' BLOW 0e 2e 1e-9 ODE-RKF"), SCIENCE_ERROR);
 }
