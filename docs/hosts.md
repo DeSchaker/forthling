@@ -57,14 +57,14 @@ V DB-STEP THROW DROP  0 V DB-COLUMN TYPE
 3.53.2 ok
 ```
 
-## Vectors, matrices and linear algebra
+## Linear algebra and special functions
 
 `science/` adds the word list `SCIENCE`: float vectors (`FV-NEW`, `FV-DOT`, …), matrices
 (`MAT-NEW`, `MAT*`, `MAT-T`, …) and linear algebra (`MAT-SOLVE`, `MAT-DET`, `MAT-INV`,
-`MAT-LU`, `MAT-COND`). It is plain Rust without dependencies and reaches nothing outside
+`MAT-LU`, `MAT-COND`) and special functions (`GAMMA`, `ERF`, `GAMMA-P`, `BETA-I`, …). It is plain Rust without dependencies and reaches nothing outside
 Forth, so it needs no permission: the words are in the MCP server, the Python module and
 the playground, and `forthling-science` is the program with them. See
-[science/README.md](../science/README.md) and [the example](../science/examples/linear_algebra.fs).
+[science/README.md](../science/README.md) and the examples ([linear algebra](../science/examples/linear_algebra.fs), [special functions](../science/examples/special_functions.fs)).
 
 ```
 ALSO SCIENCE

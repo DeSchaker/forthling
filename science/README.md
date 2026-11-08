@@ -1,8 +1,9 @@
-# Vectors, matrices and linear algebra for forthling
+# Numerical words for forthling: linear algebra and special functions
 
 The word list `SCIENCE` for [forthling](https://github.com/DeSchaker/forthling): vectors of
-floats, matrices, and the linear algebra on them: solving equations, determinants,
-inverses and condition numbers. It is plain Rust, built from the mathematics, with no
+floats, matrices, and the linear algebra on them (solving equations, determinants,
+inverses and condition numbers), and the special functions: gamma, error function,
+incomplete gamma and beta, logistic. It is plain Rust, built from the mathematics, with no
 dependencies, and it reaches nothing outside Forth: no permission is needed, so the words
 work in the sandbox, in the MCP server, in the Python module and in the playground, where
 they are built in.
@@ -71,6 +72,44 @@ the [example](examples/linear_algebra.fs) has two small ones.
 | `MAT-GAUSS-JORDAN` | `( a b -- x )` | solve A X = B for a matrix B of right-hand sides |
 
 `MAT-LU`, `MAT-SOLVE` and `MAT-INV` throw -264 for a singular matrix; `MAT-DET` gives 0.
+
+## Special functions
+
+These work on the float stack and need no array. `ALSO SCIENCE` first.
+
+| Word | Stack | |
+|---|---|---|
+| `GAMMA` | `( F: x -- r )` | the gamma function; `GAMMA(n)` is (n-1)! at whole n |
+| `LNGAMMA` | `( F: x -- r )` | ln of the absolute value of gamma; works where `GAMMA` overflows |
+| `FACTORIAL` | `( n -- ) ( F: -- r )` | n! for n from 0 to 170 |
+| `ERF`, `ERFC` | `( F: x -- r )` | the error function and 1 - erf; `ERFC` keeps its digits in the tail |
+| `GAMMA-P`, `GAMMA-Q` | `( F: a x -- r )` | the regularized incomplete gamma function P(a, x) and 1 - P(a, x) |
+| `BETA` | `( F: a b -- r )` | the beta function |
+| `BETA-I` | `( F: a b x -- r )` | the regularized incomplete beta function I(x; a, b) |
+| `LOGISTIC` | `( F: x -- r )` | 1 / (1 + e^-x), without overflow |
+| `LOGISTIC-D` | `( F: x -- r )` | its derivative |
+
+`GAMMA` and `LNGAMMA` throw -46 (invalid argument) at 0 and the negative whole numbers;
+`GAMMA` and `FACTORIAL` throw -43 (result out of range) above 171.6 and 170; `FACTORIAL` of
+a negative number throws -24. `GAMMA-P`, `GAMMA-Q`, `BETA` and `BETA-I` throw -46 for a
+parameter that is not above 0 and for an x outside the range (x from 0 for the gamma
+functions, from 0 to 1 for `BETA-I`). The error function is the incomplete gamma function
+with a = 1/2, and the gamma function comes from the Stirling series. The tests compare with
+Python's `math` module (`gamma`, `lgamma`, `erf`, `erfc`) to 2e-13 relative (the gamma
+function) and 1e-12 or better for the others, and with the closed forms that exist for
+whole parameters (P(1, x) = 1 - e^-x, the Poisson sum for a whole a, and the binomial sum for
+a whole a and b).
+
+The [example](examples/special_functions.fs) turns them into the usual distributions: the
+normal (`ERF`), the chi-square (`GAMMA-Q`) and the binomial (`BETA-I`):
+
+```
+P(Z <= 1.96) = 0.975002
+P(|Z| > 1.96) = 0.049996
+chi-square, 1 degree, 3.841: p = 0.050014
+chi-square, 10 degrees, 18.307: p = 0.050001
+P(heads <= 14 of 40) = 0.040345
+```
 
 ## Conditioning
 

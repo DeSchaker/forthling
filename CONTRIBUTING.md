@@ -75,7 +75,7 @@ and `--all-features`), and builds the WebAssembly module and tests it with Node
 - `regex/`: the regular expression words, likewise a crate of its own (regex-lite), with
   the program `forthling-regex`; check and test it with `--manifest-path regex/Cargo.toml`.
   The MCP server, the web module and the Python module install it.
-- `science/`: the vector, matrix and linear algebra words (no dependencies, built from the
+- `science/`: the vector, matrix, linear algebra and special function words (no dependencies, built from the
   mathematics), likewise a crate of its own, with the program `forthling-science`; check and
   test it with `--manifest-path science/Cargo.toml`. The MCP server, the web module and the
   Python module install it.

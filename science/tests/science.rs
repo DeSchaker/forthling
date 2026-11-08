@@ -1,6 +1,12 @@
 //! The SCIENCE words, used from Forth. Reference values come from exact
 //! rational arithmetic (Python `fractions`), or from the literature.
 
+#![allow(
+    clippy::unreadable_literal,
+    clippy::float_cmp,
+    reason = "reference values are copied as printed by Python; some results must be exact"
+)]
+
 use forthling::{Cell, Forth, Limits};
 use forthling_science::{SCIENCE_ERROR, Science};
 
@@ -338,4 +344,201 @@ fn the_example_gives_the_output_beside_it() {
     let out = String::from_utf8_lossy(f.output()).into_owned();
     let expected = std::fs::read_to_string(path.replace(".fs", ".out")).unwrap();
     assert_eq!(out, expected);
+}
+
+/// One float from a one-argument word: `eval1(f, "GAMMA", 0.5)`.
+fn eval1(f: &mut Forth, word: &str, x: f64) -> f64 {
+    floats(f, &format!("{x:e} {word}"))[0]
+}
+
+fn eval2(f: &mut Forth, word: &str, a: f64, x: f64) -> f64 {
+    floats(f, &format!("{a:e} {x:e} {word}"))[0]
+}
+
+#[test]
+fn gamma_and_factorial() {
+    let mut f = forth();
+    // Reference values from Python's math module (an independent implementation).
+    let gamma = [
+        (0.1, 9.513507698668732),
+        (0.5, 1.7724538509055159),
+        (0.9, 1.068628702119319),
+        (1.5, 0.886226925452758),
+        (2.5, 1.3293403881791372),
+        (3.7, 4.170651783796603),
+        (7.25, 1155.3810139199893),
+        (12.5, 136843365.46556583),
+        (20.3, 2.97246107523557e+17),
+        (50.5, 4.29046291235196e+63),
+        (100.1, 1.47845449465148e+156),
+        (170.5, 5.56209241456e+305),
+        (-0.5, -3.544907701811032),
+        (-1.5, 2.3632718012073544),
+        (-2.7, -0.931082784838964),
+        (-10.3, -5.26236323953561e-07),
+    ];
+    for (x, want) in gamma {
+        near(eval1(&mut f, "GAMMA", x), want, 2e-13);
+    }
+    // At whole numbers gamma is a factorial, and exact where a float can be.
+    assert_eq!(eval1(&mut f, "GAMMA", 1.0), 1.0);
+    assert_eq!(eval1(&mut f, "GAMMA", 5.0), 24.0);
+    assert_eq!(eval1(&mut f, "GAMMA", 21.0), 2_432_902_008_176_640_000.0);
+    near(eval1(&mut f, "GAMMA", 171.0), 7.257415615307994e306, 1e-15);
+    near(eval1(&mut f, "GAMMA", 1e-10), 1e10, 1e-9);
+    assert_eq!(
+        floats(&mut f, "0 FACTORIAL 1 FACTORIAL 5 FACTORIAL 20 FACTORIAL"),
+        [1.0, 1.0, 120.0, 2_432_902_008_176_640_000.0]
+    );
+    near(floats(&mut f, "170 FACTORIAL")[0], 7.257415615307994e306, 1e-15);
+    // Poles, results out of range, a negative factorial.
+    assert_eq!(code(&mut f, "0e GAMMA"), -46);
+    assert_eq!(code(&mut f, "-3e GAMMA"), -46);
+    assert_eq!(code(&mut f, "172e GAMMA"), -43);
+    assert_eq!(code(&mut f, "171 FACTORIAL"), -43);
+    assert_eq!(code(&mut f, "-1 FACTORIAL"), -24);
+}
+
+#[test]
+fn log_gamma() {
+    let mut f = forth();
+    let lgamma = [
+        (0.1, 2.2527126517342055),
+        (0.5, 0.5723649429247004),
+        (0.9, 0.0663762397347431),
+        (1.5, -0.12078223763524543),
+        (2.5, 0.2846828704729196),
+        (3.7, 1.4280723266653883),
+        (7.25, 7.0521854507385395),
+        (12.5, 18.73434751193645),
+        (20.3, 40.23333683543724),
+        (50.5, 146.5192554907206),
+        (100.1, 359.5942717888569),
+        (170.5, 704.0044277342047),
+        (1000.5, 5908.674175848678),
+        (1e6, 12815504.569147611),
+        (-0.5, 1.265512123484645),
+        (-1.5, 0.8600470153764812),
+        (-2.7, -0.07140708531564521),
+        (-10.3, -14.45751544002421),
+    ];
+    for (x, want) in lgamma {
+        let got = eval1(&mut f, "LNGAMMA", x);
+        assert!(
+            (got - want).abs() <= 1e-13 * want.abs().max(1.0),
+            "lngamma({x}) = {got}, not {want}"
+        );
+    }
+    // Exactly zero at 1 and 2, and a pole at 0.
+    assert_eq!(eval1(&mut f, "LNGAMMA", 1.0), 0.0);
+    assert_eq!(eval1(&mut f, "LNGAMMA", 2.0), 0.0);
+    assert_eq!(code(&mut f, "0e LNGAMMA"), -46);
+}
+
+#[test]
+fn error_function() {
+    let mut f = forth();
+    let table = [
+        (0.0, 0.0, 1.0),
+        (0.1, 0.1124629160182849, 0.8875370839817152),
+        (0.5, 0.5204998778130465, 0.4795001221869534),
+        (1.0, 0.8427007929497149, 0.1572992070502851),
+        (1.5, 0.9661051464753108, 0.033894853524689274),
+        (2.0, 0.9953222650189527, 0.004677734981047265),
+        (3.0, 0.9999779095030014, 2.20904969985854e-05),
+        (4.5, 0.9999999998033839, 1.9661604415428876e-10),
+        (6.0, 1.0, 2.1519736712498913e-17),
+        (-0.7, -0.6778011938374183, 1.6778011938374182),
+        (-2.0, -0.9953222650189527, 1.9953222650189528),
+    ];
+    for (x, erf, erfc) in table {
+        let got = eval1(&mut f, "ERF", x);
+        assert!((got - erf).abs() <= 1e-14, "erf({x}) = {got}, not {erf}");
+        near(eval1(&mut f, "ERFC", x), erfc, 1e-12);
+    }
+    // The tail goes to 0 without an error.
+    assert_eq!(eval1(&mut f, "ERFC", 30.0), 0.0);
+    assert_eq!(eval1(&mut f, "ERF", 30.0), 1.0);
+}
+
+#[test]
+fn incomplete_gamma() {
+    let mut f = forth();
+    // P(1, x) = 1 - e^-x.
+    for x in [0.01, 0.5, 1.0, 2.0, 5.0, 40.0] {
+        near(eval2(&mut f, "GAMMA-P", 1.0, x), 1.0 - (-x).exp(), 1e-13);
+        near(eval2(&mut f, "GAMMA-Q", 1.0, x), (-x).exp(), 1e-13);
+    }
+    // Q(n, x) = e^-x (1 + x + ... + x^(n-1)/(n-1)!) for a whole n, in the
+    // series (x < n + 1) and in the fraction (x >= n + 1).
+    for n in [1_u32, 3, 8] {
+        for x in [0.3, 2.5, 7.0, 30.0] {
+            let mut term = 1.0;
+            let mut sum = 0.0;
+            for k in 0..n {
+                sum += term;
+                term *= x / (f64::from(k) + 1.0);
+            }
+            near(eval2(&mut f, "GAMMA-Q", f64::from(n), x), (-x).exp() * sum, 1e-12);
+        }
+    }
+    // The error function is P(1/2, x^2); the two sides add up to one.
+    near(eval2(&mut f, "GAMMA-P", 0.5, 4.0), 0.9953222650189527, 1e-14);
+    let (p, q) = (eval2(&mut f, "GAMMA-P", 7.3, 9.1), eval2(&mut f, "GAMMA-Q", 7.3, 9.1));
+    assert!((p + q - 1.0).abs() < 1e-14);
+    assert_eq!(eval2(&mut f, "GAMMA-P", 2.0, 0.0), 0.0);
+    assert_eq!(code(&mut f, "0e 1e GAMMA-P"), -46);
+    assert_eq!(code(&mut f, "1e -1e GAMMA-Q"), -46);
+}
+
+#[test]
+fn beta_functions() {
+    let mut f = forth();
+    near(eval2(&mut f, "BETA", 2.0, 3.0), 1.0 / 12.0, 1e-13);
+    near(eval2(&mut f, "BETA", 0.5, 0.5), std::f64::consts::PI, 1e-13);
+    let inc =
+        |f: &mut Forth, a: f64, b: f64, x: f64| floats(f, &format!("{a:e} {b:e} {x:e} BETA-I"))[0];
+    // For whole a and b: the sum of a binomial tail.
+    let binomial = |a: i32, b: i32, x: f64| -> f64 {
+        let n = a + b - 1;
+        let mut total = 0.0;
+        for j in a..=n {
+            let mut c = 1.0;
+            for i in 0..j {
+                c *= f64::from(n - i) / f64::from(i + 1);
+            }
+            total += c * x.powi(j) * (1.0 - x).powi(n - j);
+        }
+        total
+    };
+    assert_eq!(inc(&mut f, 2.0, 3.0, 0.5), 0.6875);
+    for (a, b) in [(1, 1), (1, 4), (3, 2), (5, 9), (12, 7)] {
+        for x in [0.05, 0.3, 0.5, 0.77, 0.99] {
+            near(inc(&mut f, f64::from(a), f64::from(b), x), binomial(a, b, x), 1e-12);
+        }
+    }
+    // I(x; a, b) = 1 - I(1 - x; b, a), and the ends.
+    let (u, v) = (inc(&mut f, 2.5, 4.5, 0.3), inc(&mut f, 4.5, 2.5, 0.7));
+    assert!((u + v - 1.0).abs() < 1e-14);
+    assert_eq!(inc(&mut f, 2.0, 3.0, 0.0), 0.0);
+    assert_eq!(inc(&mut f, 2.0, 3.0, 1.0), 1.0);
+    near(inc(&mut f, 1.0, 1.0, 0.37), 0.37, 1e-14);
+    assert_eq!(code(&mut f, "2e 3e 1.5e BETA-I"), -46);
+    assert_eq!(code(&mut f, "0e 3e 0.5e BETA-I"), -46);
+    assert_eq!(code(&mut f, "-1e 3e BETA"), -46);
+}
+
+#[test]
+fn logistic() {
+    let mut f = forth();
+    assert_eq!(eval1(&mut f, "LOGISTIC", 0.0), 0.5);
+    near(eval1(&mut f, "LOGISTIC", 2.0), 0.8807970779778823, 1e-15);
+    near(eval1(&mut f, "LOGISTIC", -2.0), 0.11920292202211755, 1e-15);
+    // No overflow for a large argument of either sign.
+    assert_eq!(eval1(&mut f, "LOGISTIC", 1000.0), 1.0);
+    assert_eq!(eval1(&mut f, "LOGISTIC", -1000.0), 0.0);
+    assert_eq!(eval1(&mut f, "LOGISTIC-D", 0.0), 0.25);
+    near(eval1(&mut f, "LOGISTIC-D", 2.0), 0.8807970779778823 * 0.11920292202211755, 1e-14);
+    assert_eq!(eval1(&mut f, "LOGISTIC-D", 1000.0), 0.0);
+    assert_eq!(eval1(&mut f, "LOGISTIC-D", -2.0), eval1(&mut f, "LOGISTIC-D", 2.0));
 }

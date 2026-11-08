@@ -1,6 +1,6 @@
 // The help text of the SCIENCE word list, in the form of src/help.txt of forthling.
 [FORTH]
-SCIENCE ( -- ) The word list of the FV- and MAT- words for float vectors, matrices and linear algebra. ALSO SCIENCE adds it to the search order.
+SCIENCE ( -- ) The word list of the FV- and MAT- words for float vectors, matrices, linear algebra and special functions. ALSO SCIENCE adds it to the search order.
 [SCIENCE]
 FV-NEW ( n -- a ) A vector of n floats, all zero, on the heap; the program FREEs it. Elements are read and written with FV[] and F@ F!. ;; ALSO SCIENCE 3 FV-NEW FV-LEN . PREVIOUS => 3
 FV-FROM-STACK ( n -- a ) ( F: x1 ... xn -- ) A vector of the n floats on the float stack. ;; ALSO SCIENCE 5e 7e 2 FV-FROM-STACK 1 SWAP FV[] F@ F>S . PREVIOUS => 7
@@ -33,3 +33,14 @@ MAT-DET ( a -- ) ( F: -- r ) The determinant of a square matrix; 0 when it is si
 MAT-INV ( a -- c ) The inverse of a square matrix, by Gauss-Jordan elimination. Throws -264 when it is singular.
 MAT-COND ( a -- ) ( F: -- r ) The condition number in the infinity norm: the norm of A times the norm of its inverse.
 MAT-GAUSS-JORDAN ( a b -- x ) Solve A X = B by Gauss-Jordan elimination, for a matrix B with a column for each right-hand side.
+GAMMA ( F: x -- r ) The gamma function, with GAMMA(n) = (n-1)! at whole n. Throws -46 at 0 and the negative whole numbers, -43 above 171.6. ;; ALSO SCIENCE 5e GAMMA F>S . PREVIOUS => 24
+LNGAMMA ( F: x -- r ) The natural logarithm of the absolute value of the gamma function; it does not overflow where GAMMA does. Throws -46 at 0 and the negative whole numbers. ;; ALSO SCIENCE 1000e LNGAMMA F>S . PREVIOUS => 5905
+FACTORIAL ( n -- ) ( F: -- r ) The factorial n! as a float, for n from 0 to 170; throws -24 for a negative n, -43 above 170. ;; ALSO SCIENCE 10 FACTORIAL F>S . PREVIOUS => 3628800
+ERF ( F: x -- r ) The error function, 2/sqrt(pi) times the integral of e^(-t^2) from 0 to x. ;; ALSO SCIENCE 1e ERF 1e6 F* F>S . PREVIOUS => 842700
+ERFC ( F: x -- r ) The complementary error function, 1 - erf(x), accurate for a large x where 1 - ERF would lose all digits. ;; ALSO SCIENCE 1e ERFC 1e6 F* F>S . PREVIOUS => 157299
+GAMMA-P ( F: a x -- r ) The regularized incomplete gamma function P(a, x), for a > 0 and x >= 0: the chance that a gamma variable with shape a is at most x. ;; ALSO SCIENCE 1e 1e GAMMA-P 1e6 F* F>S . PREVIOUS => 632120
+GAMMA-Q ( F: a x -- r ) The complement 1 - P(a, x) of GAMMA-P, accurate in the tail. ;; ALSO SCIENCE 1e 1e GAMMA-Q 1e6 F* F>S . PREVIOUS => 367879
+BETA ( F: a b -- r ) The beta function Gamma(a) Gamma(b) / Gamma(a + b), for a and b above 0. ;; ALSO SCIENCE 2e 3e BETA 1e3 F* F>S . PREVIOUS => 83
+BETA-I ( F: a b x -- r ) The regularized incomplete beta function I(x; a, b) for a, b > 0 and x from 0 to 1: the cumulative distribution of the beta distribution. ;; ALSO SCIENCE 2e 3e 0.5e BETA-I 1e3 F* F>S . PREVIOUS => 687
+LOGISTIC ( F: x -- r ) The logistic function 1 / (1 + e^-x); no overflow for any x. ;; ALSO SCIENCE 0e LOGISTIC 10e F* F>S . PREVIOUS => 5
+LOGISTIC-D ( F: x -- r ) The derivative of the logistic function, s (1 - s) with s = LOGISTIC(x). ;; ALSO SCIENCE 0e LOGISTIC-D 100e F* F>S . PREVIOUS => 25

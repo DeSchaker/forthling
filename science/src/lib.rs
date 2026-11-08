@@ -1,6 +1,7 @@
-//! Numerical words for forthling: the word list SCIENCE. This first group has
-//! float vectors and matrices and linear algebra (LU, solve, determinant,
-//! inverse, Gauss-Jordan). Everything is plain Rust on the Forth memory, so
+//! Numerical words for forthling: the word list SCIENCE. It has float vectors
+//! and matrices and linear algebra (LU, solve, determinant, inverse,
+//! Gauss-Jordan), and special functions (gamma, error function, incomplete
+//! gamma and beta, logistic; module `special`). Everything is plain Rust on the Forth memory, so
 //! nothing reaches outside Forth, no permission is needed and the words work
 //! in the sandbox, in the MCP server and in the playground.
 //!
@@ -26,6 +27,8 @@
 //! Scientific Library.
 
 #![allow(clippy::many_single_char_names, reason = "the names of the mathematics: a, b, x, n")]
+
+mod special;
 
 use forthling::{Cell, Extension, Forth, Res, Throw, to_cell};
 
@@ -627,5 +630,6 @@ impl Extension for Science {
         install_vectors(f);
         install_matrices(f);
         install_algebra(f);
+        special::install(f);
     }
 }

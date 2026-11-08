@@ -815,7 +815,7 @@ fn instructions(s: &Settings) -> String {
         ""
     };
     let science = if cfg!(feature = "science") {
-        " `ALSO SCIENCE` gives float vectors and matrices on the heap (`FV-NEW`, `MAT-NEW`, `MAT-FROM-STACK`; elements through `FV[]` and `MAT[]` with `F@` and `F!`) and linear algebra: `MAT-SOLVE`, `MAT-DET`, `MAT-INV`, `MAT-LU`, `MAT*`."
+        " `ALSO SCIENCE` gives float vectors and matrices on the heap (`FV-NEW`, `MAT-NEW`, `MAT-FROM-STACK`; elements through `FV[]` and `MAT[]` with `F@` and `F!`) and linear algebra: `MAT-SOLVE`, `MAT-DET`, `MAT-INV`, `MAT-LU`, `MAT*`. Special functions on the float stack: `GAMMA`, `LNGAMMA`, `n FACTORIAL`, `ERF`, `ERFC`, `GAMMA-P`, `GAMMA-Q` (`F: a x`), `BETA`, `BETA-I` (`F: a b x`), `LOGISTIC`."
     } else {
         ""
     };

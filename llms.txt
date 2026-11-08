@@ -205,7 +205,7 @@ R> CLOSE-PIPE THROW .                                \ 0, the exit status
 - [The MCP server](https://github.com/DeSchaker/forthling/blob/main/mcp/README.md): installing (`cargo install forthling-mcp`), tools, limits
 - [SQLite words](https://github.com/DeSchaker/forthling/blob/main/sqlite/README.md)
 - [Regular expression words](https://github.com/DeSchaker/forthling/blob/main/regex/README.md)
-- [Vector, matrix and linear algebra words](https://github.com/DeSchaker/forthling/blob/main/science/README.md)
+- [Linear algebra (vectors, matrices) and special functions (gamma, erf, incomplete gamma and beta) words](https://github.com/DeSchaker/forthling/blob/main/science/README.md)
 - [HTTP words](https://github.com/DeSchaker/forthling/blob/main/http/README.md)
 - [Native window for the canvas](https://github.com/DeSchaker/forthling/blob/main/window/README.md)
 - [Playground](https://deschaker.github.io/forthling/): Forth in the browser
