@@ -48,6 +48,11 @@ the open parts are in [issue #59](https://github.com/DeSchaker/forthling/issues/
   counting with another jump, the four numbers given to each picture on the float stack, and
   what one changed sign does
   ([`book002_example006_dejong.fs`](../examples/book002_example006_dejong.fs)).
+- [A fractal of spheres, by sphere tracing](book002_part005_apollonian.md): a picture of
+  something that is not stored, only a word that says how far a point is from it; rays walk
+  in steps of that distance, and the shade is the number of steps. Heavy: it does not run in
+  the playground
+  ([`book002_example007_apollonian.fs`](../examples/book002_example007_apollonian.fs)).
 
 **Book 3, Data and tools**
 
