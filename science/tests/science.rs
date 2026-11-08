@@ -1216,3 +1216,106 @@ fn polynomial_roots_are_charged() {
     let e = g.interpret("BIG POLY-ROOTS").unwrap_err();
     assert_eq!(e.code, forthling::LIMIT_EXCEEDED, "{e}");
 }
+
+/// Functions for the minimizers and the fit.
+const OPTIMIZE: &str = "
+: BOWL ( v -- ) ( F: -- f )
+   {: v :}  0 v FV[] F@ 3e F- FDUP F*  1 v FV[] F@ 1e F+ FDUP F* 2e F* F+ 5e F+ ;
+: ROSEN ( v -- ) ( F: -- f )
+   {: v :}  1e 0 v FV[] F@ F-  FDUP F*
+   1 v FV[] F@  0 v FV[] F@ FDUP F*  F-  FDUP F*  100e F*  F+ ;
+: SPHERE ( v -- ) ( F: -- f )
+   {: v :}  0e  v FV-LEN 0 ?DO  I v FV[] F@ I S>F F- FDUP F* F+  LOOP ;
+: ABS1 ( v -- ) ( F: -- f )  0 SWAP FV[] F@ FABS ;
+: NANF ( v -- ) ( F: -- f )  DROP 0e 0e F/ ;
+5 FV-NEW CONSTANT TS
+5 FV-NEW CONSTANT YS
+: LIN-DATA  5 0 DO  I S>F I TS FV[] F!  LOOP
+   1.1e 2.9e 5.2e 6.8e 9.1e  5 0 DO  4 I - YS FV[] F!  LOOP ;
+LIN-DATA
+: LINRES ( p r -- )
+   {: p r :}  5 0 DO
+      0 p FV[] F@  1 p FV[] F@ I TS FV[] F@ F* F+  I YS FV[] F@ F-  I r FV[] F!
+   LOOP ;
+: EXPRES ( p r -- )
+   {: p r :}  5 0 DO
+      0 p FV[] F@  1 p FV[] F@ I TS FV[] F@ F* FEXP F*
+      -0.5e I TS FV[] F@ F* FEXP 2e F* F-  I r FV[] F!
+   LOOP ;
+: DEAD ( p r -- )  {: p r :}  5 0 DO  0 p FV[] F@ I TS FV[] F@ F* I r FV[] F!  LOOP ;
+";
+
+fn optimize() -> Forth {
+    let mut f = forth();
+    f.interpret(OPTIMIZE).unwrap();
+    f
+}
+
+#[test]
+fn nelder_mead_finds_minima() {
+    let mut f = optimize();
+    // A bowl with its minimum 5 at (3, -1).
+    f.interpret("0e 0e 2 FV-FROM-STACK CONSTANT X").unwrap();
+    let min = floats(&mut f, "1e 1e-14 X ' BOWL NELDER-MEAD")[0];
+    near(min, 5.0, 1e-12);
+    assert_all_near_abs(&floats(&mut f, "X FV@S"), &[3.0, -1.0], 1e-6);
+    // Rosenbrock's valley, from the classic start.
+    f.interpret("-1.2e 1e 2 FV-FROM-STACK CONSTANT R").unwrap();
+    let min = floats(&mut f, "0.5e 1e-14 R ' ROSEN NELDER-MEAD")[0];
+    assert!(min < 1e-10, "{min}");
+    assert_all_near_abs(&floats(&mut f, "R FV@S"), &[1.0, 1.0], 1e-5);
+    // Four unknowns: the sphere with its centre at (0, 1, 2, 3).
+    f.interpret("5e 5e 5e 5e 4 FV-FROM-STACK CONSTANT S4").unwrap();
+    let min = floats(&mut f, "1e 1e-14 S4 ' SPHERE NELDER-MEAD")[0];
+    assert!(min < 1e-10, "{min}");
+    assert_all_near_abs(&floats(&mut f, "S4 FV@S"), &[0.0, 1.0, 2.0, 3.0], 1e-4);
+    // One unknown; a kink is no trouble for a method without derivatives.
+    f.interpret("4e 1 FV-FROM-STACK CONSTANT K").unwrap();
+    floats(&mut f, "1e 1e-12 K ' ABS1 NELDER-MEAD");
+    assert_all_near_abs(&floats(&mut f, "K FV@S"), &[0.0], 1e-5);
+}
+
+#[test]
+fn nelder_mead_errors() {
+    let mut f = optimize();
+    f.interpret("0e 0e 2 FV-FROM-STACK CONSTANT X").unwrap();
+    assert_eq!(code(&mut f, "0e 1e-9 X ' BOWL NELDER-MEAD"), -24);
+    assert_eq!(code(&mut f, "1e 1e-9 0 FV-NEW ' BOWL NELDER-MEAD"), -24);
+    assert_eq!(code(&mut f, "1e 1e-9 X ' NANF NELDER-MEAD"), SCIENCE_ERROR);
+    // A tolerance that cannot be met stops at the limit.
+    assert_eq!(code(&mut f, "1e -1e X ' BOWL NELDER-MEAD"), SCIENCE_ERROR);
+}
+
+#[test]
+fn levenberg_marquardt_fits() {
+    let mut f = optimize();
+    // A line through five points: the least squares solution is a = 1.04, b = 1.99.
+    f.interpret("0e 0e 2 FV-FROM-STACK CONSTANT P").unwrap();
+    let ssr = floats(&mut f, "1e-14 P ' LINRES 5 LM-FIT")[0];
+    assert_all_near_abs(&floats(&mut f, "P FV@S"), &[1.04, 1.99], 1e-6);
+    near(ssr, 0.107, 1e-6);
+    // The covariance of a straight line is s^2 (X^T X)^-1, with s^2 = ssr / 3.
+    f.interpret("P ' LINRES 5 LM-COVARIANCE CONSTANT C").unwrap();
+    let s2 = 0.107 / 3.0;
+    near(floats(&mut f, "0 0 C MAT[] F@")[0], 0.6 * s2, 1e-5);
+    near(floats(&mut f, "1 1 C MAT[] F@")[0], 0.1 * s2, 1e-5);
+    near(floats(&mut f, "0 1 C MAT[] F@")[0], -0.2 * s2, 1e-5);
+    // An exponential from a poor start finds the exact parameters of exact data.
+    f.interpret("1e -1e 2 FV-FROM-STACK CONSTANT E").unwrap();
+    let ssr = floats(&mut f, "1e-14 E ' EXPRES 5 LM-FIT")[0];
+    assert!(ssr < 1e-16, "{ssr}");
+    assert_all_near_abs(&floats(&mut f, "E FV@S"), &[2.0, -0.5], 1e-7);
+    assert_eq!(f.depth(), 0);
+}
+
+#[test]
+fn levenberg_marquardt_errors() {
+    let mut f = optimize();
+    f.interpret("0e 0e 2 FV-FROM-STACK CONSTANT P").unwrap();
+    assert_eq!(code(&mut f, "1e-9 P ' LINRES 0 LM-FIT"), -24);
+    assert_eq!(code(&mut f, "1e-9 0 FV-NEW ' LINRES 5 LM-FIT"), -24);
+    // Covariance needs more residuals than parameters.
+    assert_eq!(code(&mut f, "P ' LINRES 2 LM-COVARIANCE"), -24);
+    // A parameter that changes nothing makes J^T J singular.
+    assert_eq!(code(&mut f, "P ' DEAD 5 LM-COVARIANCE"), SCIENCE_ERROR);
+}

@@ -1,4 +1,4 @@
-# Numerical words for forthling: linear algebra, special functions, calculus, roots, interpolation and the FFT
+# Numerical words for forthling: linear algebra, special functions, calculus, roots, interpolation, the FFT and curve fitting
 
 The word list `SCIENCE` for [forthling](https://github.com/DeSchaker/forthling): vectors of
 floats, matrices, and the linear algebra on them (solving equations, determinants,
@@ -6,9 +6,10 @@ inverses and condition numbers), and the special functions: gamma, error functio
 incomplete gamma and beta, logistic, and numerical integration and ordinary differential
 equations for a function that the program passes as an execution token, and polynomials,
 root finding and interpolation, complex numbers, the fast Fourier transform and complex
-roots. It is built from
+roots, and minimization and curve fitting. It is built from
 the mathematics, with no dependencies (the arrays and the special functions are Rust, the
-integration and the differential equations are Forth, in `src/calculus.fs`), and it reaches
+integration, the differential equations and the minimizers are Forth, in `src/calculus.fs` and
+`src/optimize.fs`), and it reaches
 nothing outside Forth: no permission is needed, so the words work in the sandbox, in the
 MCP server, in the Python module and in the playground, where they are built in.
 
@@ -344,6 +345,45 @@ x^4 + 4: -1. - 1. i;  -1. + 1. i;  1. - 1. i;  1. + 1. i;
 bin 5 has 32. 
 bin 12 has 16. 
 sample 0 again: 1.5 
+```
+
+## Minimization and curve fitting
+
+| Word | Stack | |
+|---|---|---|
+| `NELDER-MEAD` | `( x xt -- ) ( F: step tol -- fmin )` | minimize a function of n unknowns without derivatives |
+| `LM-FIT` | `( p xt m -- ) ( F: tol -- ssr )` | nonlinear least squares by Levenberg-Marquardt |
+| `LM-COVARIANCE` | `( p xt m -- c )` | the covariance matrix of the fitted parameters |
+
+`NELDER-MEAD` takes a function `xt` with the effect `( v -- ) ( F: -- y )` for a vector `v` of
+n floats. The vector `x` is the start and changes in place to the best point; `step` is the size
+of the first simplex (each coordinate in turn is moved by it). It ends when the values at the
+points of the simplex differ by at most `tol * (1 + |best|)`, so the point is good to about the
+square root of `tol`, and it leaves the least value. It needs no derivative, so it copes with a
+function that has a kink. A NaN from the function, or more than 1000 n + 1000 steps, throws -264;
+a step of 0 throws -24.
+
+`LM-FIT` fits parameters `p` (a float vector, changed in place). The word `xt` has the effect
+`( p r -- )` and fills the vector `r` of `m` residuals, the model minus the data, for the
+parameters `p`. The Jacobian comes from central differences. The damping starts at 0.001, goes
+down after a good step and up after a bad one. It ends when a step lowers the sum of squares
+by at most `tol` times that sum, or when no damped step lowers it any more, and leaves the sum
+of squares. It throws -264 after 200 steps or for a NaN. Give it a start not too far from the fit:
+like every method of this kind it finds a local minimum.
+
+`LM-COVARIANCE` gives `(J^T J)^-1` times the sum of squares over `m - n` for the Jacobian at the
+fitted `p`. The square roots of its diagonal are the standard errors of the parameters. It needs
+`m` above `n` (-24 otherwise) and throws -264 when `J^T J` is singular, for example when a parameter does
+not change the residuals.
+
+The [example](examples/optimize.fs) minimizes Rosenbrock's valley from the classic start and fits
+`a e^(bt)` to eight points (2 e^(-t/2) with 0.01 added at the even points and taken off at the
+odd ones):
+
+```
+Rosenbrock: value 0. at 0.999999 0.999999 
+fit: a = 2.00663 b = -0.502383 sum of squares 0.000744 
+errors: 0.010385 0.004683 
 ```
 
 ## Conditioning

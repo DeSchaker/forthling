@@ -5,7 +5,8 @@
 //! ordinary differential equations (`calculus.fs`, written in Forth because the
 //! words call a function that the program passes as an execution token),
 //! polynomials, roots and interpolation (`poly`), and complex numbers, the FFT
-//! and complex roots (`complex`). The
+//! and complex roots (`complex`), and minimization and curve fitting
+//! (`optimize.fs`, Forth again). The
 //! arrays are plain Rust on the Forth memory, so nothing reaches outside Forth,
 //! no permission is needed and the words work in the sandbox, in the MCP server
 //! and in the playground.
@@ -645,8 +646,9 @@ impl Extension for Science {
         f.interpret("ALSO SCIENCE DEFINITIONS").expect("SCIENCE is a word list");
         let result = f
             .interpret(include_str!("calculus.fs"))
-            .and_then(|()| f.interpret(include_str!("roots.fs")));
+            .and_then(|()| f.interpret(include_str!("roots.fs")))
+            .and_then(|()| f.interpret(include_str!("optimize.fs")));
         f.interpret("PREVIOUS FORTH DEFINITIONS").expect("FORTH is a word list");
-        result.expect("calculus.fs and roots.fs must compile");
+        result.expect("calculus.fs, roots.fs and optimize.fs must compile");
     }
 }
