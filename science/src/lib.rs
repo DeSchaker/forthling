@@ -3,7 +3,9 @@
 //! Gauss-Jordan), and special functions (gamma, error function, incomplete
 //! gamma and beta, logistic; module `special`) and numerical integration and
 //! ordinary differential equations (`calculus.fs`, written in Forth because the
-//! words call a function that the program passes as an execution token). The
+//! words call a function that the program passes as an execution token),
+//! polynomials, roots and interpolation (`poly`), and complex numbers, the FFT
+//! and complex roots (`complex`). The
 //! arrays are plain Rust on the Forth memory, so nothing reaches outside Forth,
 //! no permission is needed and the words work in the sandbox, in the MCP server
 //! and in the playground.
@@ -31,6 +33,7 @@
 
 #![allow(clippy::many_single_char_names, reason = "the names of the mathematics: a, b, x, n")]
 
+mod complex;
 mod poly;
 mod special;
 
@@ -636,6 +639,7 @@ impl Extension for Science {
         install_algebra(f);
         special::install(f);
         poly::install(f);
+        complex::install(f);
         // Integration and differential equations call a function the program
         // passes as an execution token, so they are written in Forth.
         f.interpret("ALSO SCIENCE DEFINITIONS").expect("SCIENCE is a word list");

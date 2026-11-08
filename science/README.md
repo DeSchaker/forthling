@@ -1,11 +1,12 @@
-# Numerical words for forthling: linear algebra, special functions, calculus, roots and interpolation
+# Numerical words for forthling: linear algebra, special functions, calculus, roots, interpolation and the FFT
 
 The word list `SCIENCE` for [forthling](https://github.com/DeSchaker/forthling): vectors of
 floats, matrices, and the linear algebra on them (solving equations, determinants,
 inverses and condition numbers), and the special functions: gamma, error function,
 incomplete gamma and beta, logistic, and numerical integration and ordinary differential
 equations for a function that the program passes as an execution token, and polynomials,
-root finding and interpolation. It is built from
+root finding and interpolation, complex numbers, the fast Fourier transform and complex
+roots. It is built from
 the mathematics, with no dependencies (the arrays and the special functions are Rust, the
 integration and the differential equations are Forth, in `src/calculus.fs`), and it reaches
 nothing outside Forth: no permission is needed, so the words work in the sandbox, in the
@@ -182,8 +183,8 @@ FV-FROM-STACK` is 1 + 2x + 3x^2. `ALSO SCIENCE` first.
 | `LEGENDRE` | `( n -- ) ( F: x -- r )` | the Legendre polynomial |
 | `HERMITE` | `( n -- ) ( F: x -- r )` | the Hermite polynomial, physicists' form (H_1 = 2x) |
 | `LAGUERRE` | `( n -- ) ( F: x -- r )` | the Laguerre polynomial |
-| `QUADRATIC` | `( F: a b c -- x1 … xn ) ( -- n )` | the real roots of a x^2 + b x + c, smallest first |
-| `CUBIC` | `( F: a b c d -- x1 … xn ) ( -- n )` | the real roots of a x^3 + b x^2 + c x + d, smallest first |
+| `QUADRATIC` | `( F: a b c -- x1 â€¦ xn ) ( -- n )` | the real roots of a x^2 + b x + c, smallest first |
+| `CUBIC` | `( F: a b c d -- x1 â€¦ xn ) ( -- n )` | the real roots of a x^3 + b x^2 + c x + d, smallest first |
 
 The orthogonal polynomials use their three-term recurrences (so `n` may be large); a
 negative `n` throws -24. `QUADRATIC` and `CUBIC` leave n real roots on the float stack
@@ -194,8 +195,8 @@ Cardano's formula or the trigonometric form, and one Newton step polishes each r
 `POLY-LAGUERRE` works with real numbers only: it throws -264 when a step would be complex
 (a polynomial without a real root near the start, such as x^2 + 1) or when it does not
 settle in 100 steps. Deflating by a root found leaves a polynomial for the other roots; the
-[example](examples/roots.fs) finds all four roots of a quartic that way. Complex roots are
-for the complex numbers of a later step.
+[example](examples/roots.fs) finds all four roots of a quartic that way. For complex roots
+see "Complex roots" below: `POLY-ROOTS` finds all of them at once.
 
 ## Root finding
 
@@ -258,6 +259,91 @@ Newton's form: 0.783327
 1/(1-0.9^2) = 5.26316
 polynomial: 4.0332
 rational: 5.26316
+```
+
+## Complex numbers
+
+A complex number is two floats on the float stack, the real part below and the imaginary
+part on top: `3e 4e` is 3 + 4i. Every word below works on the float stack, so the usual
+`FDUP`, `FSWAP` and the float locals are there for them. `ALSO SCIENCE` first.
+
+| Word | Stack | |
+|---|---|---|
+| `Z+`, `Z-`, `Z*`, `Z/` | `( F: z w -- r )` | add, subtract, multiply, divide (Smith's method: no overflow where the plain formula overflows) |
+| `ZNEGATE`, `ZCONJG` | `( F: z -- w )` | the negative and the conjugate |
+| `ZABS`, `ZARG` | `( F: z -- r )` | the modulus, and the argument from -pi to pi |
+| `POLAR>Z` | `( F: r theta -- z )` | the number with that modulus and argument |
+| `ZSQRT`, `ZEXP`, `ZLN` | `( F: z -- w )` | the principal square root (real part not negative), the exponential, the principal logarithm |
+| `ZSIN`, `ZCOS`, `ZSINH`, `ZCOSH` | `( F: z -- w )` | sine, cosine and the hyperbolic ones |
+| `Z^N` | `( n -- ) ( F: z -- w )` | a whole power, also negative, by repeated squaring |
+| `Z**` | `( F: z w -- r )` | exp(w ln z), the principal value; 0 to a power with a real part above 0 is 0, otherwise -264 |
+
+The functions follow the principal values, so `-4e 0e ZSQRT` is 2i and `0e 1e 0e 1e Z**`
+(i to the power i) is 0.20788, a real number. A division by zero is no error: the floats
+give inf or NaN, as for `F/`.
+
+## The fast Fourier transform
+
+A complex vector is a pair of float vectors: the real parts and the imaginary parts, of one
+length. `ALSO SCIENCE` first.
+
+| Word | Stack | |
+|---|---|---|
+| `FFT` | `( re im -- )` | the transform in place, for a length that is a power of 2 |
+| `IFFT` | `( re im -- )` | the inverse in place, with the factor 1/N |
+| `DFT`, `IDFT` | `( re im -- re' im' )` | the same by the definition, for any length, as two new vectors |
+| `ZV-ABS` | `( re im -- m )` | a new vector with the absolute value of each element |
+
+The transform is X(k) = the sum over n of x(n) e^(-2 pi i k n / N). `FFT` is the iterative
+radix-2 algorithm with a table of twiddle factors, each from its own sine and cosine, and
+costs about 5 N log2 N operations, charged as work: a signal of 16384 points is no
+problem. Any other length throws -264 (as do two vectors of unequal length); `DFT` takes
+any length but costs N squared. `IFFT` of `FFT` gives the vectors back (for the signal of 8 points in the tests the
+difference is below 1e-14). For a real signal, leave the imaginary vector at zero, and
+`ZV-ABS` after `FFT` gives the amplitude spectrum: a wave of amplitude a with k periods in
+the N samples has peaks of height a N/2 at bin k and at bin N - k.
+
+## Complex roots
+
+| Word | Stack | |
+|---|---|---|
+| `ZQUADRATIC` | `( F: a b c -- z1 z2 )` | both roots of a x^2 + b x + c, real coefficients |
+| `ZCUBIC` | `( F: a b c d -- z1 z2 z3 )` | the three roots of a x^3 + b x^2 + c x + d, real coefficients |
+| `POLY-ROOTS` | `( c -- re im )` | all roots of a real polynomial, as two new vectors |
+| `ZPOLY-ROOTS` | `( cre cim -- re im )` | all roots of a polynomial with complex coefficients |
+| `ZPOLY-LAGUERRE` | `( cre cim -- ) ( F: z0 tol -- z )` | one root near the complex start z0 |
+| `ZPOLY-EVAL` | `( cre cim -- ) ( F: z -- w )` | the value at z, by Horner's rule |
+
+`ZQUADRATIC` and `ZCUBIC` always leave all the roots, each as two floats, real or in a
+complex pair; the roots lie in ascending order of the real part and then of the imaginary part,
+so the one on top of the float stack is the last in that order. A real root has an imaginary part of exactly 0; `ZCUBIC` takes the real roots
+from `CUBIC` and, when only one is real, the pair from the quadratic that is left after
+dividing it out. A leading coefficient of 0 throws -264.
+
+`POLY-ROOTS` and `ZPOLY-ROOTS` use Laguerre's method with complex numbers: they find a
+root from the start 0, divide it out (deflation), go on with the smaller polynomial, and
+finally polish every root on the whole polynomial. They return the real and the imaginary
+parts as two vectors that the program `FREE`s, sorted in the same way. A multiple root is the hard case for any method: it is found with fewer correct
+digits than a simple root, and the accuracy varies from root to root. The zero polynomial throws
+-264; a constant has no roots (two vectors of length 0). The work is charged in proportion to
+the square of the degree, so a very high degree stops at the limits.
+
+The [example](examples/complex.fs) shows all of this:
+
+```
+(1+2i)(3+4i) = -5. + 10. i
+(1+2i)/(3+4i) = 0.44 + 0.08 i
+sqrt(-4) = 0. + 2. i
+e^(i pi) = -1. + 0. i
+i^i = 0.20788 + 0. i
+|3+4i| = 5. 
+(1+i)^8 = 16. + 0. i
+x^2 + 2x + 5: -1. + 2. i ,  -1. - 2. i
+x^3 - 1: 1. + 0. i ,  -0.5 + 0.866025 i ,  -0.5 - 0.866025 i
+x^4 + 4: -1. - 1. i;  -1. + 1. i;  1. - 1. i;  1. + 1. i;  
+bin 5 has 32. 
+bin 12 has 16. 
+sample 0 again: 1.5 
 ```
 
 ## Conditioning

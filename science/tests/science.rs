@@ -957,3 +957,262 @@ fn root_finders() {
     )
     .unwrap();
 }
+
+/// Two floats from the float stack: a complex number is the real part, then the imaginary part.
+fn complex(f: &mut Forth, text: &str) -> (f64, f64) {
+    let v = floats(f, text);
+    assert_eq!(v.len(), 2, "{text}: {v:?}");
+    (v[0], v[1])
+}
+
+fn assert_complex(got: (f64, f64), want: (f64, f64), tol: f64) {
+    assert!(
+        (got.0 - want.0).abs() <= tol && (got.1 - want.1).abs() <= tol,
+        "{got:?} is not {want:?}"
+    );
+}
+
+fn assert_all_near_abs(got: &[f64], want: &[f64], tol: f64) {
+    assert_eq!(got.len(), want.len(), "{got:?} and {want:?}");
+    for (g, w) in got.iter().zip(want) {
+        assert!((g - w).abs() <= tol, "{got:?} is not {want:?}");
+    }
+}
+
+#[test]
+fn complex_arithmetic() {
+    let mut f = forth();
+    assert_eq!(complex(&mut f, "1e 2e 3e 4e Z+"), (4.0, 6.0));
+    assert_eq!(complex(&mut f, "1e 2e 3e 4e Z-"), (-2.0, -2.0));
+    assert_eq!(complex(&mut f, "1e 2e 3e 4e Z*"), (-5.0, 10.0));
+    assert_complex(complex(&mut f, "1e 2e 3e 4e Z/"), (0.44, 0.08), 1e-15);
+    assert_eq!(complex(&mut f, "1e 2e ZNEGATE"), (-1.0, -2.0));
+    assert_eq!(complex(&mut f, "1e 2e ZCONJG"), (1.0, -2.0));
+    assert_eq!(floats(&mut f, "3e 4e ZABS"), [5.0]);
+    near(floats(&mut f, "-1e 0e ZARG")[0], std::f64::consts::PI, 1e-15);
+    // Division does not overflow where the plain formula would.
+    assert_complex(complex(&mut f, "1e300 1e300 2e300 2e300 Z/"), (0.5, 0.0), 1e-15);
+    // i * i = -1.
+    assert_eq!(complex(&mut f, "0e 1e 0e 1e Z*"), (-1.0, 0.0));
+}
+
+#[test]
+fn complex_functions_match_the_values_from_python() {
+    let mut f = forth();
+    assert_complex(complex(&mut f, "1e 2e ZSIN"), (3.165778513216168, 1.959601041421606), 1e-14);
+    assert_complex(complex(&mut f, "1e 2e ZCOS"), (2.0327230070196656, -3.0518977991517997), 1e-14);
+    assert_complex(
+        complex(&mut f, "1e 2e ZSINH"),
+        (-0.4890562590412937, 1.4031192506220405),
+        1e-14,
+    );
+    assert_complex(complex(&mut f, "1e 2e ZCOSH"), (-0.64214812471552, 1.0686074213827783), 1e-14);
+    assert_complex(complex(&mut f, "-1e 1e ZLN"), (0.34657359027997264, 2.356194490192345), 1e-14);
+    assert_complex(complex(&mut f, "-3e -4e ZSQRT"), (1.0, -2.0), 1e-14);
+    assert_complex(complex(&mut f, "-4e 0e ZSQRT"), (0.0, 2.0), 1e-15);
+    assert_complex(complex(&mut f, "0e 0e ZSQRT"), (0.0, 0.0), 0.0);
+    // Euler: e^(i pi) = -1; the polar form is the inverse of ZABS and ZARG.
+    assert_complex(complex(&mut f, "0e 3.141592653589793e ZEXP"), (-1.0, 0.0), 1e-15);
+    assert_complex(
+        complex(&mut f, "2e 0.5e POLAR>Z"),
+        (2.0 * 0.5f64.cos(), 2.0 * 0.5f64.sin()),
+        1e-15,
+    );
+    // (1+2i)^(0.5+1i) and the whole powers.
+    assert_complex(
+        complex(&mut f, "1e 2e 0.5e 1e Z**"),
+        (0.1042330549168707, 0.48309593926990946),
+        1e-14,
+    );
+    assert_eq!(complex(&mut f, "2e 3e 5 Z^N"), (122.0, -597.0));
+    assert_complex(complex(&mut f, "1e 1e -2 Z^N"), (0.0, -0.5), 1e-16);
+    assert_eq!(complex(&mut f, "2e 3e 0 Z^N"), (1.0, 0.0));
+    assert_eq!(code(&mut f, "0e 0e 0e 1e Z**"), SCIENCE_ERROR);
+    assert_eq!(complex(&mut f, "0e 0e 2e 0e Z**"), (0.0, 0.0));
+    assert_eq!(code(&mut f, "FCLEAR 1e Z+"), -45);
+}
+
+/// The vector pair of a complex signal.
+const SIGNAL: &str = "
+1e 2e 3e 4e 0.5e -1e 2e 7e 8 FV-FROM-STACK CONSTANT RE
+0e 1e -1e 2e 0.25e 3e 1e 0e 8 FV-FROM-STACK CONSTANT IM
+";
+
+#[test]
+fn fft_matches_the_definition_of_the_transform() {
+    let mut f = forth();
+    f.interpret(SIGNAL).unwrap();
+    // The values come from the sum over e^(-2 pi i k n / N) in Python.
+    let re =
+        [18.5, 2.742640687119, -1.5, -1.742640687119, -5.5, -5.742640687119, -5.5, 6.742640687119];
+    let im = [
+        6.25,
+        -4.078427124746,
+        10.25,
+        3.578427124746,
+        -5.75,
+        1.578427124746,
+        -9.75,
+        -2.078427124746,
+    ];
+    // DFT makes new vectors, FFT changes the vectors in place, so it gets copies.
+    f.interpret("RE IM DFT CONSTANT DIM CONSTANT DRE").unwrap();
+    assert_all_near_abs(&floats(&mut f, "DRE FV@S"), &re, 1e-11);
+    assert_all_near_abs(&floats(&mut f, "DIM FV@S"), &im, 1e-11);
+    f.interpret("RE 1e FV-SCALE CONSTANT R2  IM 1e FV-SCALE CONSTANT I2  R2 I2 FFT").unwrap();
+    assert_all_near_abs(&floats(&mut f, "R2 FV@S"), &re, 1e-11);
+    assert_all_near_abs(&floats(&mut f, "I2 FV@S"), &im, 1e-11);
+}
+
+#[test]
+fn fft_and_its_inverse_give_the_signal_back() {
+    let mut f = forth();
+    f.interpret(SIGNAL).unwrap();
+    f.interpret("RE 1e FV-SCALE CONSTANT R2  IM 1e FV-SCALE CONSTANT I2").unwrap();
+    f.interpret("R2 I2 FFT  R2 I2 IFFT").unwrap();
+    let want_re = floats(&mut f, "RE FV@S");
+    let want_im = floats(&mut f, "IM FV@S");
+    assert_all_near_abs(&floats(&mut f, "R2 FV@S"), &want_re, 1e-14);
+    assert_all_near_abs(&floats(&mut f, "I2 FV@S"), &want_im, 1e-14);
+    // Not a power of 2, or two lengths, or empty: -264. DFT takes any length but 0.
+    assert_eq!(code(&mut f, "6 FV-NEW 6 FV-NEW FFT"), SCIENCE_ERROR);
+    assert_eq!(code(&mut f, "8 FV-NEW 4 FV-NEW FFT"), SCIENCE_ERROR);
+    assert_eq!(code(&mut f, "0 FV-NEW 0 FV-NEW FFT"), SCIENCE_ERROR);
+    assert_eq!(code(&mut f, "0 FV-NEW 0 FV-NEW DFT"), SCIENCE_ERROR);
+    f.interpret("1e 2e 3e 5e 7e 5 FV-FROM-STACK 5 FV-NEW DFT IDFT SWAP CONSTANT BACK").unwrap();
+    assert_all_near_abs(&floats(&mut f, "BACK FV@S"), &[1.0, 2.0, 3.0, 5.0, 7.0], 1e-13);
+    // One point: the transform is the identity.
+    f.interpret("4e 1 FV-FROM-STACK 1 FV-NEW 2DUP FFT").unwrap();
+    assert_eq!(floats(&mut f, "DROP FV@S"), [4.0]);
+}
+
+#[test]
+fn fft_finds_a_frequency() {
+    let mut f = forth();
+    // 64 samples of cos(2 pi 5 n / 64): a peak of height 32 at 5 and at 59, nothing else.
+    f.interpret(
+        ": WAVE ( -- re im ) 64 FV-NEW 64 FV-NEW  {: re im :}
+            64 0 DO I S>F 5e F* 3.141592653589793e F* 32e F/ FCOS I re FV[] F! LOOP  re im ;",
+    )
+    .unwrap();
+    f.interpret("WAVE 2DUP FFT ZV-ABS CONSTANT SPEC").unwrap();
+    let spec = floats(&mut f, "SPEC FV@S");
+    for (k, v) in spec.iter().enumerate() {
+        let want = if k == 5 || k == 59 { 32.0 } else { 0.0 };
+        assert!((v - want).abs() < 1e-12, "bin {k}: {v}");
+    }
+}
+
+#[test]
+fn the_work_of_a_transform_is_charged() {
+    let mut f = forth();
+    // 2^14 points: about 10^6 operations, charged as work, within the default limit.
+    f.interpret("16384 FV-NEW 16384 FV-NEW FFT").unwrap();
+    let mut g = Forth::sandboxed();
+    g.install(&Science);
+    g.set_limits(Limits { steps: Some(10_000), ..Limits::default() });
+    g.interpret("ALSO SCIENCE 16384 FV-NEW 16384 FV-NEW").unwrap();
+    let e = g.interpret("FFT").unwrap_err();
+    assert_eq!(e.code, forthling::LIMIT_EXCEEDED, "{e}");
+}
+
+#[test]
+fn complex_roots_of_the_quadratic_and_the_cubic() {
+    let mut f = forth();
+    // x^2 - 3x + 2: both roots real, ascending.
+    assert_eq!(floats(&mut f, "1e -3e 2e ZQUADRATIC"), [1.0, 0.0, 2.0, 0.0]);
+    // x^2 + 1: -i and i, real part exactly 0.
+    assert_eq!(floats(&mut f, "1e 0e 1e ZQUADRATIC"), [0.0, -1.0, 0.0, 1.0]);
+    // 2x^2 + 2x + 5: -1/2 +- 3/2 i, also with the leading coefficient negative.
+    assert_all_near_abs(&floats(&mut f, "2e 2e 5e ZQUADRATIC"), &[-0.5, -1.5, -0.5, 1.5], 1e-15);
+    assert_all_near_abs(&floats(&mut f, "-2e -2e -5e ZQUADRATIC"), &[-0.5, -1.5, -0.5, 1.5], 1e-15);
+    assert_eq!(code(&mut f, "0e 1e 1e ZQUADRATIC"), SCIENCE_ERROR);
+    // x^3 - 1: 1 and -1/2 +- sqrt(3)/2 i.
+    let s = 3f64.sqrt() / 2.0;
+    assert_all_near_abs(
+        &floats(&mut f, "1e 0e 0e -1e ZCUBIC"),
+        &[-0.5, -s, -0.5, s, 1.0, 0.0],
+        1e-15,
+    );
+    // Three real roots: x^3 - 6x^2 + 11x - 6.
+    assert_all_near_abs(
+        &floats(&mut f, "1e -6e 11e -6e ZCUBIC"),
+        &[1.0, 0.0, 2.0, 0.0, 3.0, 0.0],
+        1e-13,
+    );
+    // 2x^3 - 3x^2 + 4x - 5: every root is a root of the polynomial.
+    f.interpret("-5e 4e -3e 2e 4 FV-FROM-STACK CONSTANT CR  4 FV-NEW CONSTANT CI").unwrap();
+    let r = floats(&mut f, "2e -3e 4e -5e ZCUBIC");
+    assert_eq!(r.len(), 6);
+    for z in r.chunks(2) {
+        let p = complex(&mut f, &format!("{:e} {:e} CR CI ZPOLY-EVAL", z[0], z[1]));
+        assert_complex(p, (0.0, 0.0), 1e-13);
+    }
+    assert_eq!(code(&mut f, "0e 1e 1e 1e ZCUBIC"), SCIENCE_ERROR);
+}
+
+#[test]
+fn all_the_roots_of_a_polynomial() {
+    let mut f = forth();
+    // x^5 + 1: the roots exp(i pi (2k+1) / 5), sorted by real and then imaginary part.
+    f.interpret("1e 0e 0e 0e 0e 1e 6 FV-FROM-STACK POLY-ROOTS CONSTANT IMS CONSTANT RES").unwrap();
+    let re = floats(&mut f, "RES FV@S");
+    let im = floats(&mut f, "IMS FV@S");
+    let mut want: Vec<(f64, f64)> = (0..5)
+        .map(|k| {
+            let t = std::f64::consts::PI * f64::from(2 * k + 1) / 5.0;
+            (t.cos(), t.sin())
+        })
+        .collect();
+    want.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.total_cmp(&b.1)));
+    assert_eq!(re.len(), 5);
+    for i in 0..5 {
+        assert_complex((re[i], im[i]), want[i], 1e-13);
+    }
+    // x^2 + 1: -i and i, found from the real start.
+    f.interpret("1e 0e 1e 3 FV-FROM-STACK POLY-ROOTS CONSTANT IMS CONSTANT RES").unwrap();
+    assert_all_near_abs(&floats(&mut f, "RES FV@S"), &[0.0, 0.0], 1e-15);
+    assert_all_near_abs(&floats(&mut f, "IMS FV@S"), &[-1.0, 1.0], 1e-15);
+    // (x-1)(x-2)(x-3)(x-4) has four real roots, and the imaginary parts are 0.
+    f.interpret("24e -50e 35e -10e 1e 5 FV-FROM-STACK POLY-ROOTS CONSTANT IMS CONSTANT RES")
+        .unwrap();
+    assert_all_near_abs(&floats(&mut f, "RES FV@S"), &[1.0, 2.0, 3.0, 4.0], 1e-10);
+    assert_all_near_abs(&floats(&mut f, "IMS FV@S"), &[0.0; 4], 1e-10);
+    // A multiple root loses digits, as it must: (x-1)^3.
+    f.interpret("-1e 3e -3e 1e 4 FV-FROM-STACK POLY-ROOTS CONSTANT IMS CONSTANT RES").unwrap();
+    assert_all_near_abs(&floats(&mut f, "RES FV@S"), &[1.0, 1.0, 1.0], 1e-4);
+    // A constant has no roots; the zero polynomial is an error.
+    f.interpret("5e 1 FV-FROM-STACK POLY-ROOTS CONSTANT IMS CONSTANT RES").unwrap();
+    assert_eq!(floats(&mut f, "RES FV-LEN S>F"), [0.0]);
+    assert_eq!(code(&mut f, "0e 0e 2 FV-FROM-STACK POLY-ROOTS"), SCIENCE_ERROR);
+}
+
+#[test]
+fn complex_coefficients() {
+    let mut f = forth();
+    // (x - i)(x - 2) = x^2 - (2 + i) x + 2i: real parts (0, -2, 1), imaginary parts (2, -1, 0).
+    f.interpret("0e -2e 1e 3 FV-FROM-STACK CONSTANT CR  2e -1e 0e 3 FV-FROM-STACK CONSTANT CI")
+        .unwrap();
+    f.interpret("CR CI ZPOLY-ROOTS CONSTANT IMS CONSTANT RES").unwrap();
+    assert_all_near_abs(&floats(&mut f, "RES FV@S"), &[0.0, 2.0], 1e-14);
+    assert_all_near_abs(&floats(&mut f, "IMS FV@S"), &[1.0, 0.0], 1e-14);
+    // One root near a start; the value at 1+i is (1+i)^2 - (2+i)(1+i) + 2i = -1 + i.
+    assert_complex(complex(&mut f, "0.1e 0.9e 1e-14 CR CI ZPOLY-LAGUERRE"), (0.0, 1.0), 1e-13);
+    assert_complex(complex(&mut f, "1e 1e CR CI ZPOLY-EVAL"), (-1.0, 1.0), 1e-14);
+    // Too few coefficients, or two lengths.
+    assert_eq!(
+        code(&mut f, "0e 0e 1e-9 1e 1 FV-FROM-STACK 0e 1 FV-FROM-STACK ZPOLY-LAGUERRE"),
+        SCIENCE_ERROR
+    );
+    assert_eq!(code(&mut f, "0e 0e 1e-9 2 FV-NEW 3 FV-NEW ZPOLY-LAGUERRE"), SCIENCE_ERROR);
+}
+
+#[test]
+fn polynomial_roots_are_charged() {
+    let mut g = Forth::sandboxed();
+    g.install(&Science);
+    g.set_limits(Limits { steps: Some(1000), ..Limits::default() });
+    g.interpret("ALSO SCIENCE 200 FV-NEW CONSTANT BIG").unwrap();
+    let e = g.interpret("BIG POLY-ROOTS").unwrap_err();
+    assert_eq!(e.code, forthling::LIMIT_EXCEEDED, "{e}");
+}

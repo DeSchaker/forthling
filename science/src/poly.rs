@@ -121,7 +121,7 @@ fn quadratic(a: f64, b: f64, c: f64) -> Vec<f64> {
 }
 
 /// The real roots of a x^3 + b x^2 + c x + d, in ascending order.
-fn cubic(a: f64, b: f64, c: f64, d: f64) -> Vec<f64> {
+pub(crate) fn cubic(a: f64, b: f64, c: f64, d: f64) -> Vec<f64> {
     if a == 0.0 {
         return quadratic(b, c, d);
     }
