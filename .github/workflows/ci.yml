@@ -7,7 +7,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  # The Forth-2012 test suite, at the commit the README names.
+  # The Forth-2012 test suite, at the commit CONTRIBUTING.md names.
   SUITE_REPO: https://github.com/gerryjackson/forth2012-test-suite.git
   SUITE_COMMIT: 4c87e56
 

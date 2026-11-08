@@ -80,7 +80,7 @@ except forthling.ForthError as e:
   `allow_hosts=["api.example.com"]` lists the hosts that Forth code may send requests to;
   without it every request throws -259, and `sandbox=True` denies the network altogether.
 - The JSON words are installed (`ALSO JSON`; see the
-  [README](https://github.com/DeSchaker/forthling#json)), so Forth can read JSON that
+  [word lists](https://github.com/DeSchaker/forthling/blob/main/docs/wordlists.md#json)), so Forth can read JSON that
   Python passes in and write JSON that Python reads with `json.loads`.
 
 ## Testing

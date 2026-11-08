@@ -184,7 +184,7 @@ fn a_host_file_system_of_its_own() {
     assert_eq!(output(&f), "hello");
 }
 
-/// The example of the README's section Files.
+/// The example of the section Files in docs/embedding.md.
 #[test]
 fn the_readme_example() {
     let files = MemoryFs::new();

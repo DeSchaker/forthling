@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="520" height="362" viewBox="0 0 520 362" role="img" aria-label="forthling book001_example001_maze.fs">
+  <rect width="520" height="362" rx="8" fill="#1e1e2e"/>
+  <rect width="520" height="30" rx="8" fill="#313244"/>
+  <rect y="22" width="520" height="8" fill="#313244"/>
+  <circle cx="18" cy="15" r="5" fill="#f38ba8"/><circle cx="36" cy="15" r="5" fill="#f9e2af"/><circle cx="54" cy="15" r="5" fill="#a6e3a1"/>
+  <text x="260" y="20" text-anchor="middle" font-family="Consolas, Menlo, 'DejaVu Sans Mono', monospace" font-size="13" fill="#a6adc8">forthling book001_example001_maze.fs</text>
+  <g font-family="Consolas, Menlo, 'DejaVu Sans Mono', monospace" font-size="16" fill="#cdd6f4">
+    <text x="20" y="59" xml:space="preserve">Solved. The shortest way takes 48 steps:</text>
+    <text x="20" y="79" xml:space="preserve"></text>
+    <text x="20" y="99" xml:space="preserve">##################################################</text>
+    <text x="20" y="119" xml:space="preserve">##S ............##  ##                  ##      ##</text>
+    <text x="20" y="139" xml:space="preserve">##############..##  ##  ######  ##########  ##  ##</text>
+    <text x="20" y="159" xml:space="preserve">##          ##..##      ##  ##              ##  ##</text>
+    <text x="20" y="179" xml:space="preserve">##  ##########..######  ##  ##################  ##</text>
+    <text x="20" y="199" xml:space="preserve">##  ##      ##......##              ##  ##......##</text>
+    <text x="20" y="219" xml:space="preserve">##  ##  ##  ######..##############  ##  ##..##..##</text>
+    <text x="20" y="239" xml:space="preserve">##      ##      ##..##              ##  ##..##..##</text>
+    <text x="20" y="259" xml:space="preserve">##  ######  ######..##############  ##  ##..##..##</text>
+    <text x="20" y="279" xml:space="preserve">##      ##      ##..##..........##      ##..##..##</text>
+    <text x="20" y="299" xml:space="preserve">######  ######  ##..##..######..##########..##..##</text>
+    <text x="20" y="319" xml:space="preserve">##          ##    ......##    ..............##G ##</text>
+    <text x="20" y="339" xml:space="preserve">##################################################</text>
+  </g>
+</svg>

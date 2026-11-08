@@ -32,9 +32,26 @@ Fix a warning in the code. Where the lint is wrong for that spot, add an
 `#[allow(clippy::..., reason = "...")]` with the reason; the one allowed for the whole
 project is `wildcard_imports` (`use crate::*;` is a convention here).
 
-The suite tests need the Forth-2012 test suite at a fixed commit; see
-[Testing](README.md#testing) in the README. CI runs the same checks on Rust 1.85 and on the
-latest stable Rust, on Linux and Windows.
+### Testing
+
+`cargo test` runs the tests. The ones from the Forth-2012 test suite need the suite to be
+cloned first, at a fixed commit:
+
+```
+git clone https://github.com/gerryjackson/forth2012-test-suite.git tests/forth2012-test-suite
+git -C tests/forth2012-test-suite checkout 4c87e56
+```
+
+CI (`.github/workflows/ci.yml`) checks formatting and clippy lints and runs all tests, the
+test suite included, on Rust 1.85 and on the latest stable Rust on Linux and Windows. It also
+builds the Python module and runs its tests (`python -m unittest discover -s python/tests`,
+after `pip install ./python`) and checks and tests the SQLite words
+(`cargo test --manifest-path sqlite/Cargo.toml`), the regular expression words
+(`cargo test --manifest-path regex/Cargo.toml`), the HTTP words
+(`cargo test --manifest-path http/Cargo.toml`, against a small server on the machine) and the
+MCP server (`cargo test --manifest-path mcp/Cargo.toml`, also with `--no-default-features`
+and `--all-features`), and builds the WebAssembly module and tests it with Node
+(`node --test web/tests/forthling.test.mjs`).
 
 ### Where things are
 
@@ -136,7 +153,7 @@ latest stable Rust, on Linux and Windows.
   `web/tests/forthling.test.mjs`: that test checks the text against the file, and that the module
   gives the output in the `.out` file. Mandelbrot is not checked, since its picture is smaller there.
 - Keep a change small and give it tests. If it changes how forthling behaves, update
-  `COMPLIANCE.md` and the README where they describe that behaviour. `VERKLARING.md` is
+  `COMPLIANCE.md` and the pages in `docs/` (and the README) where they describe that behaviour. `VERKLARING.md` is
   its Dutch translation; the maintainer keeps it in step, so you need not.
 - The open work is in the [issues on GitHub](https://github.com/DeSchaker/forthling/issues).
   Open an issue before a larger change.
@@ -151,7 +168,7 @@ are not published through `release.yml` and are not raised with a release. To
 release: raise the version in the six `Cargo.toml`, the path dependencies, `server.json` and `manifest.json`, and push a
 tag such as `v0.2.3`. `.github/workflows/release.yml` then publishes the crates to
 crates.io and the server to the MCP Registry, both through GitHub OIDC, without secrets.
-With every release, also change the `forthling = "0.x.y"` examples in `README.md`.
+With every release, also change the `forthling = "0.x.y"` examples in `docs/install.md`.
 They name the full version (`"0.2.1"`), so they are easy to miss.
 
 ## License

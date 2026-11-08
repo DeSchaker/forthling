@@ -6,4 +6,4 @@
 
 - [ ] `cargo fmt`, `cargo clippy --all-targets -- -D warnings` and `cargo test` pass
 - [ ] New behaviour has tests
-- [ ] `COMPLIANCE.md` and the README are updated if behaviour changed
+- [ ] `COMPLIANCE.md`, the README and the pages in `docs/` are updated if behaviour changed
