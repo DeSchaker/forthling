@@ -1,0 +1,8 @@
+The document is valid.
+Shop: Pear Tree
+Order 1 for Ada : 8.75
+Order 2 for Alan : 15.00
+Order 3 for Grace : 0.00  (has a note)
+Revenue: 23.75
+{"orders":3,"revenue":2375,"customers":["Ada","Alan","Grace"]}
+0 0 

@@ -41,6 +41,13 @@ the open parts are in [issue #59](https://github.com/DeSchaker/forthling/issues/
   the Sierpinski triangle from Pascal's triangle and by the chaos game
   ([`book002_example003_sierpinski.fs`](../examples/book002_example003_sierpinski.fs)).
 
+**Book 3, Data and tools**
+
+- [JSON: read a document, write a summary](book003_part001_json_orders.md): the orders of a
+  shop read with `JSON-GET`, `JSON-NTH` and `JSON@`, totals in whole cents, and a summary
+  written with `<JSON ... JSON>`
+  ([`book003_example001_json_orders.fs`](../examples/book003_example001_json_orders.fs)).
+
 **Programs without a chapter yet**, which also run in the tests, are in
 [`examples/`](../examples/):
 
