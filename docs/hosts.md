@@ -82,7 +82,8 @@ closed by default: it needs `Permission::Network` (which `Forth::sandboxed()` an
 `forthling-http` and the MCP server, the `allow_hosts` argument of the Python module).
 With no list, no request goes out. The time left in the budget bounds a request, a
 response is at most 1 MiB, and redirects only go to allowed hosts. The playground has none.
-See [http/README.md](http/README.md) and [the examples](http/examples).
+See [http/README.md](../http/README.md) and [the examples](../http/examples);
+[An HTTP call](../cookbook/book003_part007_http_json.md) is a cookbook chapter.
 
 ```
 ALSO HTTP

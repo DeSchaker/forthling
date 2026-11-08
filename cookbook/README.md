@@ -65,6 +65,10 @@ the open parts are in [issue #59](https://github.com/DeSchaker/forthling/issues/
   lines of a CSV cut with `$SPLIT` and inserted with a prepared statement in one transaction,
   bad rows skipped and counted, then `GROUP BY` for the sums; needs `forthling-sqlite`
   ([`book003_example006_csv_to_sqlite.fs`](../sqlite/examples/book003_example006_csv_to_sqlite.fs)).
+- [An HTTP call: ask a JSON API a question](book003_part007_http_json.md): `HTTP-GET` with
+  headers, the status as a number, fields read with `JSON@`, a header of the answer, and a
+  host that is not allowed; needs `forthling-http` and a network, so no test runs it
+  ([`book003_example007_http_json.fs`](../http/examples/book003_example007_http_json.fs)).
 
 **Programs without a chapter yet**, which also run in the tests, are in
 [`examples/`](../examples/):

@@ -69,7 +69,10 @@ network is still allowed when it is in the list.
 
 [`examples/page.fs`](examples/page.fs) fetches a page and shows its status, size and
 content type; [`examples/items.fs`](examples/items.fs) posts JSON to an API, sends a token
-with a GET and reads the answers with the JSON words.
+with a GET and reads the answers with the JSON words. The cookbook chapter
+[An HTTP call](../cookbook/book003_part007_http_json.md) asks the GitHub API about a
+repository ([`examples/book003_example007_http_json.fs`](examples/book003_example007_http_json.fs));
+no test runs it, because it needs the internet.
 
 ```
 ALSO HTTP
