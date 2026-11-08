@@ -1,6 +1,6 @@
 // The help text of the SCIENCE word list, in the form of src/help.txt of forthling.
 [FORTH]
-SCIENCE ( -- ) The word list of the FV- and MAT- words for float vectors, matrices, linear algebra, special functions, integration, differential equations, polynomials, root finding, interpolation, complex numbers, the FFT, minimization and curve fitting. ALSO SCIENCE adds it to the search order.
+SCIENCE ( -- ) The word list of the FV- and MAT- words for float vectors, matrices, linear algebra, special functions, integration, differential equations, polynomials, root finding, interpolation, complex numbers, the FFT, minimization and curve fitting, random distributions and Monte Carlo integration. ALSO SCIENCE adds it to the search order.
 [SCIENCE]
 FV-NEW ( n -- a ) A vector of n floats, all zero, on the heap; the program FREEs it. Elements are read and written with FV[] and F@ F!. ;; ALSO SCIENCE 3 FV-NEW FV-LEN . PREVIOUS => 3
 FV-FROM-STACK ( n -- a ) ( F: x1 ... xn -- ) A vector of the n floats on the float stack. ;; ALSO SCIENCE 5e 7e 2 FV-FROM-STACK 1 SWAP FV[] F@ F>S . PREVIOUS => 7
@@ -137,3 +137,22 @@ LM-COVARIANCE ( p xt m -- c ) The covariance matrix of the fitted parameters p f
 (NM-SHRINK) ( m lo fv tv xt -- ) Move every point of the simplex halfway to the best one and evaluate it again. A helper of NELDER-MEAD.
 (LM-JAC) ( p xt jm rp rm sc -- ) The Jacobian at p by central differences, into jm. A helper of LM-FIT and LM-COVARIANCE.
 (LM-STEP) ( a dg rhs s -- d ) Solve (A + lambda diag(A)) d = rhs for the Levenberg-Marquardt step. A helper of LM-FIT.
+RANDOM-UNIFORM ( F: lo hi -- x ) A uniform random float in [lo, hi), from RND, so SEED! repeats it. ;; ALSO SCIENCE 1e 5e RANDOM-UNIFORM 1e F< 0= . PREVIOUS => -1
+RANDOM-NORMAL ( F: mean sd -- x ) A normal random float with the mean and the standard deviation (Box-Muller, one value per call). ;; ALSO SCIENCE 5e 0e RANDOM-NORMAL F>S . PREVIOUS => 5
+RANDOM-EXPONENTIAL ( F: rate -- x ) An exponential random float with the rate (the mean is 1/rate); throws -24 unless the rate is above 0. ;; ALSO SCIENCE 2e RANDOM-EXPONENTIAL 0e F< . PREVIOUS => 0
+RANDOM-GAMMA ( F: shape scale -- x ) A gamma random float (Marsaglia and Tsang): the mean is shape times scale. Throws -24 unless both are above 0. ;; ALSO SCIENCE 2e 3e RANDOM-GAMMA 0e F< . PREVIOUS => 0
+RANDOM-BETA ( F: a b -- x ) A beta random float between 0 and 1: the mean is a/(a+b). Throws -24 unless both are above 0. ;; ALSO SCIENCE 2e 3e RANDOM-BETA FDUP 0e F< 0= SWAP 1e F< AND . PREVIOUS => -1
+RANDOM-CHI-SQUARE ( F: nu -- x ) A chi-square random float with nu degrees of freedom: the mean is nu. ;; ALSO SCIENCE 4e RANDOM-CHI-SQUARE 0e F< . PREVIOUS => 0
+RANDOM-POISSON ( -- k ) ( F: lambda -- ) A Poisson random integer with the mean lambda (Knuth's method, in pieces of 30); throws -24 for a negative lambda or one above 1e8. ;; ALSO SCIENCE 0e RANDOM-POISSON . PREVIOUS => 0
+RANDOM-BINOMIAL ( n -- k ) ( F: p -- ) A binomial random integer: the successes in n trials of probability p, by n draws. Throws -24 for a negative n or a p outside [0, 1]. ;; ALSO SCIENCE 10 1e RANDOM-BINOMIAL . PREVIOUS => 10
+NORMAL-PDF ( F: x -- f ) The density of the standard normal distribution (mean 0, standard deviation 1). ;; ALSO SCIENCE 0e NORMAL-PDF 1e4 F* F>S . PREVIOUS => 3989
+NORMAL-CDF ( F: x -- p ) The cumulative distribution of the standard normal distribution, from ERFC so that the tails keep their digits. ;; ALSO SCIENCE 1.96e NORMAL-CDF 1000e F* F>S . PREVIOUS => 975
+NORMAL-QUANTILE ( F: p -- x ) The x with NORMAL-CDF(x) = p, for p between 0 and 1 (else throws -46): the inverse of NORMAL-CDF. ;; ALSO SCIENCE 0.975e NORMAL-QUANTILE 100e F* F>S . PREVIOUS => 195
+MC-INTEGRATE ( xt n -- ) ( F: a b -- mean err ) Monte Carlo integration of the function xt, ( F: x -- y ), over [a, b] with n random points (n of at least 2, else -24): the estimate and its standard error, which shrinks as 1/sqrt(n). Plain random points, so the result is the integral within a few err, not to the digits that INTEGRATE gives. ;; ALSO SCIENCE : ONE ( F: x -- y ) FDROP 1e ; ' ONE 10 0e 2e MC-INTEGRATE F>S . F>S . PREVIOUS => 0 2
+(RECIP) ( F: x -- 1/x ) The reciprocal. A helper of the random words.
+(PI) ( F: -- pi ) Pi. A helper of the random words.
+(F0>) ( F: x -- ) ( -- flag ) True when x is above 0. A helper of the random words.
+(U) ( F: -- u ) A uniform random float in the open interval (0, 1), from 53 bits of RND. A helper of the random words.
+(GAMMA1) ( F: a -- x ) A gamma random float with shape a of at least 1 and scale 1 (Marsaglia and Tsang). A helper of RANDOM-GAMMA.
+(POISSON30) ( F: lambda -- ) ( -- k ) A Poisson random integer for a lambda of at most 30. A helper of RANDOM-POISSON.
+(QUANTILE) ( F: p -- x ) The normal quantile for p below 1/2: a rational start and three Halley steps. A helper of NORMAL-QUANTILE.

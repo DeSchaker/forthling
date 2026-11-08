@@ -1,4 +1,4 @@
-# Numerical words for forthling: linear algebra, special functions, calculus, roots, interpolation, the FFT and curve fitting
+# Numerical words for forthling: linear algebra, special functions, calculus, roots, interpolation, the FFT, curve fitting and random numbers
 
 The word list `SCIENCE` for [forthling](https://github.com/DeSchaker/forthling): vectors of
 floats, matrices, and the linear algebra on them (solving equations, determinants,
@@ -6,10 +6,11 @@ inverses and condition numbers), and the special functions: gamma, error functio
 incomplete gamma and beta, logistic, and numerical integration and ordinary differential
 equations for a function that the program passes as an execution token, and polynomials,
 root finding and interpolation, complex numbers, the fast Fourier transform and complex
-roots, and minimization and curve fitting. It is built from
+roots, minimization and curve fitting, and random distributions with Monte Carlo
+integration. It is built from
 the mathematics, with no dependencies (the arrays and the special functions are Rust, the
 integration, the differential equations and the minimizers are Forth, in `src/calculus.fs` and
-`src/optimize.fs`), and it reaches
+`src/optimize.fs`, `src/random.fs`), and it reaches
 nothing outside Forth: no permission is needed, so the words work in the sandbox, in the
 MCP server, in the Python module and in the playground, where they are built in.
 
@@ -384,6 +385,55 @@ odd ones):
 Rosenbrock: value 0. at 0.999999 0.999999 
 fit: a = 2.00663 b = -0.502383 sum of squares 0.000744 
 errors: 0.010385 0.004683 
+```
+
+## Random distributions and Monte Carlo integration
+
+| Word | Stack | |
+|---|---|---|
+| `RANDOM-UNIFORM` | `( F: lo hi -- x )` | uniform in [lo, hi) |
+| `RANDOM-NORMAL` | `( F: mean sd -- x )` | normal (Box-Muller) |
+| `RANDOM-EXPONENTIAL` | `( F: rate -- x )` | exponential, mean 1/rate |
+| `RANDOM-GAMMA` | `( F: shape scale -- x )` | gamma, mean shape times scale (Marsaglia and Tsang) |
+| `RANDOM-BETA` | `( F: a b -- x )` | beta, between 0 and 1 |
+| `RANDOM-CHI-SQUARE` | `( F: nu -- x )` | chi-square with nu degrees of freedom |
+| `RANDOM-POISSON` | `( -- k ) ( F: lambda -- )` | Poisson integer |
+| `RANDOM-BINOMIAL` | `( n -- k ) ( F: p -- )` | successes in n trials, an integer |
+| `NORMAL-PDF`, `NORMAL-CDF` | `( F: x -- f )` | density and cumulative distribution of the standard normal |
+| `NORMAL-QUANTILE` | `( F: p -- x )` | the inverse of `NORMAL-CDF` (-46 outside 0 to 1) |
+| `MC-INTEGRATE` | `( xt n -- ) ( F: a b -- mean err )` | Monte Carlo integral with its standard error |
+
+The draws are built on `RND` of the core, so `SEED!` makes a run repeatable, and the same seed
+gives the same numbers. Each draw uses a fixed number of `RND` calls apart from the methods
+that reject (gamma, Poisson), so a seed repeats a whole program, not a single word. A shape,
+scale, rate, `a` or `b` that is not above 0 throws -24; so does a negative `lambda` (or one above
+1e8, since the method takes time in proportion to it), a negative `n` for the binomial, and a
+`p` outside [0, 1]. The Poisson method multiplies uniform numbers (Knuth), in pieces of at
+most 30 for a large mean. The binomial word makes n draws, so keep n moderate.
+`NORMAL-CDF` comes from `ERFC`, so the tails keep their digits; `NORMAL-QUANTILE` starts from a rational
+approximation (Abramowitz and Stegun 26.2.23) and takes three Halley steps, which gives
+about 1e-12 for p from 1e-10 to 0.9999.
+
+`MC-INTEGRATE` calls `xt` (effect `( F: x -- y )`) at `n` random points of `[a, b]` (n of at least
+2, else -24) and leaves the estimate of the integral and its standard error: the width times the
+standard deviation of the values over the square root of `n`. The error shrinks as 1/sqrt(n):
+a hundred times the points for a tenth of the error. For a smooth function in one dimension
+`INTEGRATE` or `ROMBERG` are far more exact; Monte Carlo is for a function that is noisy or
+has a kink, and as the sampling method that other dimensions grow from.
+
+The [example](examples/random.fs) draws 2000 values of four distributions, tosses a coin, and
+integrates the square root:
+
+```
+height (175, 7)     mean 174.98  variance 51.2411 
+waiting (rate 4)    mean 0.255925  variance 0.065419 
+gamma (2, 3)        mean 6.10625  variance 19.5941 
+poisson (12)        mean 11.9445  variance 12.3264 
+heads:8 -> 278 12 -> 220 
+P(Z <= 1.96) = 0.975002 
+97.5% point = 1.95996 
+n = 1000:   integral 0.666515 +- 0.007572 
+n = 100000: integral 0.665994 +- 0.000748 
 ```
 
 ## Conditioning

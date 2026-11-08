@@ -1319,3 +1319,130 @@ fn levenberg_marquardt_errors() {
     // A parameter that changes nothing makes J^T J singular.
     assert_eq!(code(&mut f, "P ' DEAD 5 LM-COVARIANCE"), SCIENCE_ERROR);
 }
+
+/// Words that take the mean and the variance of n draws of a word `( F: -- x )`.
+const RANDOM: &str = "
+: MEANVAR ( xt n -- ) ( F: -- var mean ) {: xt n | s :}
+   2 FV-NEW TO s
+   n 0 ?DO  xt EXECUTE FDUP 0 s FV[] F@ F+ 0 s FV[] F!
+      FDUP F* 1 s FV[] F@ F+ 1 s FV[] F!  LOOP
+   1 s FV[] F@ n S>F F/  0 s FV[] F@ n S>F F/  FDUP F* F-  0 s FV[] F@ n S>F F/ ;
+: GAM  2e 3e RANDOM-GAMMA ;
+: GAM-SMALL  0.5e 2e RANDOM-GAMMA ;
+: BET  2e 3e RANDOM-BETA ;
+: NRM  3e 2e RANDOM-NORMAL ;
+: UNI  1e 5e RANDOM-UNIFORM ;
+: EXPO  4e RANDOM-EXPONENTIAL ;
+: CHI  5e RANDOM-CHI-SQUARE ;
+: POIS  3e RANDOM-POISSON S>F ;
+: POIS-BIG  1000e RANDOM-POISSON S>F ;
+: BINO  20 0.3e RANDOM-BINOMIAL S>F ;
+: SQ  FDUP F* ;
+: LINE  2e F* 1e F+ ;
+: IN-RANGE  1000 0 DO
+      UNI FDUP 1e F< IF -1 THROW THEN  5e F< 0= IF -1 THROW THEN
+      BET FDUP 0e F> 0= IF -1 THROW THEN  1e F< 0= IF -1 THROW THEN
+   LOOP ;
+";
+
+fn random() -> Forth {
+    let mut f = forth();
+    f.interpret(RANDOM).unwrap();
+    f
+}
+
+/// The mean and the variance of 10000 draws must lie within five standard
+/// errors of the theory (the seed is fixed, so the test is repeatable).
+fn check_moments(f: &mut Forth, word: &str, mean: f64, var: f64) {
+    let n = 10000.0;
+    let got = floats(f, &format!("' {word} 10000 MEANVAR"));
+    let (m, v) = (got[1], got[0]);
+    // The variance of the sample mean is var/n; that of the sample variance
+    // is about 2 var^2/n for a normal law and more for a skewed one, so allow 8 var/sqrt(n).
+    assert!((m - mean).abs() <= 5.0 * (var / n).sqrt(), "{word}: mean {m} is not {mean}");
+    assert!((v - var).abs() <= 8.0 * var / n.sqrt(), "{word}: variance {v} is not {var}");
+}
+
+#[test]
+fn distributions_have_the_right_moments() {
+    let mut f = random();
+    f.interpret("12345 SEED!").unwrap();
+    check_moments(&mut f, "GAM", 6.0, 18.0);
+    check_moments(&mut f, "GAM-SMALL", 1.0, 2.0);
+    check_moments(&mut f, "BET", 0.4, 0.04);
+    check_moments(&mut f, "NRM", 3.0, 4.0);
+    check_moments(&mut f, "UNI", 3.0, 16.0 / 12.0);
+    check_moments(&mut f, "EXPO", 0.25, 0.0625);
+    check_moments(&mut f, "CHI", 5.0, 10.0);
+    check_moments(&mut f, "POIS", 3.0, 3.0);
+    check_moments(&mut f, "POIS-BIG", 1000.0, 1000.0);
+    check_moments(&mut f, "BINO", 6.0, 4.2);
+}
+
+#[test]
+fn distributions_are_repeatable() {
+    let mut f = random();
+    let a = floats(&mut f, "7 SEED! GAM NRM BET EXPO 3e RANDOM-POISSON S>F");
+    let b = floats(&mut f, "7 SEED! GAM NRM BET EXPO 3e RANDOM-POISSON S>F");
+    assert_eq!(a, b);
+    let c = floats(&mut f, "8 SEED! GAM NRM BET EXPO 3e RANDOM-POISSON S>F");
+    assert_ne!(a, c);
+    // Draws stay inside their range.
+    f.interpret("IN-RANGE").unwrap();
+}
+
+#[test]
+fn distribution_arguments_are_checked() {
+    let mut f = random();
+    assert_eq!(code(&mut f, "0e RANDOM-EXPONENTIAL"), -24);
+    assert_eq!(code(&mut f, "0e 1e RANDOM-GAMMA"), -24);
+    assert_eq!(code(&mut f, "1e 0e RANDOM-GAMMA"), -24);
+    assert_eq!(code(&mut f, "1e -1e RANDOM-BETA"), -24);
+    assert_eq!(code(&mut f, "-1e RANDOM-POISSON"), -24);
+    assert_eq!(code(&mut f, "1e9 RANDOM-POISSON"), -24);
+    assert_eq!(code(&mut f, "-1 0.5e RANDOM-BINOMIAL"), -24);
+    assert_eq!(code(&mut f, "5 1.5e RANDOM-BINOMIAL"), -24);
+    assert_eq!(code(&mut f, "0e NORMAL-QUANTILE"), -46);
+    assert_eq!(code(&mut f, "1e NORMAL-QUANTILE"), -46);
+    f.interpret("FCLEAR").unwrap();
+}
+
+#[test]
+fn normal_density_cdf_and_quantile() {
+    let mut f = random();
+    near(floats(&mut f, "0e NORMAL-PDF")[0], 0.398_942_280_401_432_7, 1e-14);
+    near(floats(&mut f, "1.5e NORMAL-PDF")[0], 0.129_517_595_665_891_7, 1e-13);
+    near(floats(&mut f, "1e NORMAL-CDF")[0], 0.841_344_746_068_542_9, 1e-13);
+    near(floats(&mut f, "-6e NORMAL-CDF")[0], 9.865_876_450_376_946e-10, 1e-10);
+    assert_eq!(floats(&mut f, "0e NORMAL-CDF")[0], 0.5);
+    near(floats(&mut f, "0.975e NORMAL-QUANTILE")[0], 1.959_963_984_540_054, 1e-13);
+    near(floats(&mut f, "0.025e NORMAL-QUANTILE")[0], -1.959_963_984_540_054, 1e-13);
+    near(floats(&mut f, "1e-10 NORMAL-QUANTILE")[0], -6.361_340_902_404_056, 1e-12);
+    near(floats(&mut f, "0.9999e NORMAL-QUANTILE")[0], 3.719_016_485_455_709, 1e-10);
+    assert_eq!(floats(&mut f, "0.5e NORMAL-QUANTILE")[0].to_bits(), 0.0f64.to_bits());
+    // The quantile inverts the distribution function.
+    for p in [0.001, 0.1, 0.3, 0.5, 0.77, 0.999] {
+        let x = floats(&mut f, &format!("{p}e NORMAL-QUANTILE NORMAL-CDF"))[0];
+        near(x, p, 1e-12);
+    }
+}
+
+#[test]
+fn monte_carlo_integration() {
+    let mut f = random();
+    f.interpret("2024 SEED!").unwrap();
+    // The integral of x^2 over [0, 1] is 1/3; the sd of x^2 is sqrt(4/45).
+    let r = floats(&mut f, "' SQ 100000 0e 1e MC-INTEGRATE");
+    let (mean, err) = (r[0], r[1]);
+    assert!((mean - 1.0 / 3.0).abs() <= 4.0 * err, "{mean} +- {err}");
+    near(err, (4.0f64 / 45.0).sqrt() / 100000f64.sqrt(), 0.05);
+    // A line is integrated over a reversed interval with the other sign.
+    let r = floats(&mut f, "' LINE 20000 3e 1e MC-INTEGRATE");
+    // The integral of 2x+1 from 3 to 1 is -(9+3 - (1+1)) = -10.
+    assert!((r[0] + 10.0).abs() <= 4.0 * r[1], "{r:?}");
+    // The error shrinks as 1/sqrt(n): a hundred times the points, a tenth of the error.
+    let small = floats(&mut f, "' SQ 1000 0e 1e MC-INTEGRATE")[1];
+    let large = floats(&mut f, "' SQ 100000 0e 1e MC-INTEGRATE")[1];
+    assert!(small / large > 7.0 && small / large < 14.0, "{small} {large}");
+    assert_eq!(code(&mut f, "' SQ 1 0e 1e MC-INTEGRATE"), -24);
+}

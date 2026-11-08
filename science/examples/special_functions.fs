@@ -4,8 +4,8 @@
 ALSO SCIENCE
 6 SET-PRECISION
 
-\ The normal distribution: the chance that a standard normal variable is at most x.
-: NORMAL-CDF ( F: x -- p )  2e FSQRT F/ ERF 1e F+ 2e F/ ;
+\ The normal distribution: NORMAL-CDF (from ERFC) gives the chance that a standard normal
+\ variable is at most x.
 
 ." P(Z <= 1.96) = "  1.96e NORMAL-CDF F.  CR
 ." P(|Z| > 1.96) = "  1.96e 2e FSQRT F/ ERFC F.  CR

@@ -647,8 +647,9 @@ impl Extension for Science {
         let result = f
             .interpret(include_str!("calculus.fs"))
             .and_then(|()| f.interpret(include_str!("roots.fs")))
-            .and_then(|()| f.interpret(include_str!("optimize.fs")));
+            .and_then(|()| f.interpret(include_str!("optimize.fs")))
+            .and_then(|()| f.interpret(include_str!("random.fs")));
         f.interpret("PREVIOUS FORTH DEFINITIONS").expect("FORTH is a word list");
-        result.expect("calculus.fs, roots.fs and optimize.fs must compile");
+        result.expect("calculus.fs, roots.fs, optimize.fs and random.fs must compile");
     }
 }

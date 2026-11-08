@@ -1,0 +1,9 @@
+height (175, 7)     mean 174.98  variance 51.2411 
+waiting (rate 4)    mean 0.255925  variance 0.065419 
+gamma (2, 3)        mean 6.10625  variance 19.5941 
+poisson (12)        mean 11.9445  variance 12.3264 
+heads:8 -> 278 12 -> 220 
+P(Z <= 1.96) = 0.975002 
+97.5% point = 1.95996 
+n = 1000:   integral 0.666515 +- 0.007572 
+n = 100000: integral 0.665994 +- 0.000748 
