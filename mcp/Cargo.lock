@@ -68,11 +68,11 @@ checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
 name = "forthling"
-version = "0.2.3"
+version = "0.2.4"
 
 [[package]]
 name = "forthling-http"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "forthling",
  "ureq",
@@ -80,7 +80,7 @@ dependencies = [
 
 [[package]]
 name = "forthling-mcp"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "forthling",
  "forthling-http",
@@ -92,7 +92,7 @@ dependencies = [
 
 [[package]]
 name = "forthling-regex"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "forthling",
  "regex-lite",
@@ -100,14 +100,14 @@ dependencies = [
 
 [[package]]
 name = "forthling-science"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "forthling",
 ]
 
 [[package]]
 name = "forthling-sqlite"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "forthling",
  "rusqlite",

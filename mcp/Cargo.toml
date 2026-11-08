@@ -1,6 +1,6 @@
 [package]
 name = "forthling-mcp"
-version = "0.2.3"
+version = "0.2.4"
 edition = "2024"
 rust-version = "1.85"
 description = "An MCP server that runs Forth in forthling's sandbox, for AI agents"
@@ -29,11 +29,11 @@ science = ["dep:forthling-science"]
 http = ["dep:forthling-http"]
 
 [dependencies]
-forthling = { path = "..", version = "0.2.3" }
-forthling-sqlite = { path = "../sqlite", version = "0.2.3", optional = true }
-forthling-regex = { path = "../regex", version = "0.2.3", optional = true }
-forthling-science = { path = "../science", version = "0.2.3", optional = true }
-forthling-http = { path = "../http", version = "0.2.3", optional = true }
+forthling = { path = "..", version = "0.2.4" }
+forthling-sqlite = { path = "../sqlite", version = "0.2.4", optional = true }
+forthling-regex = { path = "../regex", version = "0.2.4", optional = true }
+forthling-science = { path = "../science", version = "0.2.4", optional = true }
+forthling-http = { path = "../http", version = "0.2.4", optional = true }
 serde_json = "1"
 
 [profile.release]

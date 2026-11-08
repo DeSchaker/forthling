@@ -1,6 +1,6 @@
 [package]
 name = "forthling-http"
-version = "0.2.3"
+version = "0.2.4"
 edition = "2024"
 rust-version = "1.85"
 description = "HTTP client words for forthling, a Forth interpreter in Rust"
@@ -18,7 +18,7 @@ name = "forthling-http"
 path = "src/main.rs"
 
 [dependencies]
-forthling = { path = "..", version = "0.2.3" }
+forthling = { path = "..", version = "0.2.4" }
 # rustls with the Mozilla roots; no gzip, so that a response is the bytes sent.
 ureq = { version = "3", default-features = false, features = ["rustls"] }
 
