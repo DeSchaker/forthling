@@ -61,6 +61,10 @@ the open parts are in [issue #59](https://github.com/DeSchaker/forthling/issues/
 - [A benchmark: two ways to count primes](book003_part005_benchmark.md): trial division
   against the sieve, timed with `BENCH-BEST`, and a test that does not depend on the clock
   ([`book003_example005_benchmark.fs`](../examples/book003_example005_benchmark.fs)).
+- [CSV to SQLite: load a table and ask questions](book003_part006_csv_to_sqlite.md): the
+  lines of a CSV cut with `$SPLIT` and inserted with a prepared statement in one transaction,
+  bad rows skipped and counted, then `GROUP BY` for the sums; needs `forthling-sqlite`
+  ([`book003_example006_csv_to_sqlite.fs`](../sqlite/examples/book003_example006_csv_to_sqlite.fs)).
 
 **Programs without a chapter yet**, which also run in the tests, are in
 [`examples/`](../examples/):
@@ -77,7 +81,8 @@ Every example is a file in `examples/` with its expected output in a file of the
 name that ends in `.out`. `cargo test` runs every program there and compares what it
 prints with that file (`tests/examples.rs`), so the text of a book cannot drift from
 the code. An example that needs an extension says so at the top of the file and is run by
-the tests of that extension.
+the tests of that extension: such an example lives in the `examples/` of that crate (for
+SQLite, `sqlite/examples/`), with its `.out` beside it.
 
 ## Adding an example
 

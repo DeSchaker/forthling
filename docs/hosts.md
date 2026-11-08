@@ -42,12 +42,13 @@ print(f.interpret("3 4 HYPOT F."))         # 5.
 
 `sqlite/` adds the word list `SQLITE`, in the style of the FILE words: handles as cells,
 errors as an `ior`. Its program `forthling-sqlite` is forthling with these words; see
-[sqlite/README.md](../sqlite/README.md) and [the example](../sqlite/examples/people.fs).
+[sqlite/README.md](../sqlite/README.md) and [the example](../sqlite/examples/people.fs). The program also has the JSON, string and
+collection words; [CSV to SQLite](../cookbook/book003_part006_csv_to_sqlite.md) is a cookbook chapter.
 
 ```
 $ cargo run --release --manifest-path sqlite/Cargo.toml
 forthling — WORDS shows the dictionary, BYE quits.
-Extensions: FORTHLING-SQLITE.
+Extensions: FORTHLING-JSON, FORTHLING-DYNAMIC-STRINGS, FORTHLING-COLLECTIONS, FORTHLING-SQLITE.
 ALSO SQLITE  S" :memory:" DB-OPEN THROW VALUE DB
  ok
 S" SELECT sqlite_version()" DB DB-PREPARE THROW VALUE V

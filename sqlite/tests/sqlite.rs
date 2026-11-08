@@ -113,14 +113,29 @@ fn files_and_discovery() {
 }
 
 #[test]
-fn the_example_runs() {
-    let mut f = Forth::new();
-    f.install(&Sqlite);
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/people.fs");
-    f.include(path).unwrap_or_else(|e| panic!("{e}"));
-    let out = String::from_utf8_lossy(f.output()).into_owned();
-    let expected = std::fs::read_to_string(path.replace(".fs", ".out")).unwrap();
-    assert_eq!(out, expected);
+fn the_examples_run() {
+    // Every program in examples/ (the cookbook's too) with the output beside it, in a
+    // Forth with the same extensions as the forthling-sqlite program.
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("examples");
+    let mut seen = 0;
+    for entry in std::fs::read_dir(&dir).unwrap() {
+        let path = entry.unwrap().path();
+        if path.extension().is_none_or(|e| e != "fs") {
+            continue;
+        }
+        let mut f = Forth::new();
+        f.install(&forthling::Json);
+        f.install(&forthling::Strings);
+        f.install(&forthling::Collections);
+        f.install(&Sqlite);
+        f.include(path.to_str().unwrap()).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+        let out = String::from_utf8_lossy(f.output()).into_owned();
+        let expected = std::fs::read_to_string(path.with_extension("out"))
+            .unwrap_or_else(|_| panic!("{} has no .out file", path.display()));
+        assert_eq!(out, expected, "{}", path.display());
+        seen += 1;
+    }
+    assert!(seen >= 2, "only {seen} examples found");
 }
 
 #[test]

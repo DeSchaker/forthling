@@ -14,6 +14,10 @@ strings they return are `ALLOCATE`d, for the program to `FREE`.
 cargo run --release --manifest-path sqlite/Cargo.toml -- sqlite/examples/people.fs
 ```
 
+The program has the JSON, dynamic string (`$SPLIT`, `$[]`), `STRINGS` and `COLLECTIONS` words
+as well, for the text work around a database; the cookbook chapter
+[CSV to SQLite](../cookbook/book003_part006_csv_to_sqlite.md) uses them.
+
 In a Rust program: `forth.install(&forthling_sqlite::Sqlite)`, or
 `forthling::cli::main(&[&forthling_sqlite::Sqlite])` for the whole program.
 
