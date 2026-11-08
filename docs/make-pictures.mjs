@@ -7,6 +7,7 @@
 //   (mandelbrot.ppm and julia.png), packed with compression, since SAVE-PNG stores its data
 //   uncompressed.
 // - clifford.png: the Clifford attractor of book002_example005_clifford.fs, run larger.
+// - dejong.png: the second picture of book002_example006_dejong.fs, run larger.
 // - maze.svg, sudoku.svg: the output of the maze and the sudoku program as a terminal window.
 //   The text comes from the .out files, which the tests compare with a real run.
 //
@@ -125,6 +126,26 @@ try {
   writeFileSync(join(out, "clifford.png"), encodePng(c.width, c.height, c.rgb));
 } finally {
   rmSync(cliffordWork, { recursive: true, force: true });
+}
+
+// ---- De Jong ------------------------------------------------------------------------------
+
+// The same, for the De Jong program: 480 pixels and 3 million jumps for each of its three pictures
+// (about 15 seconds); the second one goes in the README.
+const dejongWork = mkdtempSync(join(tmpdir(), "forthling-pictures-"));
+try {
+  let source = readFileSync(join(root, "examples", "book002_example006_dejong.fs"), "utf8");
+  for (const [from, to] of [["160 CONSTANT SIZE", "480 CONSTANT SIZE"], ["100000 CONSTANT JUMPS", "3000000 CONSTANT JUMPS"]]) {
+    if (!source.includes(from)) throw new Error(`"${from}" is not in the De Jong program any more`);
+    source = source.replace(from, to);
+  }
+  writeFileSync(join(dejongWork, "big.fs"), source);
+  const run = spawnSync(exe, ["-m", "16M", "--max-steps", "none", join(dejongWork, "big.fs")], { cwd: dejongWork, encoding: "utf8" });
+  if (run.status !== 0) throw new Error("the De Jong program failed: " + run.stdout + run.stderr);
+  const c = decodePng(readFileSync(join(dejongWork, "dejong2.png")));
+  writeFileSync(join(out, "dejong.png"), encodePng(c.width, c.height, c.rgb));
+} finally {
+  rmSync(dejongWork, { recursive: true, force: true });
 }
 
 // ---- Text as a terminal window ------------------------------------------------------------

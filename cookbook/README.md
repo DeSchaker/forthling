@@ -44,6 +44,10 @@ the open parts are in [issue #59](https://github.com/DeSchaker/forthling/issues/
   that jumps on the float stack, a count of hits per pixel, and a colour by the logarithm of
   the count, so the picture looks like smoke
   ([`book002_example005_clifford.fs`](../examples/book002_example005_clifford.fs)).
+- [The De Jong attractor: four numbers, many pictures](book002_part004_dejong.md): the same
+  counting with another jump, the four numbers given to each picture on the float stack, and
+  what one changed sign does
+  ([`book002_example006_dejong.fs`](../examples/book002_example006_dejong.fs)).
 
 **Book 3, Data and tools**
 
