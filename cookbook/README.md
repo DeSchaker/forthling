@@ -47,6 +47,9 @@ the open parts are in [issue #59](https://github.com/DeSchaker/forthling/issues/
   shop read with `JSON-GET`, `JSON-NTH` and `JSON@`, totals in whole cents, and a summary
   written with `<JSON ... JSON>`
   ([`book003_example001_json_orders.fs`](../examples/book003_example001_json_orders.fs)).
+- [Word count: a dictionary and a sort](book003_part002_word_count.md): the words of a text
+  counted in a dictionary, then put in order of count with `SORT-CELLS`
+  ([`book003_example002_word_count.fs`](../examples/book003_example002_word_count.fs)).
 
 **Programs without a chapter yet**, which also run in the tests, are in
 [`examples/`](../examples/):

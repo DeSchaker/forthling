@@ -193,6 +193,7 @@ test("the playground examples match the programs in examples/", async () => {
     Simplex: "book001_example003_simplex",
     Life: "book002_example002_life",
     "JSON orders": "book003_example001_json_orders",
+    "Word count": "book003_example002_word_count",
   };
   // The page puts a new seed in the Maze text on each pick (exampleText in index.html): another
   // seed must give another maze that still solves, and the program must print the seed it used.
