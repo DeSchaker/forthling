@@ -144,6 +144,12 @@ test("the date words", async () => {
   assert.equal(forth.eval('S" 2001-02-30" ISO8601>').error.code, -265);
 });
 
+test("the UUID word", async () => {
+  const forth = await fresh();
+  const r = forth.eval("42 SEED! ALSO UUID UUID4 TYPE");
+  assert.equal(r.output, "bdd73226-2feb-4e95-a8ef-e333b266f103");
+});
+
 test("the URL words", async () => {
   const forth = await fresh();
   const r = forth.eval('ALSO URL S" https://example.com:8080/a?x=1" URL-HOST TYPE');

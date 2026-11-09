@@ -96,7 +96,7 @@ fn civil_from_days(days: i64) -> (i64, i64, i64) {
 impl Forth {
     /// The next number of the generator behind RND and RANDOM (splitmix64),
     /// seeded from the clock the first time.
-    fn next_random(&mut self) -> u64 {
+    pub fn next_random(&mut self) -> u64 {
         let state = self.rng.unwrap_or_else(|| self.now_micros() ^ 0x9E37_79B9_7F4A_7C15);
         let state = state.wrapping_add(0x9E37_79B9_7F4A_7C15);
         self.rng = Some(state);

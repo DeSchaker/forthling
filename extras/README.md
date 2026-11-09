@@ -1,4 +1,4 @@
-# Small building blocks for forthling: CSV, encoding, date and URL words
+# Small building blocks for forthling: CSV, encoding, date, URL and UUID words
 
 The crate `forthling-extras` for [forthling](https://github.com/DeSchaker/forthling) holds
 small, boring building blocks that programs need when they talk to the world. Each is a word
@@ -6,8 +6,7 @@ list of its own. The crate is small, has no dependencies and only computes on te
 Forth memory, so it needs no permission: the words work in the sandbox, in the MCP server, in
 the Python module and in the playground, where they are built in.
 
-Now: the word lists `CSV`, `ENCODING`, `DATE` and `URL`. UUIDs are planned (issue
-#102 in the repository).
+Now: the word lists `CSV`, `ENCODING`, `DATE`, `URL` and `UUID`.
 
 ## Running
 
@@ -21,7 +20,7 @@ In a Rust program: `forth.install(&forthling_extras::Extras)`, or
 `forthling::cli::main(&[&forthling_extras::Extras])` for the whole program.
 
 `S" FORTHLING-EXTRAS" ENVIRONMENT?` gives `1 true` when the words are there. A program
-starts with `ALSO CSV`, `ALSO ENCODING`, `ALSO DATE` or `ALSO URL`.
+starts with `ALSO CSV`, `ALSO ENCODING`, `ALSO DATE`, `ALSO URL` or `ALSO UUID`.
 
 ## CSV
 
@@ -173,3 +172,16 @@ Not supported: the form encoding of HTML (a `+` for a space), which `PERCENT>` l
 purpose; building a URL from parts (join the pieces with `>PERCENT` on each value); resolving a
 relative reference against a base; punycode for non-ASCII host names. Reading counts against the step limit by
 the number of bytes, like the other extensions.
+
+## UUID
+
+A random UUID of version 4 (RFC 9562).
+
+| Word | Stack | Does |
+|------|-------|------|
+| `UUID4` | `( -- c-addr u )` | A UUID as 36 lower-case characters, such as `bdd73226-2feb-4e95-a8ef-e333b266f103`. The text is ALLOCATEd. |
+
+The numbers come from the generator behind `RANDOM` and `RND`, which starts from the clock.
+`SEED!` makes it repeatable, so `42 SEED!` followed by `UUID4` gives the same UUID every time
+(the example [examples/uuid.fs](examples/uuid.fs) does so, with its output in `uuid.out`). That
+generator is not a secure one: use these UUIDs as identifiers, not as secrets or tokens.

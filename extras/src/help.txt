@@ -4,6 +4,7 @@ CSV ( -- ) The word list of the CSV- words for comma-separated values. ALSO CSV 
 DATE ( -- ) The word list of the date and time words: ISO 8601, day of week and date arithmetic, on seconds since 1970 in UTC. ALSO DATE adds it to the search order.
 ENCODING ( -- ) The word list of base64, hex, SHA-256 and CRC-32. ALSO ENCODING adds it to the search order.
 URL ( -- ) The word list of percent-encoding and the words that split a URL into scheme, host, port, path, query and fragment. ALSO URL adds it to the search order.
+UUID ( -- ) The word list of UUID4, a random version 4 UUID. ALSO UUID adds it to the search order.
 [CSV]
 CSV-SEPARATOR ( char -- ) The separator between fields; a comma to begin with. 9 gives tabs, 59 semicolons.
 CSV-FIELD ( c-addr u -- rest-addr rest-u field-addr field-u last? ) The first field of the text without its quotes, and what is left; last? is true when the field ended its record. A doubled quote inside stays doubled (see CSV>STRING). ;; ALSO CSV S" ab,c" CSV-FIELD . TYPE 2DROP PREVIOUS => 0 ab
@@ -40,3 +41,5 @@ URL-PATH ( c-addr u -- c-addr' u' ) The path, empty when there is none. ;; ALSO 
 URL-QUERY ( c-addr u -- c-addr' u' ) The query after the ?, without the ?. ;; ALSO URL S" https://example.com/a?x=1&y=2#top" URL-QUERY TYPE PREVIOUS => x=1&y=2
 URL-FRAGMENT ( c-addr u -- c-addr' u' ) The fragment after the #, without the #. ;; ALSO URL S" https://example.com/a?x=1#top" URL-FRAGMENT TYPE PREVIOUS => top
 URL-PARAM ( query-addr query-u name-addr name-u -- value-addr value-u true | false ) The value of the first parameter of a query (a=1&b=2) with that name, as written (use PERCENT> to decode it); a name without = has an empty value. ;; ALSO URL S" a=1&b=2" S" b" URL-PARAM . TYPE PREVIOUS => -1 2
+[UUID]
+UUID4 ( -- c-addr u ) A random version 4 UUID as 36 lower-case characters (8-4-4-4-12), from the generator of RANDOM, so 7 SEED! makes it repeatable. The new text is ALLOCATEd. ;; ALSO UUID UUID4 NIP . PREVIOUS => 36

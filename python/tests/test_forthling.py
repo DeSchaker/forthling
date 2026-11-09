@@ -224,6 +224,10 @@ class AddWordTest(unittest.TestCase):
         with self.assertRaises(forthling.ForthError):
             f.interpret('S" http://host:80a/" URL-PORT')
 
+    def test_uuid(self):
+        f = forthling.Forth()
+        self.assertEqual(f.interpret("42 SEED! ALSO UUID UUID4 TYPE"), "bdd73226-2feb-4e95-a8ef-e333b266f103")
+
     def test_encoding(self):
         f = forthling.Forth()
         self.assertEqual(f.interpret('ALSO ENCODING S" foobar" >BASE64 TYPE'), "Zm9vYmFy")

@@ -505,6 +505,14 @@ fn url_words_are_there() {
 
 #[cfg(feature = "extras")]
 #[test]
+fn uuid_words_are_there() {
+    let mut s = server();
+    let r = eval(&mut s, "42 SEED! ALSO UUID UUID4 TYPE");
+    assert_eq!(r["structuredContent"]["output"], "bdd73226-2feb-4e95-a8ef-e333b266f103");
+}
+
+#[cfg(feature = "extras")]
+#[test]
 fn encoding_words_are_there() {
     let mut s = server();
     let r = eval(&mut s, "ALSO ENCODING S\" abc\" SHA-256 >HEX TYPE");

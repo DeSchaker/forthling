@@ -1,5 +1,5 @@
 //! Small building blocks for forthling, each a word list of its own: CSV, encodings
-//! and hashes, dates and URLs now, UUIDs to come. They only compute
+//! and hashes, dates, URLs and UUIDs. They only compute
 //! on text in the Forth memory, with no dependencies, so they need no
 //! permission and work in the sandbox, in the MCP server, in the Python module
 //! and in the playground. Strings that a word returns are `ALLOCATE`d, for the
@@ -19,6 +19,7 @@ mod csv;
 mod date;
 mod encoding;
 mod url;
+mod uuid;
 
 use forthling::{Cell, Extension, Forth, Res};
 
@@ -46,5 +47,6 @@ impl Extension for Extras {
         encoding::install(f);
         date::install(f);
         url::install(f);
+        uuid::install(f);
     }
 }
