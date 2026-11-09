@@ -1,6 +1,6 @@
 [package]
 name = "forthling-extras"
-version = "0.2.4"
+version = "0.2.5"
 edition = "2024"
 rust-version = "1.85"
 description = "Small building blocks for forthling: CSV, encoding, hash, date and URL words (and more to come), no dependencies"
@@ -18,7 +18,7 @@ name = "forthling-extras"
 path = "src/main.rs"
 
 [dependencies]
-forthling = { path = "..", version = "0.2.4" }
+forthling = { path = "..", version = "0.2.5" }
 
 [profile.release]
 # The profile of the core does not apply when it is a dependency, so this crate sets its own.

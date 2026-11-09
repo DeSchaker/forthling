@@ -1,6 +1,6 @@
 [package]
 name = "forthling-window"
-version = "0.2.4"
+version = "0.2.5"
 edition = "2024"
 rust-version = "1.85"
 description = "Window words for forthling, a Forth interpreter in Rust"
@@ -18,7 +18,7 @@ name = "forthling-window"
 path = "src/main.rs"
 
 [dependencies]
-forthling = { path = "..", version = "0.2.4" }
+forthling = { path = "..", version = "0.2.5" }
 minifb = "0.28"
 
 [profile.release]

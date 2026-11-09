@@ -177,7 +177,7 @@ The version is the same for `forthling`, `forthling-sqlite`, `forthling-regex`, 
 `mcp/mcpb/manifest.json`. `python/` and `web/` have a version of their own (0.1.0): they
 are not published through `release.yml` and are not raised with a release. To
 release: raise the version in the seven `Cargo.toml`, the path dependencies, `server.json` and `manifest.json`, and push a
-tag such as `v0.2.4`. `.github/workflows/release.yml` then publishes the crates to
+tag such as `v0.2.5`. `.github/workflows/release.yml` then publishes the crates to
 crates.io and the server to the MCP Registry, both through GitHub OIDC, without secrets.
 With every release, also change the `forthling = "0.x.y"` examples in `docs/install.md`.
 They name the full version (`"0.2.1"`), so they are easy to miss.

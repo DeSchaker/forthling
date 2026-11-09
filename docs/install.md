@@ -22,8 +22,8 @@ it.
 
   ```toml
   [dependencies]
-  forthling = "0.2.4"
-  forthling-sqlite = "0.2.4"
+  forthling = "0.2.5"
+  forthling-sqlite = "0.2.5"
   ```
 
   ```rust
