@@ -7,7 +7,7 @@ description = "Small building blocks for forthling: CSV, encoding, hash, date an
 license = "MIT"
 repository = "https://github.com/DeSchaker/forthling"
 readme = "README.md"
-keywords = ["forth", "csv", "base64", "sha256", "iso8601", "url", "interpreter"]
+keywords = ["forth", "csv", "base64", "url", "interpreter"]
 categories = ["text-processing", "parser-implementations"]
 
 # A workspace of its own, like the other extension crates.
